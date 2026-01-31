@@ -1,0 +1,1713 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Технологический стек | БайкалЛес ГИС</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">Технологический стек</h1>
+                    <p class="text-xs text-gray-400">Полное руководство по технологиям MVP</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                <a href="index.html" class="hover:text-blue-400 transition">Демо</a>
+                <a href="architecture.html" class="hover:text-blue-400 transition">Архитектура</a>
+                <a href="mvp-deployment.html" class="hover:text-green-400 transition">Развертывание</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="py-12 px-4">
+        <div class="max-w-7xl mx-auto text-center">
+            <span class="inline-block px-4 py-2 bg-purple-500/20 text-purple-400 rounded-full text-sm mb-4">
+                🛠️ Full Stack Guide
+            </span>
+            <h2 class="text-4xl font-bold mb-4">
+                Полный технологический стек MVP
+            </h2>
+            <p class="text-gray-400 max-w-3xl mx-auto">
+                Детальное описание каждой технологии, библиотеки и сервиса 
+                с примерами кода и инструкциями по интеграции
+            </p>
+        </div>
+    </section>
+
+    <!-- Stack Overview -->
+    <section class="px-4 py-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-4 mb-12">
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="text-4xl mb-3">🎨</div>
+                    <div class="text-2xl font-bold text-pink-400">Frontend</div>
+                    <div class="text-sm text-gray-400 mt-2">6 библиотек</div>
+                </div>
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="text-4xl mb-3">⚙️</div>
+                    <div class="text-2xl font-bold text-blue-400">Backend</div>
+                    <div class="text-sm text-gray-400 mt-2">8 компонентов</div>
+                </div>
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="text-4xl mb-3">🗄️</div>
+                    <div class="text-2xl font-bold text-cyan-400">Database</div>
+                    <div class="text-sm text-gray-400 mt-2">3 хранилища</div>
+                </div>
+                <div class="glass rounded-xl p-6 text-center">
+                    <div class="text-4xl mb-3">☁️</div>
+                    <div class="text-2xl font-bold text-green-400">DevOps</div>
+                    <div class="text-sm text-gray-400 mt-2">5 инструментов</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Frontend Stack -->
+    <section id="frontend" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="text-4xl">🎨</span>
+                <span class="bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent">Frontend Stack</span>
+            </h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- MapLibre GL JS -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center text-3xl">🗺️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">MapLibre GL JS</h3>
+                            <p class="text-gray-400 text-sm">Картографическая библиотека</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-blue-500/30 text-blue-300 px-2 py-0.5 rounded">v3.6.2</span>
+                                <span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">Open Source</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        Форк Mapbox GL JS с открытым исходным кодом. Использует WebGL для аппаратного ускорения 
+                        отрисовки векторных тайлов и растровых слоёв. Поддерживает стили Mapbox.
+                    </p>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm font-medium mb-2">Почему выбрали:</div>
+                        <ul class="text-sm text-gray-400 space-y-1">
+                            <li>✓ Бесплатный без ограничений API</li>
+                            <li>✓ Совместим с OpenStreetMap</li>
+                            <li>✓ Поддержка растровых тайлов TiTiler</li>
+                            <li>✓ Плагины для временных шкал</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Установка и инициализация</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment">// CDN подключение</span>
+&lt;link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"&gt;
+&lt;script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"&gt;&lt;/script&gt;
+
+<span class="syntax-comment">// Или через npm</span>
+npm install maplibre-gl
+
+<span class="syntax-comment">// Инициализация карты</span>
+<span class="syntax-keyword">const</span> map = <span class="syntax-keyword">new</span> maplibregl.<span class="syntax-function">Map</span>({
+    <span class="syntax-type">container</span>: <span class="syntax-string">'map'</span>,
+    <span class="syntax-type">style</span>: <span class="syntax-string">'https://demotiles.maplibre.org/style.json'</span>,
+    <span class="syntax-type">center</span>: [<span class="syntax-number">107.5</span>, <span class="syntax-number">53.5</span>], <span class="syntax-comment">// Байкал</span>
+    <span class="syntax-type">zoom</span>: <span class="syntax-number">7</span>
+});</pre>
+                    </div>
+                </div>
+
+                <!-- React -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-cyan-500/20 rounded-xl flex items-center justify-center text-3xl">⚛️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">React 18</h3>
+                            <p class="text-gray-400 text-sm">UI Framework</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded">v18.2.0</span>
+                                <span class="text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded">Meta</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        Библиотека для построения пользовательских интерфейсов. Concurrent Mode обеспечивает 
+                        плавную работу даже при загрузке тяжёлых слоёв карты.
+                    </p>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm font-medium mb-2">Ключевые пакеты:</div>
+                        <ul class="text-sm text-gray-400 space-y-1">
+                            <li>• <code class="bg-white/10 px-1 rounded">react-map-gl</code> — обёртка для MapLibre</li>
+                            <li>• <code class="bg-white/10 px-1 rounded">@tanstack/react-query</code> — кэширование API</li>
+                            <li>• <code class="bg-white/10 px-1 rounded">zustand</code> — state management</li>
+                            <li>• <code class="bg-white/10 px-1 rounded">react-chartjs-2</code> — графики</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Компонент карты</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> Map, { Source, Layer } <span class="syntax-keyword">from</span> <span class="syntax-string">'react-map-gl/maplibre'</span>;
+
+<span class="syntax-keyword">function</span> <span class="syntax-function">BaikalMap</span>() {
+  <span class="syntax-keyword">return</span> (
+    &lt;<span class="syntax-type">Map</span>
+      initialViewState={{
+        longitude: <span class="syntax-number">107.5</span>,
+        latitude: <span class="syntax-number">53.5</span>,
+        zoom: <span class="syntax-number">7</span>
+      }}
+      mapStyle=<span class="syntax-string">"https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"</span>
+    &gt;
+      &lt;<span class="syntax-type">Source</span> id=<span class="syntax-string">"ndvi"</span> type=<span class="syntax-string">"raster"</span> tiles={[ndviTileUrl]} /&gt;
+      &lt;<span class="syntax-type">Layer</span> id=<span class="syntax-string">"ndvi-layer"</span> type=<span class="syntax-string">"raster"</span> source=<span class="syntax-string">"ndvi"</span> /&gt;
+    &lt;/<span class="syntax-type">Map</span>&gt;
+  );
+}</pre>
+                    </div>
+                </div>
+
+                <!-- Tailwind CSS -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-teal-500/20 rounded-xl flex items-center justify-center text-3xl">🎨</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Tailwind CSS</h3>
+                            <p class="text-gray-400 text-sm">Utility-first CSS</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-teal-500/30 text-teal-300 px-2 py-0.5 rounded">v3.4.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        CSS-фреймворк для быстрой разработки интерфейсов. Идеален для MVP — 
+                        минимум кастомного CSS, максимум скорости разработки.
+                    </p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Пример glassmorphism карточки</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment">&lt;!-- Glass-эффект для панелей --&gt;</span>
+&lt;div class="<span class="syntax-string">bg-white/5 backdrop-blur-xl 
+            border border-white/10 
+            rounded-2xl p-6 
+            shadow-xl</span>"&gt;
+  &lt;h3 class="<span class="syntax-string">text-xl font-bold 
+              bg-gradient-to-r from-green-400 to-blue-400 
+              bg-clip-text text-transparent</span>"&gt;
+    Статистика лесов
+  &lt;/h3&gt;
+&lt;/div&gt;</pre>
+                    </div>
+                </div>
+
+                <!-- Chart.js -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-orange-500/20 rounded-xl flex items-center justify-center text-3xl">📊</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Chart.js</h3>
+                            <p class="text-gray-400 text-sm">Визуализация данных</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded">v4.4.1</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        Библиотека для создания интерактивных графиков. Используется для дашборда 
+                        с динамикой убыли лесов и статистикой пожаров.
+                    </p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>График динамики лесов</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">new</span> Chart(ctx, {
+  <span class="syntax-type">type</span>: <span class="syntax-string">'line'</span>,
+  <span class="syntax-type">data</span>: {
+    <span class="syntax-type">labels</span>: [<span class="syntax-string">'2015'</span>, <span class="syntax-string">'2016'</span>, ...],
+    <span class="syntax-type">datasets</span>: [{
+      <span class="syntax-type">label</span>: <span class="syntax-string">'Убыль лесов (тыс. га)'</span>,
+      <span class="syntax-type">data</span>: [<span class="syntax-number">95</span>, <span class="syntax-number">88</span>, <span class="syntax-number">102</span>, ...],
+      <span class="syntax-type">borderColor</span>: <span class="syntax-string">'#ef4444'</span>,
+      <span class="syntax-type">tension</span>: <span class="syntax-number">0.4</span>,
+      <span class="syntax-type">fill</span>: <span class="syntax-keyword">true</span>
+    }]
+  }
+});</pre>
+                    </div>
+                </div>
+
+                <!-- Turf.js -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center text-3xl">📐</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Turf.js</h3>
+                            <p class="text-gray-400 text-sm">Геопространственный анализ</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">v6.5.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        Модульная библиотека для работы с GeoJSON в браузере. 
+                        Расчёт площадей, пересечений, буферов без обращения к серверу.
+                    </p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Расчёт площади полигона</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> * <span class="syntax-keyword">as</span> turf <span class="syntax-keyword">from</span> <span class="syntax-string">'@turf/turf'</span>;
+
+<span class="syntax-comment">// Площадь зоны пожара в гектарах</span>
+<span class="syntax-keyword">const</span> fireZone = turf.<span class="syntax-function">polygon</span>([[...coords]]);
+<span class="syntax-keyword">const</span> areaHa = turf.<span class="syntax-function">area</span>(fireZone) / <span class="syntax-number">10000</span>;
+
+<span class="syntax-comment">// Пересечение с ООПТ</span>
+<span class="syntax-keyword">const</span> intersection = turf.<span class="syntax-function">intersect</span>(fireZone, protectedArea);
+
+<span class="syntax-comment">// Буфер 500м вокруг озера</span>
+<span class="syntax-keyword">const</span> buffer = turf.<span class="syntax-function">buffer</span>(baikalPolygon, <span class="syntax-number">500</span>, {units: <span class="syntax-string">'meters'</span>});</pre>
+                    </div>
+                </div>
+
+                <!-- PptxGenJS -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center text-3xl">📑</div>
+                        <div>
+                            <h3 class="text-xl font-bold">PptxGenJS</h3>
+                            <p class="text-gray-400 text-sm">Экспорт в PowerPoint</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-red-500/30 text-red-300 px-2 py-0.5 rounded">v3.12.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-300 mb-4">
+                        Генерация PPTX файлов из браузера. Экспорт снимков карты, графиков и таблиц 
+                        для презентаций инвесторам.
+                    </p>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Экспорт карты в слайд</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> pptxgen <span class="syntax-keyword">from</span> <span class="syntax-string">'pptxgenjs'</span>;
+<span class="syntax-keyword">import</span> html2canvas <span class="syntax-keyword">from</span> <span class="syntax-string">'html2canvas'</span>;
+
+<span class="syntax-keyword">async function</span> <span class="syntax-function">exportToPPTX</span>() {
+  <span class="syntax-keyword">const</span> pptx = <span class="syntax-keyword">new</span> pptxgen();
+  <span class="syntax-keyword">const</span> slide = pptx.<span class="syntax-function">addSlide</span>();
+  
+  <span class="syntax-comment">// Захват карты как изображения</span>
+  <span class="syntax-keyword">const</span> mapCanvas = <span class="syntax-keyword">await</span> <span class="syntax-function">html2canvas</span>(mapElement);
+  <span class="syntax-keyword">const</span> mapImage = mapCanvas.<span class="syntax-function">toDataURL</span>(<span class="syntax-string">'image/png'</span>);
+  
+  slide.<span class="syntax-function">addImage</span>({ data: mapImage, x: <span class="syntax-number">0.5</span>, y: <span class="syntax-number">1</span>, w: <span class="syntax-number">9</span>, h: <span class="syntax-number">5</span> });
+  slide.<span class="syntax-function">addText</span>(<span class="syntax-string">'Мониторинг лесов Байкала'</span>, { x: <span class="syntax-number">0.5</span>, y: <span class="syntax-number">0.3</span> });
+  
+  pptx.<span class="syntax-function">writeFile</span>({ fileName: <span class="syntax-string">'baikal-report.pptx'</span> });
+}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Backend Stack -->
+    <section id="backend" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="text-4xl">⚙️</span>
+                <span class="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">Backend Stack (Node.js + TypeScript)</span>
+            </h2>
+
+            <!-- Language Toggle -->
+            <div class="glass rounded-xl p-4 mb-6 flex items-center gap-4">
+                <span class="text-sm text-gray-400">Язык бэкенда:</span>
+                <div class="flex gap-2">
+                    <button class="px-4 py-2 bg-blue-500/30 text-blue-300 rounded-lg text-sm font-medium border border-blue-500/50">Node.js + TypeScript</button>
+                    <button class="px-4 py-2 bg-white/5 text-gray-400 rounded-lg text-sm hover:bg-white/10 transition">Python (FastAPI)</button>
+                </div>
+            </div>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Fastify + TypeScript -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center text-3xl">🚀</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Fastify + TypeScript</h3>
+                            <p class="text-gray-400 text-sm">Высокопроизводительный REST API</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-green-500/30 text-green-300 px-2 py-0.5 rounded">Fastify 4.x</span>
+                                <span class="text-xs bg-blue-500/30 text-blue-300 px-2 py-0.5 rounded">TypeScript 5.x</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm font-medium mb-2">Преимущества:</div>
+                        <ul class="text-sm text-gray-400 space-y-1">
+                            <li>✓ Скорость: ~77,000 req/sec (быстрее Express в 2x)</li>
+                            <li>✓ Встроенная валидация через JSON Schema</li>
+                            <li>✓ Автогенерация OpenAPI/Swagger</li>
+                            <li>✓ Полная типизация TypeScript</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/server.ts — Точка входа</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> Fastify <span class="syntax-keyword">from</span> <span class="syntax-string">'fastify'</span>;
+<span class="syntax-keyword">import</span> cors <span class="syntax-keyword">from</span> <span class="syntax-string">'@fastify/cors'</span>;
+<span class="syntax-keyword">import</span> swagger <span class="syntax-keyword">from</span> <span class="syntax-string">'@fastify/swagger'</span>;
+<span class="syntax-keyword">import</span> { eventsRoutes } <span class="syntax-keyword">from</span> <span class="syntax-string">'./routes/events'</span>;
+<span class="syntax-keyword">import</span> { tilesRoutes } <span class="syntax-keyword">from</span> <span class="syntax-string">'./routes/tiles'</span>;
+
+<span class="syntax-keyword">const</span> app = <span class="syntax-function">Fastify</span>({
+  <span class="syntax-type">logger</span>: <span class="syntax-keyword">true</span>
+});
+
+<span class="syntax-comment">// Plugins</span>
+app.<span class="syntax-function">register</span>(cors, { <span class="syntax-type">origin</span>: <span class="syntax-keyword">true</span> });
+app.<span class="syntax-function">register</span>(swagger, {
+  <span class="syntax-type">openapi</span>: {
+    <span class="syntax-type">info</span>: { <span class="syntax-type">title</span>: <span class="syntax-string">'БайкалЛес API'</span>, <span class="syntax-type">version</span>: <span class="syntax-string">'1.0.0'</span> }
+  }
+});
+
+<span class="syntax-comment">// Routes</span>
+app.<span class="syntax-function">register</span>(eventsRoutes, { <span class="syntax-type">prefix</span>: <span class="syntax-string">'/api/events'</span> });
+app.<span class="syntax-function">register</span>(tilesRoutes, { <span class="syntax-type">prefix</span>: <span class="syntax-string">'/api/tiles'</span> });
+
+app.<span class="syntax-function">listen</span>({ <span class="syntax-type">port</span>: <span class="syntax-number">3000</span>, <span class="syntax-type">host</span>: <span class="syntax-string">'0.0.0.0'</span> });</pre>
+                    </div>
+                </div>
+
+                <!-- TypeORM + PostGIS -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-orange-500/20 rounded-xl flex items-center justify-center text-3xl">🗄️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">TypeORM + PostGIS</h3>
+                            <p class="text-gray-400 text-sm">ORM с поддержкой геометрии</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded">TypeORM 0.3.x</span>
+                                <span class="text-xs bg-cyan-500/30 text-cyan-300 px-2 py-0.5 rounded">typeorm-geojson</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/entities/ForestEvent.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> { 
+  Entity, PrimaryGeneratedColumn, Column, Index 
+} <span class="syntax-keyword">from</span> <span class="syntax-string">'typeorm'</span>;
+<span class="syntax-keyword">import</span> { Geometry, Polygon } <span class="syntax-keyword">from</span> <span class="syntax-string">'geojson'</span>;
+
+<span class="syntax-keyword">export type</span> <span class="syntax-type">EventType</span> = <span class="syntax-string">'fire'</span> | <span class="syntax-string">'logging'</span> | <span class="syntax-string">'disease'</span>;
+<span class="syntax-keyword">export type</span> <span class="syntax-type">Severity</span> = <span class="syntax-string">'low'</span> | <span class="syntax-string">'medium'</span> | <span class="syntax-string">'high'</span> | <span class="syntax-string">'critical'</span>;
+
+<span class="syntax-function">@Entity</span>(<span class="syntax-string">'forest_events'</span>, { <span class="syntax-type">schema</span>: <span class="syntax-string">'gis'</span> })
+<span class="syntax-keyword">export class</span> <span class="syntax-type">ForestEvent</span> {
+  <span class="syntax-function">@PrimaryGeneratedColumn</span>()
+  <span class="syntax-variable">id</span>: <span class="syntax-type">number</span>;
+
+  <span class="syntax-function">@Column</span>({ <span class="syntax-type">type</span>: <span class="syntax-string">'varchar'</span>, <span class="syntax-type">length</span>: <span class="syntax-number">50</span> })
+  <span class="syntax-variable">eventType</span>: <span class="syntax-type">EventType</span>;
+
+  <span class="syntax-function">@Column</span>({ <span class="syntax-type">type</span>: <span class="syntax-string">'date'</span> })
+  <span class="syntax-variable">detectedDate</span>: <span class="syntax-type">Date</span>;
+
+  <span class="syntax-function">@Column</span>({ <span class="syntax-type">type</span>: <span class="syntax-string">'decimal'</span>, <span class="syntax-type">precision</span>: <span class="syntax-number">10</span>, <span class="syntax-type">scale</span>: <span class="syntax-number">2</span> })
+  <span class="syntax-variable">areaHa</span>: <span class="syntax-type">number</span>;
+
+  <span class="syntax-function">@Column</span>({ <span class="syntax-type">type</span>: <span class="syntax-string">'varchar'</span>, <span class="syntax-type">length</span>: <span class="syntax-number">20</span>, <span class="syntax-type">nullable</span>: <span class="syntax-keyword">true</span> })
+  <span class="syntax-variable">severity</span>: <span class="syntax-type">Severity</span>;
+
+  <span class="syntax-function">@Index</span>({ <span class="syntax-type">spatial</span>: <span class="syntax-keyword">true</span> })
+  <span class="syntax-function">@Column</span>({
+    <span class="syntax-type">type</span>: <span class="syntax-string">'geometry'</span>,
+    <span class="syntax-type">spatialFeatureType</span>: <span class="syntax-string">'Polygon'</span>,
+    <span class="syntax-type">srid</span>: <span class="syntax-number">4326</span>
+  })
+  <span class="syntax-variable">geom</span>: <span class="syntax-type">Polygon</span>;
+
+  <span class="syntax-function">@Column</span>({ <span class="syntax-type">type</span>: <span class="syntax-string">'jsonb'</span>, <span class="syntax-type">default</span>: {} })
+  <span class="syntax-variable">metadata</span>: <span class="syntax-type">Record</span>&lt;<span class="syntax-type">string</span>, <span class="syntax-type">unknown</span>&gt;;
+}</pre>
+                    </div>
+                </div>
+
+                <!-- GeoJSON API Route -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center text-3xl">🌍</div>
+                        <div>
+                            <h3 class="text-xl font-bold">GeoJSON API Routes</h3>
+                            <p class="text-gray-400 text-sm">REST endpoints с типизацией</p>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/routes/events.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> { FastifyPluginAsync } <span class="syntax-keyword">from</span> <span class="syntax-string">'fastify'</span>;
+<span class="syntax-keyword">import</span> { AppDataSource } <span class="syntax-keyword">from</span> <span class="syntax-string">'../database'</span>;
+<span class="syntax-keyword">import</span> { ForestEvent } <span class="syntax-keyword">from</span> <span class="syntax-string">'../entities/ForestEvent'</span>;
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">EventsQuery</span> {
+  eventType?: <span class="syntax-type">string</span>;
+  year?: <span class="syntax-type">number</span>;
+  bbox?: <span class="syntax-type">string</span>; <span class="syntax-comment">// "minX,minY,maxX,maxY"</span>
+}
+
+<span class="syntax-keyword">export const</span> eventsRoutes: <span class="syntax-type">FastifyPluginAsync</span> = <span class="syntax-keyword">async</span> (app) => {
+  <span class="syntax-keyword">const</span> repo = AppDataSource.<span class="syntax-function">getRepository</span>(ForestEvent);
+
+  app.<span class="syntax-function">get</span>&lt;{ Querystring: <span class="syntax-type">EventsQuery</span> }&gt;(<span class="syntax-string">'/geojson'</span>, <span class="syntax-keyword">async</span> (req) => {
+    <span class="syntax-keyword">const</span> { eventType, year, bbox } = req.query;
+    
+    <span class="syntax-keyword">let</span> qb = repo
+      .<span class="syntax-function">createQueryBuilder</span>(<span class="syntax-string">'e'</span>)
+      .<span class="syntax-function">select</span>([
+        <span class="syntax-string">'e.id'</span>, <span class="syntax-string">'e.eventType'</span>, <span class="syntax-string">'e.areaHa'</span>,
+        <span class="syntax-string">'ST_AsGeoJSON(e.geom)::json AS geometry'</span>
+      ]);
+
+    <span class="syntax-keyword">if</span> (eventType) {
+      qb = qb.<span class="syntax-function">andWhere</span>(<span class="syntax-string">'e.eventType = :eventType'</span>, { eventType });
+    }
+    <span class="syntax-keyword">if</span> (year) {
+      qb = qb.<span class="syntax-function">andWhere</span>(<span class="syntax-string">'EXTRACT(YEAR FROM e.detectedDate) = :year'</span>, { year });
+    }
+    <span class="syntax-keyword">if</span> (bbox) {
+      <span class="syntax-keyword">const</span> [minX, minY, maxX, maxY] = bbox.<span class="syntax-function">split</span>(<span class="syntax-string">','</span>).<span class="syntax-function">map</span>(Number);
+      qb = qb.<span class="syntax-function">andWhere</span>(
+        <span class="syntax-string">'ST_Intersects(e.geom, ST_MakeEnvelope(:minX, :minY, :maxX, :maxY, 4326))'</span>,
+        { minX, minY, maxX, maxY }
+      );
+    }
+
+    <span class="syntax-keyword">const</span> events = <span class="syntax-keyword">await</span> qb.<span class="syntax-function">getRawMany</span>();
+    
+    <span class="syntax-keyword">return</span> {
+      <span class="syntax-type">type</span>: <span class="syntax-string">'FeatureCollection'</span>,
+      <span class="syntax-type">features</span>: events.<span class="syntax-function">map</span>(e => ({
+        <span class="syntax-type">type</span>: <span class="syntax-string">'Feature'</span>,
+        <span class="syntax-type">geometry</span>: e.geometry,
+        <span class="syntax-type">properties</span>: { <span class="syntax-type">id</span>: e.id, <span class="syntax-type">eventType</span>: e.eventType, <span class="syntax-type">areaHa</span>: e.areaHa }
+      }))
+    };
+  });
+};</pre>
+                    </div>
+                </div>
+
+                <!-- AWS SDK v3 for S3 -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center text-3xl">☁️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">AWS SDK v3 (S3)</h3>
+                            <p class="text-gray-400 text-sm">Работа с Yandex Object Storage</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded">@aws-sdk/client-s3</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/services/storage.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> { 
+  S3Client, 
+  PutObjectCommand,
+  GetObjectCommand 
+} <span class="syntax-keyword">from</span> <span class="syntax-string">'@aws-sdk/client-s3'</span>;
+<span class="syntax-keyword">import</span> { getSignedUrl } <span class="syntax-keyword">from</span> <span class="syntax-string">'@aws-sdk/s3-request-presigner'</span>;
+
+<span class="syntax-comment">// Yandex Object Storage конфигурация</span>
+<span class="syntax-keyword">const</span> s3Client = <span class="syntax-keyword">new</span> <span class="syntax-function">S3Client</span>({
+  <span class="syntax-type">region</span>: <span class="syntax-string">'ru-central1'</span>,
+  <span class="syntax-type">endpoint</span>: <span class="syntax-string">'https://storage.yandexcloud.net'</span>,
+  <span class="syntax-type">credentials</span>: {
+    <span class="syntax-type">accessKeyId</span>: process.env.<span class="syntax-variable">YC_ACCESS_KEY</span>!,
+    <span class="syntax-type">secretAccessKey</span>: process.env.<span class="syntax-variable">YC_SECRET_KEY</span>!
+  }
+});
+
+<span class="syntax-keyword">const</span> BUCKET = process.env.<span class="syntax-variable">S3_BUCKET</span> || <span class="syntax-string">'baikal-forest-cog'</span>;
+
+<span class="syntax-keyword">export async function</span> <span class="syntax-function">uploadCOG</span>(
+  key: <span class="syntax-type">string</span>, 
+  body: <span class="syntax-type">Buffer</span>
+): <span class="syntax-type">Promise</span>&lt;<span class="syntax-type">string</span>&gt; {
+  <span class="syntax-keyword">await</span> s3Client.<span class="syntax-function">send</span>(<span class="syntax-keyword">new</span> <span class="syntax-function">PutObjectCommand</span>({
+    <span class="syntax-type">Bucket</span>: BUCKET,
+    <span class="syntax-type">Key</span>: key,
+    <span class="syntax-type">Body</span>: body,
+    <span class="syntax-type">ContentType</span>: <span class="syntax-string">'image/tiff'</span>
+  }));
+  <span class="syntax-keyword">return</span> <span class="syntax-string">`https://storage.yandexcloud.net/</span><span class="syntax-variable">${BUCKET}</span><span class="syntax-string">/</span><span class="syntax-variable">${key}</span><span class="syntax-string">`</span>;
+}
+
+<span class="syntax-keyword">export async function</span> <span class="syntax-function">getPresignedUrl</span>(
+  key: <span class="syntax-type">string</span>, 
+  expiresIn = <span class="syntax-number">3600</span>
+): <span class="syntax-type">Promise</span>&lt;<span class="syntax-type">string</span>&gt; {
+  <span class="syntax-keyword">const</span> command = <span class="syntax-keyword">new</span> <span class="syntax-function">GetObjectCommand</span>({ <span class="syntax-type">Bucket</span>: BUCKET, <span class="syntax-type">Key</span>: key });
+  <span class="syntax-keyword">return</span> <span class="syntax-function">getSignedUrl</span>(s3Client, command, { expiresIn });
+}</pre>
+                    </div>
+                </div>
+
+                <!-- TiTiler Proxy -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center text-3xl">🗺️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">TiTiler Proxy Service</h3>
+                            <p class="text-gray-400 text-sm">Интеграция с тайл-сервером</p>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/services/titiler.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> axios, { <span class="syntax-type">AxiosInstance</span> } <span class="syntax-keyword">from</span> <span class="syntax-string">'axios'</span>;
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">TileParams</span> {
+  url: <span class="syntax-type">string</span>;
+  expression?: <span class="syntax-type">string</span>;  <span class="syntax-comment">// e.g., "(b8-b4)/(b8+b4)" для NDVI</span>
+  colormap?: <span class="syntax-type">string</span>;
+  rescale?: <span class="syntax-type">string</span>;
+}
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">COGInfo</span> {
+  bounds: [<span class="syntax-type">number</span>, <span class="syntax-type">number</span>, <span class="syntax-type">number</span>, <span class="syntax-type">number</span>];
+  minzoom: <span class="syntax-type">number</span>;
+  maxzoom: <span class="syntax-type">number</span>;
+  band_descriptions: <span class="syntax-type">string</span>[][];
+}
+
+<span class="syntax-keyword">export class</span> <span class="syntax-type">TiTilerService</span> {
+  <span class="syntax-keyword">private</span> client: <span class="syntax-type">AxiosInstance</span>;
+
+  <span class="syntax-keyword">constructor</span>(baseURL = <span class="syntax-string">'http://titiler:8000'</span>) {
+    <span class="syntax-keyword">this</span>.client = axios.<span class="syntax-function">create</span>({ baseURL });
+  }
+
+  <span class="syntax-comment">// Получить URL для тайлов</span>
+  <span class="syntax-function">getTileUrl</span>(params: <span class="syntax-type">TileParams</span>): <span class="syntax-type">string</span> {
+    <span class="syntax-keyword">const</span> qs = <span class="syntax-keyword">new</span> <span class="syntax-type">URLSearchParams</span>();
+    qs.<span class="syntax-function">set</span>(<span class="syntax-string">'url'</span>, params.url);
+    <span class="syntax-keyword">if</span> (params.expression) qs.<span class="syntax-function">set</span>(<span class="syntax-string">'expression'</span>, params.expression);
+    <span class="syntax-keyword">if</span> (params.colormap) qs.<span class="syntax-function">set</span>(<span class="syntax-string">'colormap_name'</span>, params.colormap);
+    <span class="syntax-keyword">if</span> (params.rescale) qs.<span class="syntax-function">set</span>(<span class="syntax-string">'rescale'</span>, params.rescale);
+    
+    <span class="syntax-keyword">return</span> <span class="syntax-string">`/cog/tiles/{z}/{x}/{y}.png?</span><span class="syntax-variable">${qs}</span><span class="syntax-string">`</span>;
+  }
+
+  <span class="syntax-comment">// Получить метаданные COG</span>
+  <span class="syntax-keyword">async</span> <span class="syntax-function">getCOGInfo</span>(cogUrl: <span class="syntax-type">string</span>): <span class="syntax-type">Promise</span>&lt;<span class="syntax-type">COGInfo</span>&gt; {
+    <span class="syntax-keyword">const</span> { data } = <span class="syntax-keyword">await</span> <span class="syntax-keyword">this</span>.client.<span class="syntax-function">get</span>(<span class="syntax-string">'/cog/info'</span>, {
+      <span class="syntax-type">params</span>: { url: cogUrl }
+    });
+    <span class="syntax-keyword">return</span> data;
+  }
+
+  <span class="syntax-comment">// NDVI preset</span>
+  <span class="syntax-function">getNDVITileUrl</span>(cogUrl: <span class="syntax-type">string</span>): <span class="syntax-type">string</span> {
+    <span class="syntax-keyword">return</span> <span class="syntax-keyword">this</span>.<span class="syntax-function">getTileUrl</span>({
+      <span class="syntax-type">url</span>: cogUrl,
+      <span class="syntax-type">expression</span>: <span class="syntax-string">'(b8-b4)/(b8+b4)'</span>,
+      <span class="syntax-type">colormap</span>: <span class="syntax-string">'rdylgn'</span>,
+      <span class="syntax-type">rescale</span>: <span class="syntax-string">'-0.2,0.8'</span>
+    });
+  }
+}</pre>
+                    </div>
+                </div>
+
+                <!-- Bull Queue -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center text-3xl">📋</div>
+                        <div>
+                            <h3 class="text-xl font-bold">BullMQ + Redis</h3>
+                            <p class="text-gray-400 text-sm">Фоновые задачи обработки</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-red-500/30 text-red-300 px-2 py-0.5 rounded">BullMQ 4.x</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/queues/imageProcessor.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> { Queue, Worker, Job } <span class="syntax-keyword">from</span> <span class="syntax-string">'bullmq'</span>;
+<span class="syntax-keyword">import</span> { Redis } <span class="syntax-keyword">from</span> <span class="syntax-string">'ioredis'</span>;
+
+<span class="syntax-keyword">const</span> connection = <span class="syntax-keyword">new</span> <span class="syntax-function">Redis</span>(process.env.<span class="syntax-variable">REDIS_URL</span>!);
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">ProcessImageJob</span> {
+  sceneId: <span class="syntax-type">string</span>;
+  cogUrl: <span class="syntax-type">string</span>;
+  analysisType: <span class="syntax-string">'ndvi'</span> | <span class="syntax-string">'nbr'</span> | <span class="syntax-string">'classification'</span>;
+}
+
+<span class="syntax-comment">// Очередь задач</span>
+<span class="syntax-keyword">export const</span> imageQueue = <span class="syntax-keyword">new</span> Queue&lt;<span class="syntax-type">ProcessImageJob</span>&gt;(<span class="syntax-string">'image-processing'</span>, {
+  connection,
+  <span class="syntax-type">defaultJobOptions</span>: {
+    <span class="syntax-type">attempts</span>: <span class="syntax-number">3</span>,
+    <span class="syntax-type">backoff</span>: { <span class="syntax-type">type</span>: <span class="syntax-string">'exponential'</span>, <span class="syntax-type">delay</span>: <span class="syntax-number">5000</span> }
+  }
+});
+
+<span class="syntax-comment">// Воркер обработки</span>
+<span class="syntax-keyword">export const</span> imageWorker = <span class="syntax-keyword">new</span> Worker&lt;<span class="syntax-type">ProcessImageJob</span>&gt;(
+  <span class="syntax-string">'image-processing'</span>,
+  <span class="syntax-keyword">async</span> (job: <span class="syntax-type">Job</span>&lt;<span class="syntax-type">ProcessImageJob</span>&gt;) => {
+    <span class="syntax-keyword">const</span> { sceneId, cogUrl, analysisType } = job.data;
+    
+    job.<span class="syntax-function">log</span>(<span class="syntax-string">`Processing </span><span class="syntax-variable">${sceneId}</span><span class="syntax-string"> with </span><span class="syntax-variable">${analysisType}</span><span class="syntax-string">`</span>);
+    
+    <span class="syntax-comment">// 1. Скачать COG и рассчитать индекс</span>
+    <span class="syntax-keyword">const</span> result = <span class="syntax-keyword">await</span> <span class="syntax-function">calculateIndex</span>(cogUrl, analysisType);
+    
+    <span class="syntax-comment">// 2. Найти аномалии (изменения)</span>
+    <span class="syntax-keyword">const</span> changes = <span class="syntax-keyword">await</span> <span class="syntax-function">detectChanges</span>(result);
+    
+    <span class="syntax-comment">// 3. Сохранить в PostGIS</span>
+    <span class="syntax-keyword">await</span> <span class="syntax-function">saveToDatabase</span>(changes);
+    
+    <span class="syntax-keyword">return</span> { <span class="syntax-type">changesFound</span>: changes.length };
+  },
+  { connection, <span class="syntax-type">concurrency</span>: <span class="syntax-number">2</span> }
+);</pre>
+                    </div>
+                </div>
+
+                <!-- TiTiler -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center text-3xl">🗺️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">TiTiler</h3>
+                            <p class="text-gray-400 text-sm">Динамический тайловый сервер</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-purple-500/30 text-purple-300 px-2 py-0.5 rounded">latest</span>
+                                <span class="text-xs bg-blue-500/30 text-blue-300 px-2 py-0.5 rounded">GDAL 3.8</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm font-medium mb-2">Ключевые возможности:</div>
+                        <ul class="text-sm text-gray-400 space-y-1">
+                            <li>✓ Работа напрямую с COG в S3</li>
+                            <li>✓ Расчёт спектральных индексов на лету</li>
+                            <li>✓ Динамические colormaps</li>
+                            <li>✓ WMTS/XYZ endpoints</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Примеры API запросов</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment"># RGB Natural Color</span>
+GET /cog/tiles/<span class="syntax-number">10</span>/<span class="syntax-number">621</span>/<span class="syntax-number">339</span>.png
+  ?url=s3://bucket/sentinel2.tif
+  &bidx=<span class="syntax-number">4</span>&bidx=<span class="syntax-number">3</span>&bidx=<span class="syntax-number">2</span>
+  &rescale=<span class="syntax-number">0</span>,<span class="syntax-number">3000</span>
+
+<span class="syntax-comment"># NDVI с цветовой шкалой</span>
+GET /cog/tiles/<span class="syntax-number">10</span>/<span class="syntax-number">621</span>/<span class="syntax-number">339</span>.png
+  ?url=s3://bucket/sentinel2.tif
+  &expression=(b8-b4)/(b8%2Bb4)
+  &colormap_name=rdylgn
+  &rescale=-<span class="syntax-number">0.2</span>,<span class="syntax-number">0.8</span>
+
+<span class="syntax-comment"># NBR (Burn Ratio) для детекции пожаров</span>
+GET /cog/tiles/<span class="syntax-number">10</span>/<span class="syntax-number">621</span>/<span class="syntax-number">339</span>.png
+  ?url=s3://bucket/sentinel2.tif
+  &expression=(b8-b12)/(b8%2Bb12)
+  &colormap_name=hot_r</pre>
+                    </div>
+                </div>
+
+                <!-- SQLAlchemy + GeoAlchemy2 -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center text-3xl">🐍</div>
+                        <div>
+                            <h3 class="text-xl font-bold">SQLAlchemy + GeoAlchemy2</h3>
+                            <p class="text-gray-400 text-sm">ORM с поддержкой геометрии</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-yellow-500/30 text-yellow-300 px-2 py-0.5 rounded">v2.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Модель с геометрией</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">from</span> sqlalchemy <span class="syntax-keyword">import</span> Column, Integer, String, Date, Numeric
+<span class="syntax-keyword">from</span> geoalchemy2 <span class="syntax-keyword">import</span> Geometry
+<span class="syntax-keyword">from</span> sqlalchemy.orm <span class="syntax-keyword">import</span> DeclarativeBase
+
+<span class="syntax-keyword">class</span> <span class="syntax-type">Base</span>(DeclarativeBase):
+    <span class="syntax-keyword">pass</span>
+
+<span class="syntax-keyword">class</span> <span class="syntax-type">ForestEvent</span>(Base):
+    __tablename__ = <span class="syntax-string">'forest_events'</span>
+    __table_args__ = {<span class="syntax-string">'schema'</span>: <span class="syntax-string">'gis'</span>}
+    
+    id = Column(Integer, primary_key=<span class="syntax-keyword">True</span>)
+    event_type = Column(String(<span class="syntax-number">50</span>))  <span class="syntax-comment"># fire, logging, disease</span>
+    detected_date = Column(Date)
+    area_ha = Column(Numeric(<span class="syntax-number">10</span>, <span class="syntax-number">2</span>))
+    geom = Column(Geometry(<span class="syntax-string">'POLYGON'</span>, srid=<span class="syntax-number">4326</span>))
+
+<span class="syntax-comment"># Пространственный запрос</span>
+<span class="syntax-keyword">from</span> geoalchemy2.functions <span class="syntax-keyword">import</span> ST_Intersects, ST_Area
+
+events_in_bbox = session.<span class="syntax-function">query</span>(ForestEvent).<span class="syntax-function">filter</span>(
+    <span class="syntax-function">ST_Intersects</span>(ForestEvent.geom, bbox_polygon)
+).<span class="syntax-function">all</span>()</pre>
+                    </div>
+                </div>
+
+                <!-- Rasterio -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-indigo-500/20 rounded-xl flex items-center justify-center text-3xl">🛰️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Rasterio</h3>
+                            <p class="text-gray-400 text-sm">Работа с растрами в Python</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded">v1.3.9</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Конвертация в COG</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> rasterio
+<span class="syntax-keyword">from</span> rio_cogeo.cogeo <span class="syntax-keyword">import</span> cog_translate
+<span class="syntax-keyword">from</span> rio_cogeo.profiles <span class="syntax-keyword">import</span> cog_profiles
+
+<span class="syntax-keyword">def</span> <span class="syntax-function">convert_to_cog</span>(input_path, output_path):
+    <span class="syntax-string">"""Конвертация GeoTIFF в Cloud Optimized GeoTIFF"""</span>
+    
+    output_profile = cog_profiles.<span class="syntax-function">get</span>(<span class="syntax-string">"deflate"</span>)
+    output_profile.<span class="syntax-function">update</span>({
+        <span class="syntax-string">"blockxsize"</span>: <span class="syntax-number">512</span>,
+        <span class="syntax-string">"blockysize"</span>: <span class="syntax-number">512</span>,
+        <span class="syntax-string">"BIGTIFF"</span>: <span class="syntax-string">"IF_SAFER"</span>
+    })
+    
+    <span class="syntax-function">cog_translate</span>(
+        input_path,
+        output_path,
+        output_profile,
+        overview_level=<span class="syntax-number">5</span>,  <span class="syntax-comment"># Пирамиды</span>
+        overview_resampling=<span class="syntax-string">"average"</span>
+    )</pre>
+                    </div>
+                </div>
+
+                <!-- Celery -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-lime-500/20 rounded-xl flex items-center justify-center text-3xl">📋</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Celery + Redis</h3>
+                            <p class="text-gray-400 text-sm">Фоновые задачи</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-lime-500/30 text-lime-300 px-2 py-0.5 rounded">v5.3</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Задача обработки снимка</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">from</span> celery <span class="syntax-keyword">import</span> Celery
+
+app = <span class="syntax-function">Celery</span>(<span class="syntax-string">'tasks'</span>, broker=<span class="syntax-string">'redis://redis:6379'</span>)
+
+<span class="syntax-keyword">@app.task</span>(bind=<span class="syntax-keyword">True</span>, max_retries=<span class="syntax-number">3</span>)
+<span class="syntax-keyword">def</span> <span class="syntax-function">process_satellite_image</span>(self, scene_id: str):
+    <span class="syntax-string">"""Обработка спутникового снимка в фоне"""</span>
+    <span class="syntax-keyword">try</span>:
+        <span class="syntax-comment"># 1. Скачивание с STAC каталога</span>
+        cog_url = <span class="syntax-function">download_from_stac</span>(scene_id)
+        
+        <span class="syntax-comment"># 2. Расчёт NDVI</span>
+        ndvi = <span class="syntax-function">calculate_ndvi</span>(cog_url)
+        
+        <span class="syntax-comment"># 3. Детекция изменений</span>
+        changes = <span class="syntax-function">detect_changes</span>(ndvi, previous_ndvi)
+        
+        <span class="syntax-comment"># 4. Сохранение в PostGIS</span>
+        <span class="syntax-function">save_to_database</span>(changes)
+        
+        <span class="syntax-keyword">return</span> {<span class="syntax-string">"status"</span>: <span class="syntax-string">"completed"</span>, <span class="syntax-string">"changes"</span>: len(changes)}
+    <span class="syntax-keyword">except</span> Exception <span class="syntax-keyword">as</span> exc:
+        self.<span class="syntax-function">retry</span>(exc=exc, countdown=<span class="syntax-number">60</span>)</pre>
+                    </div>
+                </div>
+
+                <!-- Boto3 -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-orange-500/20 rounded-xl flex items-center justify-center text-3xl">☁️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Boto3</h3>
+                            <p class="text-gray-400 text-sm">S3-совместимый клиент</p>
+                            <div class="flex gap-2 mt-1">
+                                <span class="text-xs bg-orange-500/30 text-orange-300 px-2 py-0.5 rounded">v1.34</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Работа с Yandex Object Storage</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> boto3
+<span class="syntax-keyword">from</span> botocore.config <span class="syntax-keyword">import</span> Config
+
+<span class="syntax-comment"># Клиент для Yandex Object Storage</span>
+s3 = boto3.<span class="syntax-function">client</span>(
+    <span class="syntax-string">'s3'</span>,
+    endpoint_url=<span class="syntax-string">'https://storage.yandexcloud.net'</span>,
+    aws_access_key_id=<span class="syntax-string">'YOUR_ACCESS_KEY'</span>,
+    aws_secret_access_key=<span class="syntax-string">'YOUR_SECRET_KEY'</span>,
+    region_name=<span class="syntax-string">'ru-central1'</span>,
+    config=<span class="syntax-function">Config</span>(signature_version=<span class="syntax-string">'s3v4'</span>)
+)
+
+<span class="syntax-comment"># Загрузка COG файла</span>
+s3.<span class="syntax-function">upload_file</span>(
+    <span class="syntax-string">'local_image.tif'</span>,
+    <span class="syntax-string">'baikal-forest-cog'</span>,
+    <span class="syntax-string">'sentinel2/2024/T48UXA.tif'</span>,
+    ExtraArgs={<span class="syntax-string">'ContentType'</span>: <span class="syntax-string">'image/tiff'</span>}
+)
+
+<span class="syntax-comment"># Генерация presigned URL</span>
+url = s3.<span class="syntax-function">generate_presigned_url</span>(
+    <span class="syntax-string">'get_object'</span>,
+    Params={<span class="syntax-string">'Bucket'</span>: <span class="syntax-string">'baikal-forest-cog'</span>, <span class="syntax-string">'Key'</span>: <span class="syntax-string">'file.tif'</span>},
+    ExpiresIn=<span class="syntax-number">3600</span>
+)</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Database Stack -->
+    <section id="database" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="text-4xl">🗄️</span>
+                <span class="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">Database Stack</span>
+            </h2>
+
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- PostgreSQL + PostGIS -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center text-3xl">🐘</div>
+                        <div>
+                            <h3 class="text-xl font-bold">PostgreSQL + PostGIS</h3>
+                            <p class="text-gray-400 text-sm">Пространственная СУБД</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Версии</div>
+                            <div class="text-xs text-gray-400">PostgreSQL 15 + PostGIS 3.3</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Docker образ</div>
+                            <div class="text-xs text-gray-400 mono">postgis/postgis:15-3.3-alpine</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-sm font-medium mb-2">Хранимые данные:</div>
+                    <ul class="text-sm text-gray-400 space-y-1">
+                        <li>• Границы лесничеств (MultiPolygon)</li>
+                        <li>• События: пожары, рубки (Polygon)</li>
+                        <li>• Метаданные снимков (JSONB)</li>
+                        <li>• Временные ряды NDVI</li>
+                    </ul>
+                </div>
+
+                <!-- Redis -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-red-500/20 rounded-xl flex items-center justify-center text-3xl">⚡</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Redis</h3>
+                            <p class="text-gray-400 text-sm">In-Memory кэш</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Версия</div>
+                            <div class="text-xs text-gray-400">Redis 7 Alpine</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Память</div>
+                            <div class="text-xs text-gray-400">512 MB (allkeys-lru)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-sm font-medium mb-2">Использование:</div>
+                    <ul class="text-sm text-gray-400 space-y-1">
+                        <li>• Кэш тайлов TiTiler</li>
+                        <li>• Очередь задач Celery</li>
+                        <li>• Сессии пользователей</li>
+                        <li>• Rate limiting API</li>
+                    </ul>
+                </div>
+
+                <!-- Yandex Object Storage -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center text-3xl">☁️</div>
+                        <div>
+                            <h3 class="text-xl font-bold">Yandex Object Storage</h3>
+                            <p class="text-gray-400 text-sm">S3-совместимое хранилище</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Endpoint</div>
+                            <div class="text-xs text-gray-400 mono">storage.yandexcloud.net</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="text-sm font-medium">Формат</div>
+                            <div class="text-xs text-gray-400">Cloud Optimized GeoTIFF</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-sm font-medium mb-2">Структура бакета:</div>
+                    <pre class="text-xs text-gray-400 mono bg-white/5 p-3 rounded-lg">baikal-forest-cog/
+├── sentinel2/
+│   └── 2024/
+│       └── T48UXA_20240115.tif
+├── landsat/
+├── derivatives/
+│   ├── ndvi/
+│   └── nbr/
+└── exports/</pre>
+                </div>
+            </div>
+
+            <!-- Database Schema -->
+            <div class="glass rounded-2xl p-6 mt-6">
+                <h3 class="text-xl font-bold mb-4">📊 Схема базы данных</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>SQL — Полная схема для PostGIS</span>
+                    </div>
+                    <pre class="code-content mono text-xs"><span class="syntax-comment">-- Схема для ГИС данных</span>
+<span class="syntax-keyword">CREATE SCHEMA IF NOT EXISTS</span> gis;
+
+<span class="syntax-comment">-- Расширения</span>
+<span class="syntax-keyword">CREATE EXTENSION IF NOT EXISTS</span> postgis;
+<span class="syntax-keyword">CREATE EXTENSION IF NOT EXISTS</span> postgis_raster;
+
+<span class="syntax-comment">-- Таблица регионов БПТ</span>
+<span class="syntax-keyword">CREATE TABLE</span> gis.regions (
+    id <span class="syntax-type">SERIAL PRIMARY KEY</span>,
+    name <span class="syntax-type">VARCHAR(255)</span> <span class="syntax-keyword">NOT NULL</span>,
+    region_type <span class="syntax-type">VARCHAR(50)</span>,  <span class="syntax-comment">-- oblast, republic, krai</span>
+    area_ha <span class="syntax-type">NUMERIC(12,2)</span>,
+    forest_cover_pct <span class="syntax-type">NUMERIC(5,2)</span>,
+    geom <span class="syntax-type">GEOMETRY(MultiPolygon, 4326)</span>
+);
+
+<span class="syntax-comment">-- Таблица лесничеств</span>
+<span class="syntax-keyword">CREATE TABLE</span> gis.forest_districts (
+    id <span class="syntax-type">SERIAL PRIMARY KEY</span>,
+    name <span class="syntax-type">VARCHAR(255)</span> <span class="syntax-keyword">NOT NULL</span>,
+    region_id <span class="syntax-type">INTEGER REFERENCES</span> gis.regions(id),
+    area_ha <span class="syntax-type">NUMERIC(12,2)</span>,
+    conifer_pct <span class="syntax-type">NUMERIC(5,2)</span>,
+    geom <span class="syntax-type">GEOMETRY(MultiPolygon, 4326)</span>
+);
+
+<span class="syntax-comment">-- Таблица событий (пожары, вырубки, болезни)</span>
+<span class="syntax-keyword">CREATE TABLE</span> gis.forest_events (
+    id <span class="syntax-type">SERIAL PRIMARY KEY</span>,
+    event_type <span class="syntax-type">VARCHAR(50)</span> <span class="syntax-keyword">NOT NULL</span>,
+    severity <span class="syntax-type">VARCHAR(20)</span>,  <span class="syntax-comment">-- low, medium, high, critical</span>
+    detected_date <span class="syntax-type">DATE</span> <span class="syntax-keyword">NOT NULL</span>,
+    confirmed_date <span class="syntax-type">DATE</span>,
+    area_ha <span class="syntax-type">NUMERIC(10,2)</span>,
+    satellite_source <span class="syntax-type">VARCHAR(50)</span>,  <span class="syntax-comment">-- sentinel2, landsat8</span>
+    scene_id <span class="syntax-type">VARCHAR(100)</span>,
+    confidence <span class="syntax-type">NUMERIC(5,2)</span>,  <span class="syntax-comment">-- 0-100%</span>
+    geom <span class="syntax-type">GEOMETRY(Polygon, 4326)</span>,
+    metadata <span class="syntax-type">JSONB</span> <span class="syntax-keyword">DEFAULT</span> <span class="syntax-string">'{}'</span>
+);
+
+<span class="syntax-comment">-- Таблица временных рядов NDVI</span>
+<span class="syntax-keyword">CREATE TABLE</span> gis.ndvi_timeseries (
+    id <span class="syntax-type">SERIAL PRIMARY KEY</span>,
+    district_id <span class="syntax-type">INTEGER REFERENCES</span> gis.forest_districts(id),
+    observation_date <span class="syntax-type">DATE</span> <span class="syntax-keyword">NOT NULL</span>,
+    mean_ndvi <span class="syntax-type">NUMERIC(6,4)</span>,
+    min_ndvi <span class="syntax-type">NUMERIC(6,4)</span>,
+    max_ndvi <span class="syntax-type">NUMERIC(6,4)</span>,
+    cloud_cover_pct <span class="syntax-type">NUMERIC(5,2)</span>
+);
+
+<span class="syntax-comment">-- Пространственные индексы GIST</span>
+<span class="syntax-keyword">CREATE INDEX</span> idx_regions_geom <span class="syntax-keyword">ON</span> gis.regions <span class="syntax-keyword">USING</span> GIST (geom);
+<span class="syntax-keyword">CREATE INDEX</span> idx_districts_geom <span class="syntax-keyword">ON</span> gis.forest_districts <span class="syntax-keyword">USING</span> GIST (geom);
+<span class="syntax-keyword">CREATE INDEX</span> idx_events_geom <span class="syntax-keyword">ON</span> gis.forest_events <span class="syntax-keyword">USING</span> GIST (geom);
+
+<span class="syntax-comment">-- Индексы для фильтрации</span>
+<span class="syntax-keyword">CREATE INDEX</span> idx_events_type_date <span class="syntax-keyword">ON</span> gis.forest_events (event_type, detected_date);
+<span class="syntax-keyword">CREATE INDEX</span> idx_ndvi_district_date <span class="syntax-keyword">ON</span> gis.ndvi_timeseries (district_id, observation_date);</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Node.js Project Config -->
+    <section id="nodejs-config" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="text-4xl">📦</span>
+                <span class="bg-gradient-to-r from-green-400 to-teal-400 bg-clip-text text-transparent">Node.js Project Configuration</span>
+            </h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- package.json -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">📄 package.json</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>backend/package.json</span>
+                        </div>
+                        <pre class="code-content mono text-xs">{
+  <span class="syntax-string">"name"</span>: <span class="syntax-string">"baikal-gis-api"</span>,
+  <span class="syntax-string">"version"</span>: <span class="syntax-string">"1.0.0"</span>,
+  <span class="syntax-string">"type"</span>: <span class="syntax-string">"module"</span>,
+  <span class="syntax-string">"scripts"</span>: {
+    <span class="syntax-string">"dev"</span>: <span class="syntax-string">"tsx watch src/server.ts"</span>,
+    <span class="syntax-string">"build"</span>: <span class="syntax-string">"tsc"</span>,
+    <span class="syntax-string">"start"</span>: <span class="syntax-string">"node dist/server.js"</span>,
+    <span class="syntax-string">"db:migrate"</span>: <span class="syntax-string">"typeorm migration:run"</span>,
+    <span class="syntax-string">"db:generate"</span>: <span class="syntax-string">"typeorm migration:generate"</span>,
+    <span class="syntax-string">"lint"</span>: <span class="syntax-string">"eslint src --ext .ts"</span>,
+    <span class="syntax-string">"test"</span>: <span class="syntax-string">"vitest"</span>
+  },
+  <span class="syntax-string">"dependencies"</span>: {
+    <span class="syntax-comment">// Web Framework</span>
+    <span class="syntax-string">"fastify"</span>: <span class="syntax-string">"^4.25.2"</span>,
+    <span class="syntax-string">"@fastify/cors"</span>: <span class="syntax-string">"^8.5.0"</span>,
+    <span class="syntax-string">"@fastify/swagger"</span>: <span class="syntax-string">"^8.12.0"</span>,
+    <span class="syntax-string">"@fastify/swagger-ui"</span>: <span class="syntax-string">"^2.1.0"</span>,
+    
+    <span class="syntax-comment">// Database</span>
+    <span class="syntax-string">"typeorm"</span>: <span class="syntax-string">"^0.3.19"</span>,
+    <span class="syntax-string">"pg"</span>: <span class="syntax-string">"^8.11.3"</span>,
+    <span class="syntax-string">"typeorm-naming-strategies"</span>: <span class="syntax-string">"^4.1.0"</span>,
+    
+    <span class="syntax-comment">// AWS S3 (Yandex compatible)</span>
+    <span class="syntax-string">"@aws-sdk/client-s3"</span>: <span class="syntax-string">"^3.490.0"</span>,
+    <span class="syntax-string">"@aws-sdk/s3-request-presigner"</span>: <span class="syntax-string">"^3.490.0"</span>,
+    
+    <span class="syntax-comment">// Queue & Cache</span>
+    <span class="syntax-string">"bullmq"</span>: <span class="syntax-string">"^5.1.1"</span>,
+    <span class="syntax-string">"ioredis"</span>: <span class="syntax-string">"^5.3.2"</span>,
+    
+    <span class="syntax-comment">// GeoSpatial</span>
+    <span class="syntax-string">"@turf/turf"</span>: <span class="syntax-string">"^6.5.0"</span>,
+    <span class="syntax-string">"geojson"</span>: <span class="syntax-string">"^0.5.0"</span>,
+    <span class="syntax-string">"wkx"</span>: <span class="syntax-string">"^0.5.0"</span>,
+    
+    <span class="syntax-comment">// Utilities</span>
+    <span class="syntax-string">"axios"</span>: <span class="syntax-string">"^1.6.5"</span>,
+    <span class="syntax-string">"dotenv"</span>: <span class="syntax-string">"^16.3.1"</span>,
+    <span class="syntax-string">"zod"</span>: <span class="syntax-string">"^3.22.4"</span>,
+    <span class="syntax-string">"pino"</span>: <span class="syntax-string">"^8.17.2"</span>
+  },
+  <span class="syntax-string">"devDependencies"</span>: {
+    <span class="syntax-string">"typescript"</span>: <span class="syntax-string">"^5.3.3"</span>,
+    <span class="syntax-string">"tsx"</span>: <span class="syntax-string">"^4.7.0"</span>,
+    <span class="syntax-string">"@types/node"</span>: <span class="syntax-string">"^20.10.8"</span>,
+    <span class="syntax-string">"@types/geojson"</span>: <span class="syntax-string">"^7946.0.13"</span>,
+    <span class="syntax-string">"vitest"</span>: <span class="syntax-string">"^1.2.0"</span>,
+    <span class="syntax-string">"eslint"</span>: <span class="syntax-string">"^8.56.0"</span>,
+    <span class="syntax-string">"@typescript-eslint/eslint-plugin"</span>: <span class="syntax-string">"^6.18.1"</span>
+  }
+}</pre>
+                    </div>
+                </div>
+
+                <!-- tsconfig.json -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">⚙️ tsconfig.json</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>backend/tsconfig.json</span>
+                        </div>
+                        <pre class="code-content mono text-xs">{
+  <span class="syntax-string">"compilerOptions"</span>: {
+    <span class="syntax-comment">// Современный ES модульный вывод</span>
+    <span class="syntax-string">"target"</span>: <span class="syntax-string">"ES2022"</span>,
+    <span class="syntax-string">"module"</span>: <span class="syntax-string">"NodeNext"</span>,
+    <span class="syntax-string">"moduleResolution"</span>: <span class="syntax-string">"NodeNext"</span>,
+    
+    <span class="syntax-comment">// Строгая типизация</span>
+    <span class="syntax-string">"strict"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"noImplicitAny"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"strictNullChecks"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"noUnusedLocals"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"noUnusedParameters"</span>: <span class="syntax-keyword">true</span>,
+    
+    <span class="syntax-comment">// Пути</span>
+    <span class="syntax-string">"rootDir"</span>: <span class="syntax-string">"./src"</span>,
+    <span class="syntax-string">"outDir"</span>: <span class="syntax-string">"./dist"</span>,
+    <span class="syntax-string">"baseUrl"</span>: <span class="syntax-string">"./src"</span>,
+    <span class="syntax-string">"paths"</span>: {
+      <span class="syntax-string">"@/*"</span>: [<span class="syntax-string">"./*"</span>],
+      <span class="syntax-string">"@entities/*"</span>: [<span class="syntax-string">"entities/*"</span>],
+      <span class="syntax-string">"@services/*"</span>: [<span class="syntax-string">"services/*"</span>],
+      <span class="syntax-string">"@routes/*"</span>: [<span class="syntax-string">"routes/*"</span>]
+    },
+    
+    <span class="syntax-comment">// Совместимость</span>
+    <span class="syntax-string">"esModuleInterop"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"skipLibCheck"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"forceConsistentCasingInFileNames"</span>: <span class="syntax-keyword">true</span>,
+    
+    <span class="syntax-comment">// Декораторы для TypeORM</span>
+    <span class="syntax-string">"experimentalDecorators"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"emitDecoratorMetadata"</span>: <span class="syntax-keyword">true</span>,
+    
+    <span class="syntax-comment">// Source maps для отладки</span>
+    <span class="syntax-string">"sourceMap"</span>: <span class="syntax-keyword">true</span>,
+    <span class="syntax-string">"declaration"</span>: <span class="syntax-keyword">true</span>
+  },
+  <span class="syntax-string">"include"</span>: [<span class="syntax-string">"src/**/*"</span>],
+  <span class="syntax-string">"exclude"</span>: [<span class="syntax-string">"node_modules"</span>, <span class="syntax-string">"dist"</span>]
+}</pre>
+                    </div>
+                </div>
+
+                <!-- Database Config -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">🐘 TypeORM Data Source</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>src/database.ts</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-keyword">import</span> { DataSource } <span class="syntax-keyword">from</span> <span class="syntax-string">'typeorm'</span>;
+<span class="syntax-keyword">import</span> { SnakeNamingStrategy } <span class="syntax-keyword">from</span> <span class="syntax-string">'typeorm-naming-strategies'</span>;
+<span class="syntax-keyword">import</span> { ForestEvent } <span class="syntax-keyword">from</span> <span class="syntax-string">'./entities/ForestEvent'</span>;
+<span class="syntax-keyword">import</span> { ForestDistrict } <span class="syntax-keyword">from</span> <span class="syntax-string">'./entities/ForestDistrict'</span>;
+<span class="syntax-keyword">import</span> { NdviTimeseries } <span class="syntax-keyword">from</span> <span class="syntax-string">'./entities/NdviTimeseries'</span>;
+
+<span class="syntax-keyword">export const</span> AppDataSource = <span class="syntax-keyword">new</span> <span class="syntax-function">DataSource</span>({
+  <span class="syntax-type">type</span>: <span class="syntax-string">'postgres'</span>,
+  
+  <span class="syntax-comment">// Подключение через переменные окружения</span>
+  <span class="syntax-type">host</span>: process.env.<span class="syntax-variable">DB_HOST</span> || <span class="syntax-string">'localhost'</span>,
+  <span class="syntax-type">port</span>: <span class="syntax-function">parseInt</span>(process.env.<span class="syntax-variable">DB_PORT</span> || <span class="syntax-string">'5432'</span>),
+  <span class="syntax-type">username</span>: process.env.<span class="syntax-variable">DB_USER</span> || <span class="syntax-string">'gis_admin'</span>,
+  <span class="syntax-type">password</span>: process.env.<span class="syntax-variable">DB_PASSWORD</span>,
+  <span class="syntax-type">database</span>: process.env.<span class="syntax-variable">DB_NAME</span> || <span class="syntax-string">'baikal_gis'</span>,
+  
+  <span class="syntax-comment">// Схема для ГИС данных</span>
+  <span class="syntax-type">schema</span>: <span class="syntax-string">'gis'</span>,
+  
+  <span class="syntax-comment">// Entities</span>
+  <span class="syntax-type">entities</span>: [ForestEvent, ForestDistrict, NdviTimeseries],
+  
+  <span class="syntax-comment">// Миграции</span>
+  <span class="syntax-type">migrations</span>: [<span class="syntax-string">'src/migrations/*.ts'</span>],
+  
+  <span class="syntax-comment">// snake_case для PostgreSQL</span>
+  <span class="syntax-type">namingStrategy</span>: <span class="syntax-keyword">new</span> <span class="syntax-function">SnakeNamingStrategy</span>(),
+  
+  <span class="syntax-comment">// Логирование SQL в dev режиме</span>
+  <span class="syntax-type">logging</span>: process.env.<span class="syntax-variable">NODE_ENV</span> === <span class="syntax-string">'development'</span>,
+  
+  <span class="syntax-comment">// Синхронизация схемы (только для dev!)</span>
+  <span class="syntax-type">synchronize</span>: <span class="syntax-keyword">false</span>
+});
+
+<span class="syntax-comment">// Инициализация подключения</span>
+<span class="syntax-keyword">export async function</span> <span class="syntax-function">initDatabase</span>(): <span class="syntax-type">Promise</span>&lt;<span class="syntax-type">void</span>&gt; {
+  <span class="syntax-keyword">await</span> AppDataSource.<span class="syntax-function">initialize</span>();
+  console.<span class="syntax-function">log</span>(<span class="syntax-string">'📦 Database connected'</span>);
+  
+  <span class="syntax-comment">// Проверка PostGIS</span>
+  <span class="syntax-keyword">const</span> result = <span class="syntax-keyword">await</span> AppDataSource.<span class="syntax-function">query</span>(
+    <span class="syntax-string">'SELECT PostGIS_Version()'</span>
+  );
+  console.<span class="syntax-function">log</span>(<span class="syntax-string">`🌍 PostGIS: </span><span class="syntax-variable">${result[0].postgis_version}</span><span class="syntax-string">`</span>);
+}</pre>
+                    </div>
+                </div>
+
+                <!-- Environment Variables -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">🔐 Environment Variables</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>.env.example</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment"># === SERVER ===</span>
+<span class="syntax-variable">NODE_ENV</span>=production
+<span class="syntax-variable">PORT</span>=3000
+<span class="syntax-variable">HOST</span>=0.0.0.0
+
+<span class="syntax-comment"># === DATABASE (PostgreSQL + PostGIS) ===</span>
+<span class="syntax-variable">DB_HOST</span>=postgres
+<span class="syntax-variable">DB_PORT</span>=5432
+<span class="syntax-variable">DB_USER</span>=gis_admin
+<span class="syntax-variable">DB_PASSWORD</span>=your_secure_password_here
+<span class="syntax-variable">DB_NAME</span>=baikal_gis
+
+<span class="syntax-comment"># === REDIS ===</span>
+<span class="syntax-variable">REDIS_URL</span>=redis://redis:6379
+
+<span class="syntax-comment"># === YANDEX OBJECT STORAGE (S3) ===</span>
+<span class="syntax-variable">YC_ACCESS_KEY</span>=YCAJE...your_key
+<span class="syntax-variable">YC_SECRET_KEY</span>=YCO...your_secret
+<span class="syntax-variable">S3_BUCKET</span>=baikal-forest-cog
+<span class="syntax-variable">S3_ENDPOINT</span>=https://storage.yandexcloud.net
+<span class="syntax-variable">S3_REGION</span>=ru-central1
+
+<span class="syntax-comment"># === TITILER ===</span>
+<span class="syntax-variable">TITILER_URL</span>=http://titiler:8000
+
+<span class="syntax-comment"># === JWT AUTH ===</span>
+<span class="syntax-variable">JWT_SECRET</span>=openssl_rand_hex_32
+<span class="syntax-variable">JWT_EXPIRES_IN</span>=7d
+
+<span class="syntax-comment"># === LOGGING ===</span>
+<span class="syntax-variable">LOG_LEVEL</span>=info</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DevOps Stack -->
+    <section id="devops" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 flex items-center gap-3">
+                <span class="text-4xl">☁️</span>
+                <span class="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">DevOps Stack (Node.js)</span>
+            </h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Docker Compose Full -->
+                <div class="glass rounded-2xl p-6 lg:col-span-2">
+                    <h3 class="text-xl font-bold mb-4">🐳 Docker Compose (Node.js Stack)</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>docker-compose.yml</span>
+                        </div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">version</span>: <span class="syntax-string">'3.8'</span>
+
+<span class="syntax-keyword">services</span>:
+  <span class="syntax-comment"># === БАЗА ДАННЫХ ===</span>
+  <span class="syntax-type">postgres</span>:
+    <span class="syntax-keyword">image</span>: postgis/postgis:15-3.3-alpine
+    <span class="syntax-keyword">container_name</span>: baikal_db
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">environment</span>:
+      <span class="syntax-variable">POSTGRES_DB</span>: baikal_gis
+      <span class="syntax-variable">POSTGRES_USER</span>: ${DB_USER:-gis_admin}
+      <span class="syntax-variable">POSTGRES_PASSWORD</span>: ${DB_PASSWORD:?Database password required}
+      <span class="syntax-variable">PGDATA</span>: /var/lib/postgresql/data/pgdata
+    <span class="syntax-keyword">volumes</span>:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+    <span class="syntax-keyword">healthcheck</span>:
+      <span class="syntax-keyword">test</span>: [<span class="syntax-string">"CMD-SHELL"</span>, <span class="syntax-string">"pg_isready -U ${DB_USER:-gis_admin} -d baikal_gis"</span>]
+      <span class="syntax-keyword">interval</span>: 10s
+      <span class="syntax-keyword">timeout</span>: 5s
+      <span class="syntax-keyword">retries</span>: 5
+      <span class="syntax-keyword">start_period</span>: 30s
+
+  <span class="syntax-comment"># === КЭШ И ОЧЕРЕДЬ ===</span>
+  <span class="syntax-type">redis</span>:
+    <span class="syntax-keyword">image</span>: redis:7-alpine
+    <span class="syntax-keyword">container_name</span>: baikal_redis
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">command</span>: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    <span class="syntax-keyword">volumes</span>:
+      - redis_data:/data
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+    <span class="syntax-keyword">healthcheck</span>:
+      <span class="syntax-keyword">test</span>: [<span class="syntax-string">"CMD"</span>, <span class="syntax-string">"redis-cli"</span>, <span class="syntax-string">"ping"</span>]
+      <span class="syntax-keyword">interval</span>: 10s
+
+  <span class="syntax-comment"># === ТАЙЛОВЫЙ СЕРВЕР ===</span>
+  <span class="syntax-type">titiler</span>:
+    <span class="syntax-keyword">image</span>: ghcr.io/developmentseed/titiler:latest
+    <span class="syntax-keyword">container_name</span>: baikal_titiler
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">environment</span>:
+      <span class="syntax-comment"># GDAL оптимизация для облака</span>
+      <span class="syntax-variable">GDAL_DISABLE_READDIR_ON_OPEN</span>: EMPTY_DIR
+      <span class="syntax-variable">GDAL_HTTP_MERGE_CONSECUTIVE_RANGES</span>: <span class="syntax-string">"YES"</span>
+      <span class="syntax-variable">GDAL_HTTP_MULTIPLEX</span>: <span class="syntax-string">"YES"</span>
+      <span class="syntax-variable">GDAL_HTTP_VERSION</span>: <span class="syntax-string">"2"</span>
+      <span class="syntax-variable">VSI_CACHE</span>: <span class="syntax-string">"TRUE"</span>
+      <span class="syntax-variable">VSI_CACHE_SIZE</span>: <span class="syntax-string">"536870912"</span>
+      <span class="syntax-variable">CPL_VSIL_CURL_ALLOWED_EXTENSIONS</span>: <span class="syntax-string">".tif,.TIF,.tiff,.TIFF,.vrt"</span>
+      <span class="syntax-comment"># Yandex Object Storage</span>
+      <span class="syntax-variable">AWS_ACCESS_KEY_ID</span>: ${S3_ACCESS_KEY}
+      <span class="syntax-variable">AWS_SECRET_ACCESS_KEY</span>: ${S3_SECRET_KEY}
+      <span class="syntax-variable">AWS_S3_ENDPOINT</span>: https://storage.yandexcloud.net
+      <span class="syntax-variable">AWS_REGION</span>: ru-central1
+      <span class="syntax-comment"># Воркеры</span>
+      <span class="syntax-variable">WORKERS_PER_CORE</span>: <span class="syntax-string">"1"</span>
+      <span class="syntax-variable">MAX_WORKERS</span>: <span class="syntax-string">"4"</span>
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+    <span class="syntax-keyword">deploy</span>:
+      <span class="syntax-keyword">resources</span>:
+        <span class="syntax-keyword">limits</span>:
+          <span class="syntax-keyword">memory</span>: 4G
+          <span class="syntax-keyword">cpus</span>: <span class="syntax-string">'2'</span>
+
+  <span class="syntax-comment"># === BACKEND API ===</span>
+  <span class="syntax-type">api</span>:
+    <span class="syntax-keyword">build</span>:
+      <span class="syntax-keyword">context</span>: ./backend
+      <span class="syntax-keyword">dockerfile</span>: Dockerfile
+    <span class="syntax-keyword">container_name</span>: baikal_api
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">environment</span>:
+      <span class="syntax-variable">DATABASE_URL</span>: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/baikal_gis
+      <span class="syntax-variable">REDIS_URL</span>: redis://redis:6379/0
+      <span class="syntax-variable">TITILER_URL</span>: http://titiler:8000
+      <span class="syntax-variable">S3_ENDPOINT</span>: https://storage.yandexcloud.net
+      <span class="syntax-variable">S3_BUCKET</span>: ${S3_BUCKET}
+      <span class="syntax-variable">SECRET_KEY</span>: ${SECRET_KEY}
+      <span class="syntax-variable">DEBUG</span>: <span class="syntax-string">"false"</span>
+    <span class="syntax-keyword">depends_on</span>:
+      <span class="syntax-type">postgres</span>:
+        <span class="syntax-keyword">condition</span>: service_healthy
+      <span class="syntax-type">redis</span>:
+        <span class="syntax-keyword">condition</span>: service_healthy
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+
+  <span class="syntax-comment"># === CELERY WORKER ===</span>
+  <span class="syntax-type">worker</span>:
+    <span class="syntax-keyword">build</span>:
+      <span class="syntax-keyword">context</span>: ./backend
+      <span class="syntax-keyword">dockerfile</span>: Dockerfile
+    <span class="syntax-keyword">container_name</span>: baikal_worker
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">command</span>: celery -A app.worker worker -l info -c 2
+    <span class="syntax-keyword">environment</span>:
+      <span class="syntax-variable">DATABASE_URL</span>: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@postgres:5432/baikal_gis
+      <span class="syntax-variable">REDIS_URL</span>: redis://redis:6379/0
+    <span class="syntax-keyword">depends_on</span>:
+      - redis
+      - postgres
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+
+  <span class="syntax-comment"># === FRONTEND ===</span>
+  <span class="syntax-type">frontend</span>:
+    <span class="syntax-keyword">build</span>:
+      <span class="syntax-keyword">context</span>: ./frontend
+      <span class="syntax-keyword">dockerfile</span>: Dockerfile
+      <span class="syntax-keyword">args</span>:
+        <span class="syntax-variable">VITE_API_URL</span>: /api
+        <span class="syntax-variable">VITE_TILES_URL</span>: /tiles
+    <span class="syntax-keyword">container_name</span>: baikal_frontend
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+
+  <span class="syntax-comment"># === REVERSE PROXY ===</span>
+  <span class="syntax-type">nginx</span>:
+    <span class="syntax-keyword">image</span>: nginx:1.25-alpine
+    <span class="syntax-keyword">container_name</span>: baikal_nginx
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"80:80"</span>
+      - <span class="syntax-string">"443:443"</span>
+    <span class="syntax-keyword">volumes</span>:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - nginx_cache:/var/cache/nginx
+    <span class="syntax-keyword">depends_on</span>:
+      - api
+      - titiler
+      - frontend
+    <span class="syntax-keyword">networks</span>:
+      - baikal_internal
+      - baikal_external
+
+<span class="syntax-keyword">networks</span>:
+  baikal_internal:
+    <span class="syntax-keyword">driver</span>: bridge
+    <span class="syntax-keyword">internal</span>: true
+  baikal_external:
+    <span class="syntax-keyword">driver</span>: bridge
+
+<span class="syntax-keyword">volumes</span>:
+  postgres_data:
+  redis_data:
+  nginx_cache:</pre>
+                    </div>
+                </div>
+
+                <!-- Backend Dockerfile -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">🟢 Node.js Backend Dockerfile</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>backend/Dockerfile</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment"># Build stage</span>
+<span class="syntax-keyword">FROM</span> node:20-alpine <span class="syntax-keyword">AS</span> builder
+
+<span class="syntax-keyword">WORKDIR</span> /app
+
+<span class="syntax-comment"># Установка зависимостей</span>
+<span class="syntax-keyword">COPY</span> package*.json ./
+<span class="syntax-keyword">RUN</span> npm ci --only=production=false
+
+<span class="syntax-comment"># Копирование исходников и сборка</span>
+<span class="syntax-keyword">COPY</span> tsconfig.json ./
+<span class="syntax-keyword">COPY</span> src ./src
+<span class="syntax-keyword">RUN</span> npm run build
+
+<span class="syntax-comment"># Production stage</span>
+<span class="syntax-keyword">FROM</span> node:20-alpine
+
+<span class="syntax-keyword">WORKDIR</span> /app
+
+<span class="syntax-comment"># Только production зависимости</span>
+<span class="syntax-keyword">COPY</span> package*.json ./
+<span class="syntax-keyword">RUN</span> npm ci --only=production && npm cache clean --force
+
+<span class="syntax-comment"># Копирование скомпилированного кода</span>
+<span class="syntax-keyword">COPY</span> --from=builder /app/dist ./dist
+
+<span class="syntax-comment"># Non-root user для безопасности</span>
+<span class="syntax-keyword">RUN</span> addgroup -g 1001 nodejs && adduser -S -u 1001 -G nodejs nodejs
+<span class="syntax-keyword">USER</span> nodejs
+
+<span class="syntax-keyword">EXPOSE</span> 3000
+
+<span class="syntax-keyword">CMD</span> ["node", "dist/server.js"]</pre>
+                    </div>
+                </div>
+
+                <!-- Frontend Dockerfile -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="text-xl font-bold mb-4">⚛️ Frontend Dockerfile</h3>
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>frontend/Dockerfile</span>
+                        </div>
+                        <pre class="code-content mono text-xs"><span class="syntax-comment"># Build stage</span>
+<span class="syntax-keyword">FROM</span> node:20-alpine <span class="syntax-keyword">AS</span> builder
+
+<span class="syntax-keyword">WORKDIR</span> /app
+
+<span class="syntax-keyword">COPY</span> package*.json ./
+<span class="syntax-keyword">RUN</span> npm ci
+
+<span class="syntax-keyword">COPY</span> . .
+
+<span class="syntax-keyword">ARG</span> VITE_API_URL
+<span class="syntax-keyword">ARG</span> VITE_TILES_URL
+<span class="syntax-keyword">ENV</span> VITE_API_URL=$VITE_API_URL
+<span class="syntax-keyword">ENV</span> VITE_TILES_URL=$VITE_TILES_URL
+
+<span class="syntax-keyword">RUN</span> npm run build
+
+<span class="syntax-comment"># Production stage</span>
+<span class="syntax-keyword">FROM</span> nginx:alpine
+
+<span class="syntax-keyword">COPY</span> --from=builder /app/dist /usr/share/nginx/html
+<span class="syntax-keyword">COPY</span> nginx.conf /etc/nginx/conf.d/default.conf
+
+<span class="syntax-keyword">EXPOSE</span> 3000
+
+<span class="syntax-keyword">CMD</span> ["nginx", "-g", "daemon off;"]</pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Environment Variables -->
+            <div class="glass rounded-2xl p-6 mt-6">
+                <h3 class="text-xl font-bold mb-4">🔐 Переменные окружения (.env)</h3>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>.env.example</span>
+                    </div>
+                    <pre class="code-content mono text-xs"><span class="syntax-comment"># === DATABASE ===</span>
+<span class="syntax-variable">DB_USER</span>=gis_admin
+<span class="syntax-variable">DB_PASSWORD</span>=<span class="syntax-string">your_secure_password_32_chars_min</span>
+
+<span class="syntax-comment"># === YANDEX OBJECT STORAGE ===</span>
+<span class="syntax-variable">S3_ENDPOINT</span>=https://storage.yandexcloud.net
+<span class="syntax-variable">S3_ACCESS_KEY</span>=<span class="syntax-string">YCAJE...</span>
+<span class="syntax-variable">S3_SECRET_KEY</span>=<span class="syntax-string">YCO...</span>
+<span class="syntax-variable">S3_BUCKET</span>=baikal-forest-cog
+
+<span class="syntax-comment"># === API SECURITY ===</span>
+<span class="syntax-variable">SECRET_KEY</span>=<span class="syntax-string">openssl rand -hex 32</span>
+<span class="syntax-variable">JWT_ALGORITHM</span>=HS256
+<span class="syntax-variable">ACCESS_TOKEN_EXPIRE_MINUTES</span>=30
+
+<span class="syntax-comment"># === DOMAIN ===</span>
+<span class="syntax-variable">DOMAIN</span>=baikal-gis.ru
+<span class="syntax-variable">ACME_EMAIL</span>=admin@baikal-gis.ru
+
+<span class="syntax-comment"># === MONITORING ===</span>
+<span class="syntax-variable">SENTRY_DSN</span>=<span class="syntax-string">https://...</span>  <span class="syntax-comment"># опционально</span></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Reference -->
+    <section class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-8 text-center">📋 Быстрая справка по версиям</h2>
+            
+            <div class="grid md:grid-cols-4 gap-4">
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-semibold mb-3 text-pink-400">Frontend</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span>MapLibre GL JS</span><span class="mono text-gray-400">3.6.2</span></div>
+                        <div class="flex justify-between"><span>React</span><span class="mono text-gray-400">18.2.0</span></div>
+                        <div class="flex justify-between"><span>Tailwind CSS</span><span class="mono text-gray-400">3.4.0</span></div>
+                        <div class="flex justify-between"><span>Chart.js</span><span class="mono text-gray-400">4.4.1</span></div>
+                        <div class="flex justify-between"><span>Turf.js</span><span class="mono text-gray-400">6.5.0</span></div>
+                        <div class="flex justify-between"><span>PptxGenJS</span><span class="mono text-gray-400">3.12.0</span></div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-semibold mb-3 text-blue-400">Backend (Node.js)</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span>Node.js</span><span class="mono text-gray-400">20 LTS</span></div>
+                        <div class="flex justify-between"><span>TypeScript</span><span class="mono text-gray-400">5.3.3</span></div>
+                        <div class="flex justify-between"><span>Fastify</span><span class="mono text-gray-400">4.25.2</span></div>
+                        <div class="flex justify-between"><span>TypeORM</span><span class="mono text-gray-400">0.3.19</span></div>
+                        <div class="flex justify-between"><span>BullMQ</span><span class="mono text-gray-400">5.1.1</span></div>
+                        <div class="flex justify-between"><span>AWS SDK v3</span><span class="mono text-gray-400">3.490</span></div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-semibold mb-3 text-cyan-400">Database</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span>PostgreSQL</span><span class="mono text-gray-400">15</span></div>
+                        <div class="flex justify-between"><span>PostGIS</span><span class="mono text-gray-400">3.3</span></div>
+                        <div class="flex justify-between"><span>Redis</span><span class="mono text-gray-400">7</span></div>
+                        <div class="flex justify-between"><span>TiTiler</span><span class="mono text-gray-400">latest</span></div>
+                        <div class="flex justify-between"><span>GDAL</span><span class="mono text-gray-400">3.8</span></div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-xl p-4">
+                    <h3 class="font-semibold mb-3 text-green-400">DevOps</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span>Docker</span><span class="mono text-gray-400">24+</span></div>
+                        <div class="flex justify-between"><span>Compose</span><span class="mono text-gray-400">2.23+</span></div>
+                        <div class="flex justify-between"><span>Nginx</span><span class="mono text-gray-400">1.25</span></div>
+                        <div class="flex justify-between"><span>Ubuntu</span><span class="mono text-gray-400">22.04</span></div>
+                        <div class="flex justify-between"><span>Let's Encrypt</span><span class="mono text-gray-400">Certbot</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="glass mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
+            <p>БайкалЛес ГИС — Технологический стек MVP</p>
+            <div class="flex justify-center gap-4 mt-3">
+                <a href="index.html" class="hover:text-blue-400 transition">Демо</a>
+                <span>•</span>
+                <a href="architecture.html" class="hover:text-blue-400 transition">Архитектура</a>
+                <span>•</span>
+                <a href="mvp-deployment.html" class="hover:text-green-400 transition">Развертывание</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

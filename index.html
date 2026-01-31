@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ГИС Мониторинг лесов Байкала | Спутниковая система</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f4c3a 100%);
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .map-container {
+            background: linear-gradient(180deg, #1a365d 0%, #234e70 50%, #2d5a47 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Lake Baikal SVG styling */
+        .lake-baikal {
+            fill: #3b82f6;
+            filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.5));
+            transition: all 0.3s ease;
+        }
+        
+        .forest-zone {
+            fill: #22c55e;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+        
+        .forest-zone:hover {
+            opacity: 0.9;
+            cursor: pointer;
+        }
+        
+        .fire-zone {
+            fill: #ef4444;
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+        }
+        
+        .deforestation-zone {
+            fill: #f97316;
+            opacity: 0.6;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 0.4; }
+        }
+        
+        .stat-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .timeline-slider {
+            -webkit-appearance: none;
+            height: 8px;
+            background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .swipe-handle {
+            cursor: ew-resize;
+            transition: background 0.2s;
+        }
+        
+        .swipe-handle:hover {
+            background: #60a5fa;
+        }
+        
+        .layer-toggle:checked + .layer-label {
+            background: rgba(34, 197, 94, 0.3);
+            border-color: #22c55e;
+        }
+        
+        .scroll-hidden::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">БайкалЛес ГИС</h1>
+                    <p class="text-xs text-gray-400">Спутниковый мониторинг</p>
+                </div>
+            </div>
+            <nav class="hidden md:flex items-center gap-6 text-sm">
+                <a href="#map" class="hover:text-green-400 transition">Карта</a>
+                <a href="#analytics" class="hover:text-green-400 transition">Аналитика</a>
+                <a href="#methods" class="hover:text-green-400 transition">Методология</a>
+                <a href="#tech" class="hover:text-green-400 transition">Технологии</a>
+                <a href="architecture.html" class="hover:text-blue-400 transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                    Архитектура
+                </a>
+                <a href="implementation.html" class="hover:text-green-400 transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Реализация
+                </a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <span class="flex items-center gap-2 text-xs bg-green-500/20 text-green-400 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                    Данные обновлены
+                </span>
+                <button onclick="exportReport()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Экспорт
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative py-16 px-4 overflow-hidden">
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-20 left-10 w-64 h-64 bg-green-500 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-10 right-20 w-96 h-96 bg-blue-500 rounded-full blur-3xl"></div>
+        </div>
+        <div class="max-w-7xl mx-auto relative">
+            <div class="text-center mb-12">
+                <span class="inline-block px-4 py-2 bg-blue-500/20 text-blue-400 rounded-full text-sm mb-4">
+                    🛰️ Объект Всемирного наследия ЮНЕСКО
+                </span>
+                <h2 class="text-4xl md:text-5xl font-bold mb-4">
+                    Мониторинг лесных ресурсов<br>
+                    <span class="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">Байкальской природной территории</span>
+                </h2>
+                <p class="text-gray-400 max-w-3xl mx-auto text-lg">
+                    Геоинформационная система на основе данных Sentinel-2 и Landsat 8/9 
+                    для анализа динамики лесного покрова на площади 386 000 км²
+                </p>
+            </div>
+            
+            <!-- Key Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="glass rounded-2xl p-6 text-center stat-card">
+                    <div class="text-3xl font-bold text-green-400">8.3</div>
+                    <div class="text-sm text-gray-400">млн га лесов</div>
+                </div>
+                <div class="glass rounded-2xl p-6 text-center stat-card">
+                    <div class="text-3xl font-bold text-blue-400">386</div>
+                    <div class="text-sm text-gray-400">тыс. км² территории</div>
+                </div>
+                <div class="glass rounded-2xl p-6 text-center stat-card">
+                    <div class="text-3xl font-bold text-yellow-400">95%</div>
+                    <div class="text-sm text-gray-400">хвойные леса</div>
+                </div>
+                <div class="glass rounded-2xl p-6 text-center stat-card">
+                    <div class="text-3xl font-bold text-red-400">153</div>
+                    <div class="text-sm text-gray-400">тыс. га пожаров (2015)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Map Section -->
+    <section id="map" class="px-4 py-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Map Controls -->
+                <div class="lg:w-72 space-y-4">
+                    <div class="glass rounded-2xl p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                            </svg>
+                            Слои карты
+                        </h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="layer-toggle hidden" id="layer-forest" onchange="toggleLayer('forest')">
+                                <span class="layer-label w-5 h-5 rounded border-2 border-gray-500 flex items-center justify-center transition">
+                                    <svg class="w-3 h-3 text-green-400 hidden check-icon" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 bg-green-500 rounded"></span>
+                                    Лесной покров
+                                </span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="layer-toggle hidden" id="layer-fires" onchange="toggleLayer('fires')">
+                                <span class="layer-label w-5 h-5 rounded border-2 border-gray-500 flex items-center justify-center transition">
+                                    <svg class="w-3 h-3 text-green-400 hidden check-icon" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 bg-red-500 rounded"></span>
+                                    Пожары
+                                </span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="layer-toggle hidden" id="layer-deforestation" onchange="toggleLayer('deforestation')">
+                                <span class="layer-label w-5 h-5 rounded border-2 border-gray-500 flex items-center justify-center transition">
+                                    <svg class="w-3 h-3 text-green-400 hidden check-icon" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 bg-orange-500 rounded"></span>
+                                    Вырубки
+                                </span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" class="layer-toggle hidden" id="layer-ndvi" onchange="toggleLayer('ndvi')">
+                                <span class="layer-label w-5 h-5 rounded border-2 border-gray-500 flex items-center justify-center transition">
+                                    <svg class="w-3 h-3 text-green-400 hidden check-icon" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                                <span class="flex items-center gap-2">
+                                    <span class="w-3 h-3 bg-gradient-to-r from-yellow-500 to-green-500 rounded"></span>
+                                    NDVI индекс
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-2xl p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Временная шкала
+                        </h3>
+                        <input type="range" min="2015" max="2024" value="2024" class="timeline-slider w-full mb-3" id="yearSlider" oninput="updateYear(this.value)">
+                        <div class="flex justify-between text-xs text-gray-400">
+                            <span>2015</span>
+                            <span id="currentYear" class="text-white font-semibold text-lg">2024</span>
+                            <span>2024</span>
+                        </div>
+                    </div>
+                    
+                    <div class="glass rounded-2xl p-5">
+                        <h3 class="font-semibold mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Спектральный режим
+                        </h3>
+                        <select class="w-full bg-white/10 rounded-lg px-3 py-2 text-sm border border-white/10" onchange="changeSpectralMode(this.value)">
+                            <option value="natural">Natural Color (RGB)</option>
+                            <option value="false-color">False Color (NIR)</option>
+                            <option value="ndvi">NDVI Index</option>
+                            <option value="nbr">NBR (выгорание)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Map Display -->
+                <div class="flex-1">
+                    <div class="map-container rounded-2xl h-[500px] relative" id="mapContainer">
+                        <!-- SVG Map of Baikal Region -->
+                        <svg viewBox="0 0 800 500" class="w-full h-full" id="mapSvg">
+                            <!-- Background grid -->
+                            <defs>
+                                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                                </pattern>
+                                <linearGradient id="forestGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.8"/>
+                                    <stop offset="100%" style="stop-color:#16a34a;stop-opacity:0.6"/>
+                                </linearGradient>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#grid)"/>
+                            
+                            <!-- Forest zones - Western region (Irkutsk Oblast) -->
+                            <g id="forestLayer">
+                                <ellipse cx="250" cy="200" rx="150" ry="120" class="forest-zone" onclick="showRegionInfo('irkutsk')"/>
+                                <ellipse cx="180" cy="320" rx="100" ry="80" class="forest-zone" onclick="showRegionInfo('irkutsk')"/>
+                                <ellipse cx="550" cy="180" rx="140" ry="100" class="forest-zone" onclick="showRegionInfo('buryatia')"/>
+                                <ellipse cx="620" cy="300" rx="120" ry="90" class="forest-zone" onclick="showRegionInfo('zabaykalsky')"/>
+                                <ellipse cx="350" cy="380" rx="100" ry="70" class="forest-zone" onclick="showRegionInfo('buryatia')"/>
+                            </g>
+                            
+                            <!-- Fire zones -->
+                            <g id="firesLayer">
+                                <circle cx="200" cy="180" r="25" class="fire-zone" onclick="showAlert('fire', 'Байкало-Ленский заповедник')"/>
+                                <circle cx="280" cy="240" r="18" class="fire-zone" onclick="showAlert('fire', 'Прибайкальский нацпарк')"/>
+                                <circle cx="580" cy="160" r="20" class="fire-zone" onclick="showAlert('fire', 'Баргузинский хребет')"/>
+                            </g>
+                            
+                            <!-- Deforestation zones -->
+                            <g id="deforestationLayer">
+                                <rect x="150" y="280" width="40" height="30" rx="5" class="deforestation-zone" onclick="showAlert('deforestation', 'Слюдянское лесничество')"/>
+                                <rect x="500" y="220" width="35" height="25" rx="5" class="deforestation-zone" onclick="showAlert('deforestation', 'Кабанский район')"/>
+                                <rect x="600" y="350" width="45" height="30" rx="5" class="deforestation-zone" onclick="showAlert('deforestation', 'Читинская область')"/>
+                            </g>
+                            
+                            <!-- Lake Baikal -->
+                            <path d="M 380 80 
+                                     Q 420 100 430 150 
+                                     Q 440 200 420 280 
+                                     Q 400 350 380 400 
+                                     Q 360 430 350 420 
+                                     Q 340 400 350 350 
+                                     Q 360 300 370 250 
+                                     Q 380 200 370 150 
+                                     Q 360 100 380 80 Z" 
+                                  class="lake-baikal" filter="url(#glow)"/>
+                            
+                            <!-- Labels -->
+                            <text x="385" y="260" fill="white" font-size="14" font-weight="bold" text-anchor="middle">оз. Байкал</text>
+                            <text x="200" cy="140" fill="rgba(255,255,255,0.7)" font-size="11" text-anchor="middle">Иркутская обл.</text>
+                            <text x="580" y="130" fill="rgba(255,255,255,0.7)" font-size="11" text-anchor="middle">Бурятия</text>
+                            <text x="650" y="380" fill="rgba(255,255,255,0.7)" font-size="11" text-anchor="middle">Забайкалье</text>
+                            
+                            <!-- NDVI overlay (hidden by default) -->
+                            <g id="ndviLayer" style="display: none;">
+                                <rect x="100" y="100" width="600" height="300" fill="url(#ndviGradient)" opacity="0.5" rx="10"/>
+                            </g>
+                            
+                            <!-- Coordinate markers -->
+                            <g fill="rgba(255,255,255,0.5)" font-size="10">
+                                <text x="50" y="490">103°E</text>
+                                <text x="400" y="490">107°E</text>
+                                <text x="750" y="490">111°E</text>
+                                <text x="10" y="100">56°N</text>
+                                <text x="10" y="250">54°N</text>
+                                <text x="10" y="400">52°N</text>
+                            </g>
+                        </svg>
+                        
+                        <!-- Map overlay controls -->
+                        <div class="absolute top-4 right-4 flex flex-col gap-2">
+                            <button class="glass p-2 rounded-lg hover:bg-white/10 transition" onclick="zoomIn()">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                            </button>
+                            <button class="glass p-2 rounded-lg hover:bg-white/10 transition" onclick="zoomOut()">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <button class="glass p-2 rounded-lg hover:bg-white/10 transition" onclick="resetView()">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Swipe tool (comparison mode) -->
+                        <div id="swipeTool" class="absolute inset-y-0 left-1/2 hidden">
+                            <div class="swipe-handle w-1 h-full bg-white/50 relative">
+                                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2">
+                                    <svg class="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l4-4 4 4m0 6l-4 4-4-4"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Legend -->
+                        <div class="absolute bottom-4 left-4 glass rounded-lg p-3 text-xs">
+                            <div class="font-semibold mb-2">Легенда</div>
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-green-500 rounded"></span> Лесной покров</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-500 rounded animate-pulse"></span> Активные пожары</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-orange-500 rounded"></span> Зоны вырубок</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 bg-blue-500 rounded"></span> Водные объекты</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Scale bar -->
+                        <div class="absolute bottom-4 right-4 glass rounded-lg px-3 py-2 text-xs">
+                            <div class="flex items-center gap-2">
+                                <div class="w-16 h-1 bg-white/70"></div>
+                                <span>50 км</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Map info bar -->
+                    <div class="glass rounded-xl p-4 mt-4 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-6 text-sm">
+                            <div>
+                                <span class="text-gray-400">Источник:</span>
+                                <span class="text-blue-400 font-medium ml-1">Sentinel-2 / Landsat 8</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Дата съёмки:</span>
+                                <span class="font-medium ml-1" id="imageDate">15.01.2024</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">Облачность:</span>
+                                <span class="font-medium ml-1">12%</span>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition" onclick="toggleSwipe()">
+                                ⇄ Сравнение
+                            </button>
+                            <button class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition" onclick="downloadSnapshot()">
+                                📷 Снимок
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Analytics Dashboard -->
+    <section id="analytics" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 text-center">
+                <span class="bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">Аналитический дашборд</span>
+            </h2>
+            
+            <div class="grid lg:grid-cols-3 gap-6 mb-8">
+                <!-- Forest Loss Chart -->
+                <div class="glass rounded-2xl p-6 lg:col-span-2">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
+                        </svg>
+                        Динамика убыли лесов (тыс. га)
+                    </h3>
+                    <canvas id="forestLossChart" height="200"></canvas>
+                </div>
+                
+                <!-- Distribution Pie -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                        </svg>
+                        Причины убыли
+                    </h3>
+                    <canvas id="causesChart" height="200"></canvas>
+                </div>
+            </div>
+            
+            <!-- Regional Stats Table -->
+            <div class="glass rounded-2xl p-6 mb-8 overflow-x-auto">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Статистика по регионам
+                </h3>
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-left text-gray-400 border-b border-white/10">
+                            <th class="pb-3 pr-4">Регион</th>
+                            <th class="pb-3 pr-4">Площадь лесов (тыс. га)</th>
+                            <th class="pb-3 pr-4">Хвойные (%)</th>
+                            <th class="pb-3 pr-4">Динамика</th>
+                            <th class="pb-3">Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="py-3 pr-4 font-medium">Иркутская область (БПТ)</td>
+                            <td class="py-3 pr-4">~9,562</td>
+                            <td class="py-3 pr-4">84.1%</td>
+                            <td class="py-3 pr-4 text-red-400">↓ 1.0%</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs">Критично</span></td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="py-3 pr-4 font-medium">Республика Бурятия</td>
+                            <td class="py-3 pr-4">~29,810</td>
+                            <td class="py-3 pr-4">75.3%</td>
+                            <td class="py-3 pr-4 text-yellow-400">↓ 0.34%</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">Внимание</span></td>
+                        </tr>
+                        <tr class="hover:bg-white/5 transition">
+                            <td class="py-3 pr-4 font-medium">Забайкальский край (БПТ)</td>
+                            <td class="py-3 pr-4">~4,300</td>
+                            <td class="py-3 pr-4">70.5%</td>
+                            <td class="py-3 pr-4 text-green-400">↑ 0.16%</td>
+                            <td class="py-3"><span class="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">Стабильно</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Recovery & NDVI -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                        </svg>
+                        Восстановление после пожаров (NDVI)
+                    </h3>
+                    <canvas id="recoveryChart" height="180"></canvas>
+                </div>
+                
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                        </svg>
+                        Пожарная активность по годам
+                    </h3>
+                    <canvas id="fireChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Methodology Section -->
+    <section id="methods" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 text-center">
+                <span class="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Методология анализа</span>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <div class="glass rounded-2xl p-6 stat-card">
+                    <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">Random Forest</h3>
+                    <p class="text-sm text-gray-400 mb-3">Классификация пород и типов нарушений</p>
+                    <div class="text-2xl font-bold text-green-400">93-95%</div>
+                    <div class="text-xs text-gray-500">точность (OA)</div>
+                </div>
+                
+                <div class="glass rounded-2xl p-6 stat-card">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">LandTrendr</h3>
+                    <p class="text-sm text-gray-400 mb-3">Сегментация временных рядов</p>
+                    <div class="text-2xl font-bold text-blue-400">~87.5%</div>
+                    <div class="text-xs text-gray-500">детекция деградации</div>
+                </div>
+                
+                <div class="glass rounded-2xl p-6 stat-card">
+                    <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">DIST-ALERT</h3>
+                    <p class="text-sm text-gray-400 mb-3">Оперативные оповещения (HLS)</p>
+                    <div class="text-2xl font-bold text-red-400">6 ч</div>
+                    <div class="text-xs text-gray-500">задержка алертов</div>
+                </div>
+                
+                <div class="glass rounded-2xl p-6 stat-card">
+                    <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3 class="font-semibold mb-2">BFAST</h3>
+                    <p class="text-sm text-gray-400 mb-3">Анализ сезонности</p>
+                    <div class="text-2xl font-bold text-yellow-400">70-80%</div>
+                    <div class="text-xs text-gray-500">отделение вариаций</div>
+                </div>
+            </div>
+            
+            <!-- Spectral Indices -->
+            <div class="glass rounded-2xl p-8">
+                <h3 class="text-xl font-semibold mb-6 text-center">Спектральные индексы</h3>
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="text-center">
+                        <div class="text-4xl font-mono font-bold text-green-400 mb-2">NDVI</div>
+                        <div class="text-sm text-gray-400 mb-4">Нормализованный разностный вегетационный индекс</div>
+                        <div class="bg-white/5 rounded-lg p-4 font-mono text-sm">
+                            (NIR - RED) / (NIR + RED)
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3">Оценка здоровья растительности</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl font-mono font-bold text-orange-400 mb-2">NBR</div>
+                        <div class="text-sm text-gray-400 mb-4">Нормализованный коэффициент выгорания</div>
+                        <div class="bg-white/5 rounded-lg p-4 font-mono text-sm">
+                            (NIR - SWIR) / (NIR + SWIR)
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3">Детекция гарей и пожаров</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl font-mono font-bold text-blue-400 mb-2">NDMI</div>
+                        <div class="text-sm text-gray-400 mb-4">Индекс влажности растительности</div>
+                        <div class="bg-white/5 rounded-lg p-4 font-mono text-sm">
+                            (NIR - SWIR1) / (NIR + SWIR1)
+                        </div>
+                        <p class="text-xs text-gray-500 mt-3">Мониторинг влажности хвои</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section id="tech" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 text-center">
+                <span class="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Технологический стек</span>
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-2xl">🛰️</span> Источники данных
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">Sentinel-2 A/B</div>
+                                <div class="text-xs text-gray-400">ESA Copernicus</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-green-400 font-semibold">10m</div>
+                                <div class="text-xs text-gray-400">5 дней</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">Landsat 8/9</div>
+                                <div class="text-xs text-gray-400">USGS/NASA</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-blue-400 font-semibold">30m</div>
+                                <div class="text-xs text-gray-400">16 дней</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">HLS (Harmonized)</div>
+                                <div class="text-xs text-gray-400">NASA LP DAAC</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-purple-400 font-semibold">30m</div>
+                                <div class="text-xs text-gray-400">1.6-3 дня</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-2xl">⚙️</span> Инфраструктура
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">Объектное хранилище</div>
+                                <div class="text-xs text-gray-400">Yandex.Cloud / Beget S3</div>
+                            </div>
+                            <span class="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded">Хранение</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">PostgreSQL + PostGIS</div>
+                                <div class="text-xs text-gray-400">VPS сервер</div>
+                            </div>
+                            <span class="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">Векторы</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">TiTiler (FastAPI)</div>
+                                <div class="text-xs text-gray-400">Docker контейнер</div>
+                            </div>
+                            <span class="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">Рендер</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <div>
+                                <div class="font-medium">STAC Catalog</div>
+                                <div class="text-xs text-gray-400">PostgreSQL + pgStac</div>
+                            </div>
+                            <span class="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded">Поиск</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Implementation for Russian infrastructure -->
+            <div class="glass rounded-2xl p-6 mb-8">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <span class="text-2xl">🇷🇺</span> Реализация на российской инфраструктуре
+                </h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="p-4 bg-white/5 rounded-xl">
+                        <h4 class="font-semibold text-lg mb-3 flex items-center gap-2">
+                            <span class="text-blue-400">☁️</span> Хранилище данных
+                        </h4>
+                        <ul class="text-sm text-gray-300 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span><strong>Yandex Object Storage</strong> - совместимо с S3 API</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span><strong>Beget S3</strong> - бюджетная альтернатива</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span>Формат COG для оптимизации доступа</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-xl">
+                        <h4 class="font-semibold text-lg mb-3 flex items-center gap-2">
+                            <span class="text-green-400">🖥️</span> Серверная часть
+                        </h4>
+                        <ul class="text-sm text-gray-300 space-y-2">
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span><strong>VPS сервер</strong> с Docker (от Selectel, FirstByte, Timeweb)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span>PostgreSQL + PostGIS через Docker образ</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-green-400 mt-1">✓</span>
+                                <span>TiTiler в контейнере для динамических тайлов</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- MVP Implementation Plan -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <span class="text-2xl">🚀</span> План реализации MVP
+                </h3>
+                <div class="grid lg:grid-cols-3 gap-6">
+                    <div class="p-4 bg-gradient-to-br from-blue-900/30 to-blue-800/20 border border-blue-500/30 rounded-xl">
+                        <div class="text-blue-400 font-bold mb-2">Этап 1: Подготовка</div>
+                        <ul class="text-sm space-y-2">
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                Регистрация в Yandex.Cloud
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                Создание бакета S3
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                Настройка VPS сервера
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                Установка Docker
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="p-4 bg-gradient-to-br from-purple-900/30 to-purple-800/20 border border-purple-500/30 rounded-xl">
+                        <div class="text-purple-400 font-bold mb-2">Этап 2: Развертывание</div>
+                        <ul class="text-sm space-y-2">
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                                PostgreSQL + PostGIS
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                                TiTiler сервис
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                                STAC API
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                                Загрузка тестовых данных
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="p-4 bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-500/30 rounded-xl">
+                        <div class="text-green-400 font-bold mb-2">Этап 3: Фронтенд</div>
+                        <ul class="text-sm space-y-2">
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                                Карта на MapLibre GL JS
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                                Интеграция с TiTiler
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                                Панель управления
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                                Тестирование MVP
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="glass mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-bold">БайкалЛес ГИС</div>
+                        <div class="text-xs text-gray-400">Система мониторинга лесных ресурсов</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-gray-400">
+                    <span>Объект ЮНЕСКО</span>
+                    <span>•</span>
+                    <span>Sentinel-2 / Landsat</span>
+                    <span>•</span>
+                    <span>2024</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-6 max-w-md w-full">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="alertTitle" class="text-lg font-semibold">Алерт</h3>
+                <button onclick="closeModal()" class="p-1 hover:bg-white/10 rounded-lg transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="alertContent" class="text-gray-300"></div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="closeModal()" class="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition">Закрыть</button>
+                <button class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition">Подробнее</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Charts
+        document.addEventListener('DOMContentLoaded', function() {
+            // Forest Loss Chart
+            const forestLossCtx = document.getElementById('forestLossChart').getContext('2d');
+            new Chart(forestLossCtx, {
+                type: 'line',
+                data: {
+                    labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024'],
+                    datasets: [{
+                        label: 'Иркутская обл.',
+                        data: [95, 88, 102, 78, 120, 145, 98, 85, 110, 92],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Бурятия',
+                        data: [65, 72, 58, 85, 95, 110, 88, 75, 82, 70],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Забайкалье',
+                        data: [30, 25, 35, 28, 42, 38, 32, 28, 25, 22],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    }
+                }
+            });
+
+            // Causes Pie Chart
+            const causesCtx = document.getElementById('causesChart').getContext('2d');
+            new Chart(causesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Пожары', 'Рубки', 'Вредители', 'Болезни'],
+                    datasets: [{
+                        data: [58, 25, 12, 5],
+                        backgroundColor: ['#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'rgba(255,255,255,0.7)', padding: 15 }
+                        }
+                    }
+                }
+            });
+
+            // Recovery Chart
+            const recoveryCtx = document.getElementById('recoveryChart').getContext('2d');
+            new Chart(recoveryCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Год 0', 'Год 1', 'Год 2', 'Год 3', 'Год 5', 'Год 7', 'Год 10'],
+                    datasets: [{
+                        label: 'NDVI после пожара',
+                        data: [0.15, 0.22, 0.35, 0.42, 0.55, 0.62, 0.72],
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Контрольный участок',
+                        data: [0.75, 0.75, 0.74, 0.76, 0.75, 0.74, 0.75],
+                        borderColor: '#60a5fa',
+                        borderDash: [5, 5],
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 1,
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    }
+                }
+            });
+
+            // Fire Activity Chart
+            const fireCtx = document.getElementById('fireChart').getContext('2d');
+            new Chart(fireCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023'],
+                    datasets: [{
+                        label: 'Кол-во пожаров',
+                        data: [105, 78, 92, 65, 118, 156, 89, 72, 95],
+                        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                        borderColor: '#ef4444',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        },
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    }
+                }
+            });
+
+            // Initialize layer checkboxes
+            document.querySelectorAll('.layer-toggle').forEach(toggle => {
+                if (toggle.checked) {
+                    toggle.nextElementSibling.querySelector('.check-icon').classList.remove('hidden');
+                    toggle.nextElementSibling.classList.add('bg-green-500/30', 'border-green-500');
+                }
+            });
+        });
+
+        // Layer toggle function
+        function toggleLayer(layerId) {
+            const checkbox = document.getElementById('layer-' + layerId);
+            const layer = document.getElementById(layerId + 'Layer');
+            const checkIcon = checkbox.nextElementSibling.querySelector('.check-icon');
+            
+            if (checkbox.checked) {
+                layer.style.display = 'block';
+                checkIcon.classList.remove('hidden');
+                checkbox.nextElementSibling.classList.add('bg-green-500/30', 'border-green-500');
+            } else {
+                layer.style.display = 'none';
+                checkIcon.classList.add('hidden');
+                checkbox.nextElementSibling.classList.remove('bg-green-500/30', 'border-green-500');
+            }
+        }
+
+        // Year slider
+        function updateYear(year) {
+            document.getElementById('currentYear').textContent = year;
+            // Simulate data changes
+            const dates = {
+                2015: '15.08.2015',
+                2016: '20.07.2016',
+                2017: '10.06.2017',
+                2018: '25.08.2018',
+                2019: '05.07.2019',
+                2020: '18.09.2020',
+                2021: '12.06.2021',
+                2022: '30.07.2022',
+                2023: '22.08.2023',
+                2024: '15.01.2024'
+            };
+            document.getElementById('imageDate').textContent = dates[year] || '15.01.2024';
+        }
+
+        // Spectral mode change
+        function changeSpectralMode(mode) {
+            const mapContainer = document.getElementById('mapContainer');
+            const modes = {
+                'natural': 'linear-gradient(180deg, #1a365d 0%, #234e70 50%, #2d5a47 100%)',
+                'false-color': 'linear-gradient(180deg, #4a1a5c 0%, #7c2d6e 50%, #1e3a5f 100%)',
+                'ndvi': 'linear-gradient(180deg, #1a2e1a 0%, #2d5a2d 50%, #4a7c4a 100%)',
+                'nbr': 'linear-gradient(180deg, #3d2914 0%, #5c3d1a 50%, #7a5230 100%)'
+            };
+            mapContainer.style.background = modes[mode];
+        }
+
+        // Alert functions
+        function showAlert(type, location) {
+            const modal = document.getElementById('alertModal');
+            const title = document.getElementById('alertTitle');
+            const content = document.getElementById('alertContent');
+            
+            const alerts = {
+                fire: {
+                    title: '🔥 Обнаружен пожар',
+                    content: `<div class="space-y-3">
+                        <p><strong>Локация:</strong> ${location}</p>
+                        <p><strong>Дата обнаружения:</strong> ${new Date().toLocaleDateString('ru-RU')}</p>
+                        <p><strong>Площадь:</strong> ~${Math.floor(Math.random() * 500 + 100)} га</p>
+                        <p><strong>Уровень опасности:</strong> <span class="text-red-400">Высокий</span></p>
+                        <p class="text-sm text-gray-400">Данные получены со спутника Sentinel-2. Рекомендуется немедленная проверка полевыми службами.</p>
+                    </div>`
+                },
+                deforestation: {
+                    title: '🌲 Обнаружена вырубка',
+                    content: `<div class="space-y-3">
+                        <p><strong>Локация:</strong> ${location}</p>
+                        <p><strong>Дата обнаружения:</strong> ${new Date().toLocaleDateString('ru-RU')}</p>
+                        <p><strong>Площадь:</strong> ~${Math.floor(Math.random() * 50 + 10)} га</p>
+                        <p><strong>Тип:</strong> <span class="text-orange-400">Требует проверки легальности</span></p>
+                        <p class="text-sm text-gray-400">Изменение обнаружено алгоритмом LandTrendr. Направлено уведомление в лесничество.</p>
+                    </div>`
+                }
+            };
+            
+            title.innerHTML = alerts[type].title;
+            content.innerHTML = alerts[type].content;
+            modal.classList.remove('hidden');
+        }
+
+        function showRegionInfo(region) {
+            const regions = {
+                irkutsk: { name: 'Иркутская область', area: '~9,562 тыс. га', conifers: '84.1%' },
+                buryatia: { name: 'Республика Бурятия', area: '~29,810 тыс. га', conifers: '75.3%' },
+                zabaykalsky: { name: 'Забайкальский край', area: '~4,300 тыс. га', conifers: '70.5%' }
+            };
+            
+            const r = regions[region];
+            const modal = document.getElementById('alertModal');
+            document.getElementById('alertTitle').innerHTML = `📍 ${r.name}`;
+            document.getElementById('alertContent').innerHTML = `
+                <div class="space-y-3">
+                    <p><strong>Площадь лесов:</strong> ${r.area}</p>
+                    <p><strong>Доля хвойных:</strong> ${r.conifers}</p>
+                    <p><strong>Основные породы:</strong> Сосна, лиственница, кедр сибирский</p>
+                    <p class="text-sm text-gray-400">Нажмите "Подробнее" для полной статистики региона.</p>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('alertModal').classList.add('hidden');
+        }
+
+        // Map controls
+        let zoomLevel = 1;
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel + 0.2, 2);
+            document.getElementById('mapSvg').style.transform = `scale(${zoomLevel})`;
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel - 0.2, 0.5);
+            document.getElementById('mapSvg').style.transform = `scale(${zoomLevel})`;
+        }
+
+        function resetView() {
+            zoomLevel = 1;
+            document.getElementById('mapSvg').style.transform = 'scale(1)';
+        }
+
+        // Swipe tool
+        function toggleSwipe() {
+            const swipe = document.getElementById('swipeTool');
+            swipe.classList.toggle('hidden');
+        }
+
+        // Export functions
+        function exportReport() {
+            alert('📊 Генерация отчета...\n\nВ полной версии системы здесь будет:\n• Экспорт в PDF (Puppeteer)\n• Экспорт в PowerPoint (PptxGenJS)\n• Экспорт данных в GeoJSON/Shapefile');
+        }
+
+        function downloadSnapshot() {
+            alert('📷 Создание снимка карты...\n\nВ полной версии: захват Canvas в Base64 и сохранение PNG/JPEG с метаданными.');
+        }
+
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

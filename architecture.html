@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архитектура ГИС | БайкалЛес</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #0c1222 0%, #1a1a2e 50%, #16213e 100%);
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .component-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .component-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .component-card.active {
+            border-color: #3b82f6;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Data flow animation */
+        .data-flow {
+            stroke-dasharray: 8 4;
+            animation: flowAnimation 1s linear infinite;
+        }
+        
+        @keyframes flowAnimation {
+            from { stroke-dashoffset: 12; }
+            to { stroke-dashoffset: 0; }
+        }
+        
+        .pulse-dot {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        /* Layer colors */
+        .layer-sources { --layer-color: #f59e0b; }
+        .layer-ingestion { --layer-color: #8b5cf6; }
+        .layer-storage { --layer-color: #06b6d4; }
+        .layer-processing { --layer-color: #22c55e; }
+        .layer-backend { --layer-color: #3b82f6; }
+        .layer-frontend { --layer-color: #ec4899; }
+        
+        .layer-badge {
+            background: var(--layer-color);
+        }
+        
+        .layer-border {
+            border-color: var(--layer-color);
+        }
+        
+        .layer-glow {
+            box-shadow: 0 0 20px color-mix(in srgb, var(--layer-color) 30%, transparent);
+        }
+        
+        .tech-tag {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .arrow-right::after {
+            content: '→';
+            margin-left: 0.5rem;
+            opacity: 0.5;
+        }
+        
+        .code-block {
+            background: #1e1e2e;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            background: rgba(255,255,255,0.05);
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.75rem;
+            color: #888;
+        }
+        
+        .code-content {
+            padding: 12px;
+            font-size: 0.8rem;
+            overflow-x: auto;
+        }
+        
+        .syntax-keyword { color: #c678dd; }
+        .syntax-string { color: #98c379; }
+        .syntax-function { color: #61afef; }
+        .syntax-comment { color: #5c6370; }
+        .syntax-number { color: #d19a66; }
+        .syntax-type { color: #e5c07b; }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">Архитектура системы</h1>
+                    <p class="text-xs text-gray-400">Cloud-Native GIS Infrastructure</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-4 text-sm">
+                <a href="index.html" class="hover:text-blue-400 transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    К демо
+                </a>
+                <a href="#diagram" class="hover:text-blue-400 transition">Диаграмма</a>
+                <a href="#components" class="hover:text-blue-400 transition">Компоненты</a>
+                <a href="#code" class="hover:text-blue-400 transition">Код</a>
+                <a href="implementation.html" class="hover:text-green-400 transition flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Реализация
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="py-12 px-4">
+        <div class="max-w-7xl mx-auto text-center">
+            <span class="inline-block px-4 py-2 bg-purple-500/20 text-purple-400 rounded-full text-sm mb-4">
+                🏗️ System Architecture
+            </span>
+            <h2 class="text-4xl font-bold mb-4">
+                Cloud-Native ГИС Архитектура
+            </h2>
+            <p class="text-gray-400 max-w-3xl mx-auto">
+                Модульная микросервисная архитектура для обработки петабайтов спутниковых данных 
+                с использованием современных облачных технологий
+            </p>
+        </div>
+    </section>
+
+    <!-- Architecture Diagram -->
+    <section id="diagram" class="px-4 py-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="glass rounded-2xl p-6 overflow-x-auto">
+                <svg viewBox="0 0 1200 800" class="w-full min-w-[900px]" id="archDiagram">
+                    <defs>
+                        <!-- Gradients -->
+                        <linearGradient id="sourceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#d97706;stop-opacity:0.6"/>
+                        </linearGradient>
+                        <linearGradient id="ingestionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0.6"/>
+                        </linearGradient>
+                        <linearGradient id="storageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#0891b2;stop-opacity:0.6"/>
+                        </linearGradient>
+                        <linearGradient id="processingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#16a34a;stop-opacity:0.6"/>
+                        </linearGradient>
+                        <linearGradient id="backendGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#2563eb;stop-opacity:0.6"/>
+                        </linearGradient>
+                        <linearGradient id="frontendGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.8"/>
+                            <stop offset="100%" style="stop-color:#db2777;stop-opacity:0.6"/>
+                        </linearGradient>
+                        
+                        <!-- Arrow marker -->
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#4b5563"/>
+                        </marker>
+                        <marker id="arrowheadBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+                        </marker>
+                    </defs>
+                    
+                    <!-- Background layers -->
+                    <rect x="20" y="20" width="200" height="760" rx="10" fill="rgba(245,158,11,0.05)" stroke="rgba(245,158,11,0.2)" stroke-dasharray="4"/>
+                    <rect x="240" y="20" width="160" height="760" rx="10" fill="rgba(139,92,246,0.05)" stroke="rgba(139,92,246,0.2)" stroke-dasharray="4"/>
+                    <rect x="420" y="20" width="200" height="760" rx="10" fill="rgba(6,182,212,0.05)" stroke="rgba(6,182,212,0.2)" stroke-dasharray="4"/>
+                    <rect x="640" y="20" width="180" height="760" rx="10" fill="rgba(34,197,94,0.05)" stroke="rgba(34,197,94,0.2)" stroke-dasharray="4"/>
+                    <rect x="840" y="20" width="160" height="760" rx="10" fill="rgba(59,130,246,0.05)" stroke="rgba(59,130,246,0.2)" stroke-dasharray="4"/>
+                    <rect x="1020" y="20" width="160" height="760" rx="10" fill="rgba(236,72,153,0.05)" stroke="rgba(236,72,153,0.2)" stroke-dasharray="4"/>
+                    
+                    <!-- Layer labels -->
+                    <text x="120" y="50" fill="#f59e0b" font-size="12" font-weight="600" text-anchor="middle">ИСТОЧНИКИ</text>
+                    <text x="320" y="50" fill="#8b5cf6" font-size="12" font-weight="600" text-anchor="middle">INGESTION</text>
+                    <text x="520" y="50" fill="#06b6d4" font-size="12" font-weight="600" text-anchor="middle">ХРАНИЛИЩЕ</text>
+                    <text x="730" y="50" fill="#22c55e" font-size="12" font-weight="600" text-anchor="middle">ОБРАБОТКА</text>
+                    <text x="920" y="50" fill="#3b82f6" font-size="12" font-weight="600" text-anchor="middle">BACKEND</text>
+                    <text x="1100" y="50" fill="#ec4899" font-size="12" font-weight="600" text-anchor="middle">FRONTEND</text>
+                    
+                    <!-- === DATA SOURCES === -->
+                    <!-- Sentinel-2 -->
+                    <g class="component" data-id="sentinel" onclick="showDetails('sentinel')">
+                        <rect x="40" y="80" width="160" height="70" rx="8" fill="url(#sourceGrad)" class="component-rect"/>
+                        <text x="120" y="108" fill="white" font-size="11" font-weight="600" text-anchor="middle">🛰️ Sentinel-2 A/B</text>
+                        <text x="120" y="125" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">ESA Copernicus</text>
+                        <text x="120" y="140" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">10m • 5 дней</text>
+                    </g>
+                    
+                    <!-- Landsat -->
+                    <g class="component" data-id="landsat" onclick="showDetails('landsat')">
+                        <rect x="40" y="165" width="160" height="70" rx="8" fill="url(#sourceGrad)" class="component-rect"/>
+                        <text x="120" y="193" fill="white" font-size="11" font-weight="600" text-anchor="middle">🛰️ Landsat 8/9</text>
+                        <text x="120" y="210" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">USGS / NASA</text>
+                        <text x="120" y="225" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">30m • 16 дней</text>
+                    </g>
+                    
+                    <!-- HLS -->
+                    <g class="component" data-id="hls" onclick="showDetails('hls')">
+                        <rect x="40" y="250" width="160" height="70" rx="8" fill="url(#sourceGrad)" class="component-rect"/>
+                        <text x="120" y="278" fill="white" font-size="11" font-weight="600" text-anchor="middle">📦 HLS Product</text>
+                        <text x="120" y="295" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Harmonized L+S</text>
+                        <text x="120" y="310" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">30m • 1.6-3 дня</text>
+                    </g>
+                    
+                    <!-- DEM -->
+                    <g class="component" data-id="dem" onclick="showDetails('dem')">
+                        <rect x="40" y="335" width="160" height="70" rx="8" fill="url(#sourceGrad)" class="component-rect"/>
+                        <text x="120" y="363" fill="white" font-size="11" font-weight="600" text-anchor="middle">🏔️ SRTM / ArcticDEM</text>
+                        <text x="120" y="380" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Elevation Data</text>
+                        <text x="120" y="395" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">30m DEM</text>
+                    </g>
+                    
+                    <!-- Climate -->
+                    <g class="component" data-id="climate" onclick="showDetails('climate')">
+                        <rect x="40" y="420" width="160" height="70" rx="8" fill="url(#sourceGrad)" class="component-rect"/>
+                        <text x="120" y="448" fill="white" font-size="11" font-weight="600" text-anchor="middle">🌡️ ERA5 Climate</text>
+                        <text x="120" y="465" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">ECMWF</text>
+                        <text x="120" y="480" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Temp, Precip</text>
+                    </g>
+                    
+                    <!-- === INGESTION LAYER === -->
+                    <!-- STAC Crawler -->
+                    <g class="component" data-id="stac-crawler" onclick="showDetails('stac-crawler')">
+                        <rect x="255" y="120" width="130" height="80" rx="8" fill="url(#ingestionGrad)" class="component-rect"/>
+                        <text x="320" y="150" fill="white" font-size="11" font-weight="600" text-anchor="middle">🔍 STAC Crawler</text>
+                        <text x="320" y="170" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">pystac-client</text>
+                        <text x="320" y="188" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Поиск по AOI/Date</text>
+                    </g>
+                    
+                    <!-- ETL Pipeline -->
+                    <g class="component" data-id="etl" onclick="showDetails('etl')">
+                        <rect x="255" y="220" width="130" height="80" rx="8" fill="url(#ingestionGrad)" class="component-rect"/>
+                        <text x="320" y="250" fill="white" font-size="11" font-weight="600" text-anchor="middle">⚙️ ETL Pipeline</text>
+                        <text x="320" y="270" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Apache Airflow</text>
+                        <text x="320" y="288" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">DAG Orchestration</text>
+                    </g>
+                    
+                    <!-- COG Converter -->
+                    <g class="component" data-id="cog" onclick="showDetails('cog')">
+                        <rect x="255" y="320" width="130" height="80" rx="8" fill="url(#ingestionGrad)" class="component-rect"/>
+                        <text x="320" y="350" fill="white" font-size="11" font-weight="600" text-anchor="middle">📐 COG Converter</text>
+                        <text x="320" y="370" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">rio-cogeo / GDAL</text>
+                        <text x="320" y="388" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Cloud Optimized</text>
+                    </g>
+                    
+                    <!-- === STORAGE LAYER === -->
+                    <!-- S3 Object Storage -->
+                    <g class="component" data-id="s3" onclick="showDetails('s3')">
+                        <rect x="435" y="100" width="170" height="100" rx="8" fill="url(#storageGrad)" class="component-rect"/>
+                        <text x="520" y="130" fill="white" font-size="12" font-weight="600" text-anchor="middle">☁️ AWS S3</text>
+                        <text x="520" y="150" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Object Storage</text>
+                        <text x="520" y="170" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">COG / GeoTIFF</text>
+                        <text x="520" y="188" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">~50TB растров</text>
+                    </g>
+                    
+                    <!-- PostgreSQL + PostGIS -->
+                    <g class="component" data-id="postgis" onclick="showDetails('postgis')">
+                        <rect x="435" y="220" width="170" height="100" rx="8" fill="url(#storageGrad)" class="component-rect"/>
+                        <text x="520" y="250" fill="white" font-size="12" font-weight="600" text-anchor="middle">🐘 PostgreSQL</text>
+                        <text x="520" y="270" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">+ PostGIS Extension</text>
+                        <text x="520" y="290" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Vectors, Metadata</text>
+                        <text x="520" y="308" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">GIST Indexes</text>
+                    </g>
+                    
+                    <!-- STAC Catalog -->
+                    <g class="component" data-id="stac-catalog" onclick="showDetails('stac-catalog')">
+                        <rect x="435" y="340" width="170" height="80" rx="8" fill="url(#storageGrad)" class="component-rect"/>
+                        <text x="520" y="370" fill="white" font-size="12" font-weight="600" text-anchor="middle">📚 STAC Catalog</text>
+                        <text x="520" y="390" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">pgSTAC / stac-fastapi</text>
+                        <text x="520" y="408" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Spatiotemporal Search</text>
+                    </g>
+                    
+                    <!-- Redis Cache -->
+                    <g class="component" data-id="redis" onclick="showDetails('redis')">
+                        <rect x="435" y="440" width="170" height="70" rx="8" fill="url(#storageGrad)" class="component-rect"/>
+                        <text x="520" y="468" fill="white" font-size="12" font-weight="600" text-anchor="middle">⚡ Redis</text>
+                        <text x="520" y="488" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Tile Cache / Sessions</text>
+                        <text x="520" y="502" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">In-Memory</text>
+                    </g>
+                    
+                    <!-- === PROCESSING LAYER === -->
+                    <!-- LandTrendr -->
+                    <g class="component" data-id="landtrendr" onclick="showDetails('landtrendr')">
+                        <rect x="655" y="90" width="150" height="75" rx="8" fill="url(#processingGrad)" class="component-rect"/>
+                        <text x="730" y="118" fill="white" font-size="11" font-weight="600" text-anchor="middle">📈 LandTrendr</text>
+                        <text x="730" y="138" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Time Series Segm.</text>
+                        <text x="730" y="155" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">GEE / Python</text>
+                    </g>
+                    
+                    <!-- Random Forest -->
+                    <g class="component" data-id="rf" onclick="showDetails('rf')">
+                        <rect x="655" y="180" width="150" height="75" rx="8" fill="url(#processingGrad)" class="component-rect"/>
+                        <text x="730" y="208" fill="white" font-size="11" font-weight="600" text-anchor="middle">🌲 Random Forest</text>
+                        <text x="730" y="228" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Classification</text>
+                        <text x="730" y="245" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">scikit-learn</text>
+                    </g>
+                    
+                    <!-- NDVI/NBR Calculator -->
+                    <g class="component" data-id="indices" onclick="showDetails('indices')">
+                        <rect x="655" y="270" width="150" height="75" rx="8" fill="url(#processingGrad)" class="component-rect"/>
+                        <text x="730" y="298" fill="white" font-size="11" font-weight="600" text-anchor="middle">🔢 Spectral Indices</text>
+                        <text x="730" y="318" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">NDVI, NBR, NDMI</text>
+                        <text x="730" y="335" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">rasterio / xarray</text>
+                    </g>
+                    
+                    <!-- Alert Engine -->
+                    <g class="component" data-id="alerts" onclick="showDetails('alerts')">
+                        <rect x="655" y="360" width="150" height="75" rx="8" fill="url(#processingGrad)" class="component-rect"/>
+                        <text x="730" y="388" fill="white" font-size="11" font-weight="600" text-anchor="middle">🚨 DIST-ALERT</text>
+                        <text x="730" y="408" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">NRT Detection</text>
+                        <text x="730" y="425" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Lambda Functions</text>
+                    </g>
+                    
+                    <!-- BFAST -->
+                    <g class="component" data-id="bfast" onclick="showDetails('bfast')">
+                        <rect x="655" y="450" width="150" height="75" rx="8" fill="url(#processingGrad)" class="component-rect"/>
+                        <text x="730" y="478" fill="white" font-size="11" font-weight="600" text-anchor="middle">📊 BFAST</text>
+                        <text x="730" y="498" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Seasonality Analysis</text>
+                        <text x="730" y="515" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">R / Python</text>
+                    </g>
+                    
+                    <!-- === BACKEND SERVICES === -->
+                    <!-- TiTiler -->
+                    <g class="component" data-id="titiler" onclick="showDetails('titiler')">
+                        <rect x="855" y="100" width="130" height="85" rx="8" fill="url(#backendGrad)" class="component-rect"/>
+                        <text x="920" y="128" fill="white" font-size="11" font-weight="600" text-anchor="middle">🗺️ TiTiler</text>
+                        <text x="920" y="148" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Dynamic Tiles</text>
+                        <text x="920" y="165" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">FastAPI + GDAL</text>
+                        <text x="920" y="178" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">XYZ/WMTS</text>
+                    </g>
+                    
+                    <!-- REST API -->
+                    <g class="component" data-id="api" onclick="showDetails('api')">
+                        <rect x="855" y="200" width="130" height="85" rx="8" fill="url(#backendGrad)" class="component-rect"/>
+                        <text x="920" y="228" fill="white" font-size="11" font-weight="600" text-anchor="middle">🔌 REST API</text>
+                        <text x="920" y="248" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">FastAPI / Flask</text>
+                        <text x="920" y="265" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">JWT Auth</text>
+                        <text x="920" y="278" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">OpenAPI Docs</text>
+                    </g>
+                    
+                    <!-- WebSocket -->
+                    <g class="component" data-id="ws" onclick="showDetails('ws')">
+                        <rect x="855" y="300" width="130" height="70" rx="8" fill="url(#backendGrad)" class="component-rect"/>
+                        <text x="920" y="328" fill="white" font-size="11" font-weight="600" text-anchor="middle">📡 WebSocket</text>
+                        <text x="920" y="348" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Real-time Alerts</text>
+                        <text x="920" y="362" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Socket.IO</text>
+                    </g>
+                    
+                    <!-- Export Service -->
+                    <g class="component" data-id="export" onclick="showDetails('export')">
+                        <rect x="855" y="385" width="130" height="70" rx="8" fill="url(#backendGrad)" class="component-rect"/>
+                        <text x="920" y="413" fill="white" font-size="11" font-weight="600" text-anchor="middle">📤 Export Service</text>
+                        <text x="920" y="433" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">PDF / PPTX</text>
+                        <text x="920" y="447" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Puppeteer</text>
+                    </g>
+                    
+                    <!-- API Gateway -->
+                    <g class="component" data-id="gateway" onclick="showDetails('gateway')">
+                        <rect x="855" y="470" width="130" height="70" rx="8" fill="url(#backendGrad)" class="component-rect"/>
+                        <text x="920" y="498" fill="white" font-size="11" font-weight="600" text-anchor="middle">🚪 API Gateway</text>
+                        <text x="920" y="518" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Kong / AWS</text>
+                        <text x="920" y="532" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Rate Limiting</text>
+                    </g>
+                    
+                    <!-- === FRONTEND === -->
+                    <!-- Web App -->
+                    <g class="component" data-id="webapp" onclick="showDetails('webapp')">
+                        <rect x="1035" y="120" width="130" height="100" rx="8" fill="url(#frontendGrad)" class="component-rect"/>
+                        <text x="1100" y="150" fill="white" font-size="11" font-weight="600" text-anchor="middle">🌐 Web App</text>
+                        <text x="1100" y="170" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">React / Vue</text>
+                        <text x="1100" y="188" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">MapLibre GL JS</text>
+                        <text x="1100" y="205" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Tailwind CSS</text>
+                    </g>
+                    
+                    <!-- Mobile App -->
+                    <g class="component" data-id="mobile" onclick="showDetails('mobile')">
+                        <rect x="1035" y="240" width="130" height="100" rx="8" fill="url(#frontendGrad)" class="component-rect"/>
+                        <text x="1100" y="270" fill="white" font-size="11" font-weight="600" text-anchor="middle">📱 Mobile App</text>
+                        <text x="1100" y="290" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">React Native</text>
+                        <text x="1100" y="308" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Offline Maps</text>
+                        <text x="1100" y="325" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">GPS + Camera</text>
+                    </g>
+                    
+                    <!-- Dashboard -->
+                    <g class="component" data-id="dashboard" onclick="showDetails('dashboard')">
+                        <rect x="1035" y="360" width="130" height="85" rx="8" fill="url(#frontendGrad)" class="component-rect"/>
+                        <text x="1100" y="390" fill="white" font-size="11" font-weight="600" text-anchor="middle">📊 Analytics</text>
+                        <text x="1100" y="410" fill="rgba(255,255,255,0.7)" font-size="9" text-anchor="middle">Chart.js / D3.js</text>
+                        <text x="1100" y="428" fill="rgba(255,255,255,0.5)" font-size="8" text-anchor="middle">Dashboards</text>
+                    </g>
+                    
+                    <!-- Users -->
+                    <g class="component" data-id="users">
+                        <rect x="1035" y="465" width="130" height="95" rx="8" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.2)" class="component-rect"/>
+                        <text x="1100" y="495" fill="white" font-size="11" font-weight="600" text-anchor="middle">👥 Пользователи</text>
+                        <text x="1100" y="515" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">🔬 Исследователи</text>
+                        <text x="1100" y="530" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">🌲 Лесная охрана</text>
+                        <text x="1100" y="545" fill="rgba(255,255,255,0.6)" font-size="8" text-anchor="middle">📋 Администрация</text>
+                    </g>
+                    
+                    <!-- === DATA FLOW ARROWS === -->
+                    <!-- Sources to Ingestion -->
+                    <path d="M 200 115 L 255 160" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 200 200 L 255 200" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 200 285 L 255 260" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 200 370 L 255 360" stroke="#f59e0b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    
+                    <!-- Ingestion to Storage -->
+                    <path d="M 385 160 L 435 150" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 385 260 L 435 270" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 385 360 L 435 380" stroke="#8b5cf6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    
+                    <!-- Storage to Processing -->
+                    <path d="M 605 150 L 655 127" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 605 270 L 655 217" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 605 270 L 655 307" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 605 380 L 655 397" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    
+                    <!-- Processing to Backend -->
+                    <path d="M 805 127 L 855 142" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 805 217 L 855 242" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 805 307 L 855 142" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow" stroke-dasharray="4 2"/>
+                    <path d="M 805 397 L 855 335" stroke="#22c55e" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    
+                    <!-- Backend to Frontend -->
+                    <path d="M 985 142 L 1035 170" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 985 242 L 1035 290" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 985 335 L 1035 290" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    <path d="M 985 420 L 1035 402" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#arrowhead)" class="data-flow"/>
+                    
+                    <!-- Direct S3 to TiTiler -->
+                    <path d="M 605 150 Q 750 80 855 130" stroke="#06b6d4" stroke-width="2" fill="none" marker-end="url(#arrowhead)" stroke-dasharray="6 3" opacity="0.6"/>
+                    <text x="730" y="75" fill="#06b6d4" font-size="8" text-anchor="middle">HTTP Range Requests</text>
+                    
+                    <!-- Feedback loops -->
+                    <path d="M 920 285 Q 920 550 780 550 Q 640 550 640 320 L 605 320" stroke="#3b82f6" stroke-width="1.5" fill="none" marker-end="url(#arrowheadBlue)" stroke-dasharray="4 2" opacity="0.5"/>
+                    <text x="780" y="570" fill="#3b82f6" font-size="8" text-anchor="middle">Results → Storage</text>
+                    
+                    <!-- Legend -->
+                    <g transform="translate(40, 580)">
+                        <rect width="160" height="180" rx="8" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)"/>
+                        <text x="80" y="25" fill="white" font-size="11" font-weight="600" text-anchor="middle">Легенда</text>
+                        <line x1="10" y1="35" x2="150" y2="35" stroke="rgba(255,255,255,0.1)"/>
+                        
+                        <circle cx="25" cy="55" r="6" fill="#f59e0b"/>
+                        <text x="40" y="59" fill="rgba(255,255,255,0.8)" font-size="9">Источники данных</text>
+                        
+                        <circle cx="25" cy="80" r="6" fill="#8b5cf6"/>
+                        <text x="40" y="84" fill="rgba(255,255,255,0.8)" font-size="9">Ingestion Pipeline</text>
+                        
+                        <circle cx="25" cy="105" r="6" fill="#06b6d4"/>
+                        <text x="40" y="109" fill="rgba(255,255,255,0.8)" font-size="9">Data Storage</text>
+                        
+                        <circle cx="25" cy="130" r="6" fill="#22c55e"/>
+                        <text x="40" y="134" fill="rgba(255,255,255,0.8)" font-size="9">ML Processing</text>
+                        
+                        <circle cx="25" cy="155" r="6" fill="#3b82f6"/>
+                        <text x="40" y="159" fill="rgba(255,255,255,0.8)" font-size="9">Backend Services</text>
+                        
+                        <circle cx="25" cy="180" r="6" fill="#ec4899"/>
+                        <text x="40" y="184" fill="rgba(255,255,255,0.8)" font-size="9">Frontend Apps</text>
+                    </g>
+                    
+                    <!-- Data volume indicators -->
+                    <g transform="translate(250, 580)">
+                        <rect width="200" height="180" rx="8" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)"/>
+                        <text x="100" y="25" fill="white" font-size="11" font-weight="600" text-anchor="middle">Объемы данных</text>
+                        <line x1="10" y1="35" x2="190" y2="35" stroke="rgba(255,255,255,0.1)"/>
+                        
+                        <text x="15" y="58" fill="rgba(255,255,255,0.6)" font-size="9">Sentinel-2 сцена:</text>
+                        <text x="185" y="58" fill="#f59e0b" font-size="9" text-anchor="end">~1 GB</text>
+                        
+                        <text x="15" y="80" fill="rgba(255,255,255,0.6)" font-size="9">Годовой архив БПТ:</text>
+                        <text x="185" y="80" fill="#f59e0b" font-size="9" text-anchor="end">~2.5 TB</text>
+                        
+                        <text x="15" y="102" fill="rgba(255,255,255,0.6)" font-size="9">Векторные данные:</text>
+                        <text x="185" y="102" fill="#06b6d4" font-size="9" text-anchor="end">~500 MB</text>
+                        
+                        <text x="15" y="124" fill="rgba(255,255,255,0.6)" font-size="9">STAC каталог:</text>
+                        <text x="185" y="124" fill="#8b5cf6" font-size="9" text-anchor="end">~100k items</text>
+                        
+                        <text x="15" y="146" fill="rgba(255,255,255,0.6)" font-size="9">Тайлов в день:</text>
+                        <text x="185" y="146" fill="#3b82f6" font-size="9" text-anchor="end">~50k req</text>
+                        
+                        <text x="15" y="168" fill="rgba(255,255,255,0.6)" font-size="9">Алертов/месяц:</text>
+                        <text x="185" y="168" fill="#22c55e" font-size="9" text-anchor="end">~200-500</text>
+                    </g>
+                    
+                    <!-- Cloud providers -->
+                    <g transform="translate(480, 580)">
+                        <rect width="180" height="180" rx="8" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.1)"/>
+                        <text x="90" y="25" fill="white" font-size="11" font-weight="600" text-anchor="middle">Cloud Providers</text>
+                        <line x1="10" y1="35" x2="170" y2="35" stroke="rgba(255,255,255,0.1)"/>
+                        
+                        <rect x="15" y="50" width="150" height="35" rx="4" fill="rgba(255,153,0,0.2)" stroke="rgba(255,153,0,0.4)"/>
+                        <text x="90" y="72" fill="#ff9900" font-size="10" font-weight="500" text-anchor="middle">☁️ AWS (Primary)</text>
+                        
+                        <rect x="15" y="95" width="150" height="35" rx="4" fill="rgba(66,133,244,0.2)" stroke="rgba(66,133,244,0.4)"/>
+                        <text x="90" y="117" fill="#4285f4" font-size="10" font-weight="500" text-anchor="middle">🌍 Google Earth Engine</text>
+                        
+                        <rect x="15" y="140" width="150" height="35" rx="4" fill="rgba(0,120,212,0.2)" stroke="rgba(0,120,212,0.4)"/>
+                        <text x="90" y="162" fill="#0078d4" font-size="10" font-weight="500" text-anchor="middle">📦 Azure (Backup)</text>
+                    </g>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- Component Details Panel -->
+    <section id="components" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-8 text-center">Детализация компонентов</h2>
+            
+            <div class="grid lg:grid-cols-3 gap-6">
+                <!-- Data Layer -->
+                <div class="glass rounded-2xl p-6 layer-sources">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg layer-badge flex items-center justify-center">🛰️</div>
+                        <div>
+                            <h3 class="font-semibold">Data Sources</h3>
+                            <p class="text-xs text-gray-400">Спутниковые данные</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">Sentinel-2 MSI</div>
+                            <div class="text-xs text-gray-400 mb-2">13 спектральных каналов, 10-60м</div>
+                            <div class="flex flex-wrap gap-1">
+                                <span class="tech-tag">B02 Blue</span>
+                                <span class="tech-tag">B03 Green</span>
+                                <span class="tech-tag">B04 Red</span>
+                                <span class="tech-tag">B08 NIR</span>
+                                <span class="tech-tag">B11 SWIR</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">Landsat Collection 2</div>
+                            <div class="text-xs text-gray-400">Level-2 Surface Reflectance</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">Auxiliary Data</div>
+                            <div class="text-xs text-gray-400">DEM, Climate, Soils</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Storage Layer -->
+                <div class="glass rounded-2xl p-6 layer-storage">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg layer-badge flex items-center justify-center">💾</div>
+                        <div>
+                            <h3 class="font-semibold">Data Storage</h3>
+                            <p class="text-xs text-gray-400">Хранилища данных</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">Yandex/Beget S3 + COG</div>
+                            <div class="text-xs text-gray-400 mb-2">Растровые данные с оверлеями</div>
+                            <div class="code-block text-xs">
+                                <div class="code-header">bucket structure</div>
+                                <pre class="code-content mono">s3://baikal-forest-gis/
+├── cog/
+│   ├── sentinel2/
+│   │   └── {year}/{tile}/
+│   └── landsat/
+├── derivatives/
+│   ├── ndvi/
+│   └── classification/
+└── exports/</pre>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">PostgreSQL + PostGIS</div>
+                            <div class="text-xs text-gray-400">Векторы и метаданные</div>
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                <span class="tech-tag">geometry</span>
+                                <span class="tech-tag">raster</span>
+                                <span class="tech-tag">GIST index</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Backend Layer -->
+                <div class="glass rounded-2xl p-6 layer-backend">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-lg layer-badge flex items-center justify-center">⚙️</div>
+                        <div>
+                            <h3 class="font-semibold">Backend Services</h3>
+                            <p class="text-xs text-gray-400">API и обработка</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">TiTiler (FastAPI)</div>
+                            <div class="text-xs text-gray-400 mb-2">Динамическая генерация тайлов</div>
+                            <div class="text-xs mono text-blue-400">/cog/tiles/{z}/{x}/{y}.png</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">STAC API</div>
+                            <div class="text-xs text-gray-400">Поиск по пространству/времени</div>
+                        </div>
+                        <div class="p-3 bg-white/5 rounded-lg">
+                            <div class="font-medium mb-1">Processing Workers</div>
+                            <div class="text-xs text-gray-400">Celery + Redis Queue</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Technical Implementation Details -->
+            <div class="glass rounded-2xl p-6 mt-8">
+                <h2 class="text-2xl font-bold mb-6 text-center">Техническая реализация на российской инфраструктуре</h2>
+                
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <!-- Database Setup -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-blue-400">🐘</span> PostgreSQL + PostGIS установка
+                        </h3>
+                        <div class="code-block">
+                            <div class="code-header">docker-compose.yml (PostGIS)</div>
+                            <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">version</span>: <span class="syntax-string">'3.8'</span>
+
+<span class="syntax-keyword">services</span>:
+  <span class="syntax-type">database</span>:
+    <span class="syntax-keyword">image</span>: postgis/postgis:15-3.3
+    <span class="syntax-keyword">container_name</span>: baikal-postgis
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"5432:5432"</span>
+    <span class="syntax-keyword">volumes</span>:
+      - postgres_data:/var/lib/postgresql/data
+    <span class="syntax-keyword">environment</span>:
+      - POSTGRES_PASSWORD=<span class="syntax-string">${DB_PASSWORD}</span>
+      - POSTGRES_USER=<span class="syntax-string">${DB_USER}</span>
+      - POSTGRES_DB=baikal_gis
+    <span class="syntax-keyword">healthcheck</span>:
+      <span class="syntax-type">test</span>: [<span class="syntax-string">"CMD-SHELL"</span>, <span class="syntax-string">"pg_isready -U ${DB_USER}"</span>]
+      <span class="syntax-type">interval</span>: 30s
+      <span class="syntax-type">timeout</span>: 10s
+      <span class="syntax-type">retries</span>: 3
+
+<span class="syntax-keyword">volumes</span>:
+  postgres_data:</pre>
+                        </div>
+                        <div class="mt-4 p-3 bg-blue-500/10 rounded-lg">
+                            <p class="text-sm"><strong>Примечание:</strong> Образ postgis/postgis включает все необходимые расширения, включая PostGIS, pgRouting и другие геопространственные расширения.</p>
+                        </div>
+                    </div>
+                    
+                    <!-- TiTiler Setup -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-green-400">🗺️</span> TiTiler развертывание
+                        </h3>
+                        <div class="code-block">
+                            <div class="code-header">docker-compose.yml (TiTiler)</div>
+                            <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">version</span>: <span class="syntax-string">'3.8'</span>
+
+<span class="syntax-keyword">services</span>:
+  <span class="syntax-type">titiler</span>:
+    <span class="syntax-keyword">image</span>: ghcr.io/developmentseed/titiler:latest
+    <span class="syntax-keyword">container_name</span>: baikal-titiler
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"8000:8000"</span>
+    <span class="syntax-keyword">environment</span>:
+      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
+      - CPL_VSIL_CURL_ALLOWED_EXTENSIONS=.tif,.TIF,.nc
+      - AWS_REQUEST_PAYER=requester
+      - DEFAULT_MAX_SIZE=8192
+    <span class="syntax-keyword">depends_on</span>:
+      - redis
+
+  <span class="syntax-type">redis</span>:
+    <span class="syntax-keyword">image</span>: redis:alpine
+    <span class="syntax-keyword">container_name</span>: baikal-redis
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"6379:6379"</span></pre>
+                        </div>
+                        <div class="mt-4 p-3 bg-green-500/10 rounded-lg">
+                            <p class="text-sm"><strong>Особенности настройки:</strong> Переменные GDAL оптимизируют работу с COG файлами в облаке, уменьшая количество HTTP запросов.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- STAC API Setup -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-purple-400">📚</span> STAC API развертывание
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="code-block">
+                            <div class="code-header">docker-compose.yml (STAC API)</div>
+                            <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">version</span>: <span class="syntax-string">'3.8'</span>
+
+<span class="syntax-keyword">services</span>:
+  <span class="syntax-type">stac-api</span>:
+    <span class="syntax-keyword">image</span>: ghcr.io/stac-utils/stac-fastapi-pgstac:latest
+    <span class="syntax-keyword">container_name</span>: baikal-stac
+    <span class="syntax-keyword">restart</span>: unless-stopped
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"8080:8080"</span>
+    <span class="syntax-keyword">environment</span>:
+      - POSTGRES_USER=<span class="syntax-string">${DB_USER}</span>
+      - POSTGRES_PASS=<span class="syntax-string">${DB_PASSWORD}</span>
+      - POSTGRES_DBNAME=baikal_gis
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+    <span class="syntax-keyword">depends_on</span>:
+      - database</pre>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <h4 class="font-semibold mb-2">Интеграция с Yandex S3:</h4>
+                            <ul class="text-sm space-y-2">
+                                <li class="flex items-start gap-2">
+                                    <span class="text-purple-400">•</span>
+                                    <span>Настройка credentials в ~/.aws/credentials</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-purple-400">•</span>
+                                    <span>Использование endpoint URL: storage.yandexcloud.net</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-purple-400">•</span>
+                                    <span>Установка переменных окружения для TiTiler:</span>
+                                </li>
+                                <div class="ml-4 code-block">
+                                    <pre class="code-content mono text-xs">AWS_S3_ENDPOINT_URL=https://storage.yandexcloud.net
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret</pre>
+                                </div>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code Examples -->
+    <section id="code" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-8 text-center">Примеры кода инфраструктуры</h2>
+            
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Docker Compose -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-xl">🐳</span> Docker Compose Stack
+                    </h3>
+                    <div class="code-block">
+                        <div class="code-header">docker-compose.yml</div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">version</span>: <span class="syntax-string">'3.8'</span>
+
+<span class="syntax-keyword">services</span>:
+  <span class="syntax-type">titiler</span>:
+    <span class="syntax-keyword">image</span>: ghcr.io/developmentseed/titiler:latest
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"8000:8000"</span>
+    <span class="syntax-keyword">environment</span>:
+      - GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR
+      - CPL_VSIL_CURL_ALLOWED_EXTENSIONS=.tif,.TIF
+      - AWS_REQUEST_PAYER=requester
+    <span class="syntax-keyword">depends_on</span>:
+      - redis
+
+  <span class="syntax-type">stac-api</span>:
+    <span class="syntax-keyword">image</span>: ghcr.io/stac-utils/stac-fastapi-pgstac:latest
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"8001:8001"</span>
+    <span class="syntax-keyword">environment</span>:
+      - POSTGRES_HOST=database
+      - POSTGRES_DB=stac
+    <span class="syntax-keyword">depends_on</span>:
+      - database
+
+  <span class="syntax-type">database</span>:
+    <span class="syntax-keyword">image</span>: postgis/postgis:15-3.3
+    <span class="syntax-keyword">volumes</span>:
+      - pgdata:/var/lib/postgresql/data
+    <span class="syntax-keyword">environment</span>:
+      - POSTGRES_PASSWORD=<span class="syntax-string">${DB_PASSWORD}</span>
+      - POSTGRES_DB=baikal_gis
+
+  <span class="syntax-type">redis</span>:
+    <span class="syntax-keyword">image</span>: redis:alpine
+    <span class="syntax-keyword">ports</span>:
+      - <span class="syntax-string">"6379:6379"</span>
+
+  <span class="syntax-type">worker</span>:
+    <span class="syntax-keyword">build</span>: ./worker
+    <span class="syntax-keyword">command</span>: celery -A tasks worker -l info
+    <span class="syntax-keyword">depends_on</span>:
+      - redis
+      - database
+
+<span class="syntax-keyword">volumes</span>:
+  pgdata:</pre>
+                    </div>
+                </div>
+                
+                <!-- TiTiler API -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-xl">🗺️</span> TiTiler Dynamic Tiles
+                    </h3>
+                    <div class="code-block">
+                        <div class="code-header">frontend/mapConfig.js</div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">const</span> <span class="syntax-type">TITILER_URL</span> = <span class="syntax-string">'https://tiles.baikal-gis.ru'</span>;
+
+<span class="syntax-comment">// Динамический URL для NDVI тайлов</span>
+<span class="syntax-keyword">function</span> <span class="syntax-function">getNDVITileUrl</span>(cogUrl) {
+  <span class="syntax-keyword">const</span> params = <span class="syntax-keyword">new</span> URLSearchParams({
+    <span class="syntax-type">url</span>: cogUrl,
+    <span class="syntax-type">expression</span>: <span class="syntax-string">'(B08-B04)/(B08+B04)'</span>,
+    <span class="syntax-type">colormap_name</span>: <span class="syntax-string">'rdylgn'</span>,
+    <span class="syntax-type">rescale</span>: <span class="syntax-string">'-0.2,0.8'</span>
+  });
+  
+  <span class="syntax-keyword">return</span> <span class="syntax-string">`</span><span class="syntax-type">${TITILER_URL}</span><span class="syntax-string">/cog/tiles/{z}/{x}/{y}?</span><span class="syntax-type">${params}</span><span class="syntax-string">`</span>;
+}
+
+<span class="syntax-comment">// Добавление слоя на MapLibre</span>
+map.<span class="syntax-function">addSource</span>(<span class="syntax-string">'ndvi-layer'</span>, {
+  <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+  <span class="syntax-type">tiles</span>: [<span class="syntax-function">getNDVITileUrl</span>(selectedCOG)],
+  <span class="syntax-type">tileSize</span>: <span class="syntax-number">256</span>
+});
+
+map.<span class="syntax-function">addLayer</span>({
+  <span class="syntax-type">id</span>: <span class="syntax-string">'ndvi'</span>,
+  <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+  <span class="syntax-type">source</span>: <span class="syntax-string">'ndvi-layer'</span>,
+  <span class="syntax-type">paint</span>: { <span class="syntax-string">'raster-opacity'</span>: <span class="syntax-number">0.8</span> }
+});</pre>
+                    </div>
+                </div>
+                
+                <!-- STAC Search -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-xl">🔍</span> STAC Catalog Search
+                    </h3>
+                    <div class="code-block">
+                        <div class="code-header">backend/stac_search.py</div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">from</span> pystac_client <span class="syntax-keyword">import</span> Client
+<span class="syntax-keyword">from</span> shapely.geometry <span class="syntax-keyword">import</span> box
+
+<span class="syntax-comment"># Baikal region bounding box</span>
+<span class="syntax-type">BAIKAL_BBOX</span> = [<span class="syntax-number">103.5</span>, <span class="syntax-number">51.4</span>, <span class="syntax-number">110.5</span>, <span class="syntax-number">56.0</span>]
+
+<span class="syntax-keyword">def</span> <span class="syntax-function">search_sentinel2</span>(start_date, end_date, max_cloud=<span class="syntax-number">20</span>):
+    <span class="syntax-string">"""Поиск снимков Sentinel-2 для Байкала"""</span>
+    
+    client = Client.<span class="syntax-function">open</span>(
+        <span class="syntax-string">"https://earth-search.aws.element84.com/v1"</span>
+    )
+    
+    search = client.<span class="syntax-function">search</span>(
+        <span class="syntax-type">collections</span>=[<span class="syntax-string">"sentinel-2-l2a"</span>],
+        <span class="syntax-type">bbox</span>=BAIKAL_BBOX,
+        <span class="syntax-type">datetime</span>=<span class="syntax-string">f"</span><span class="syntax-type">{start_date}</span><span class="syntax-string">/</span><span class="syntax-type">{end_date}</span><span class="syntax-string">"</span>,
+        <span class="syntax-type">query</span>={
+            <span class="syntax-string">"eo:cloud_cover"</span>: {<span class="syntax-string">"lt"</span>: max_cloud}
+        },
+        <span class="syntax-type">sortby</span>=[{<span class="syntax-string">"field"</span>: <span class="syntax-string">"datetime"</span>, <span class="syntax-string">"direction"</span>: <span class="syntax-string">"desc"</span>}]
+    )
+    
+    items = list(search.<span class="syntax-function">items</span>())
+    <span class="syntax-keyword">return</span> [{
+        <span class="syntax-string">"id"</span>: item.id,
+        <span class="syntax-string">"datetime"</span>: item.datetime,
+        <span class="syntax-string">"cloud_cover"</span>: item.properties[<span class="syntax-string">"eo:cloud_cover"</span>],
+        <span class="syntax-string">"cog_url"</span>: item.assets[<span class="syntax-string">"visual"</span>].href
+    } <span class="syntax-keyword">for</span> item <span class="syntax-keyword">in</span> items]</pre>
+                    </div>
+                </div>
+                
+                <!-- PostGIS Query -->
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-xl">🐘</span> PostGIS Spatial Query
+                    </h3>
+                    <div class="code-block">
+                        <div class="code-header">queries/forest_loss_analysis.sql</div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-comment">-- Анализ убыли лесов по районам БПТ</span>
+<span class="syntax-keyword">WITH</span> <span class="syntax-type">forest_changes</span> <span class="syntax-keyword">AS</span> (
+  <span class="syntax-keyword">SELECT</span>
+    r.name <span class="syntax-keyword">AS</span> region_name,
+    <span class="syntax-function">ST_Area</span>(
+      <span class="syntax-function">ST_Intersection</span>(fc.geom, r.geom)::geography
+    ) / <span class="syntax-number">10000</span> <span class="syntax-keyword">AS</span> loss_ha,
+    fc.loss_year,
+    fc.loss_type  <span class="syntax-comment">-- fire, logging, disease</span>
+  <span class="syntax-keyword">FROM</span> forest_cover_changes fc
+  <span class="syntax-keyword">JOIN</span> bpt_regions r 
+    <span class="syntax-keyword">ON</span> <span class="syntax-function">ST_Intersects</span>(fc.geom, r.geom)
+  <span class="syntax-keyword">WHERE</span> fc.loss_year <span class="syntax-keyword">BETWEEN</span> <span class="syntax-number">2015</span> <span class="syntax-keyword">AND</span> <span class="syntax-number">2024</span>
+)
+<span class="syntax-keyword">SELECT</span>
+  region_name,
+  loss_year,
+  loss_type,
+  <span class="syntax-function">ROUND</span>(<span class="syntax-function">SUM</span>(loss_ha)::numeric, <span class="syntax-number">2</span>) <span class="syntax-keyword">AS</span> total_loss_ha,
+  <span class="syntax-function">COUNT</span>(*) <span class="syntax-keyword">AS</span> patch_count
+<span class="syntax-keyword">FROM</span> forest_changes
+<span class="syntax-keyword">GROUP BY</span> region_name, loss_year, loss_type
+<span class="syntax-keyword">ORDER BY</span> loss_year <span class="syntax-keyword">DESC</span>, total_loss_ha <span class="syntax-keyword">DESC</span>;
+
+<span class="syntax-comment">-- Создание GIST индекса для ускорения</span>
+<span class="syntax-keyword">CREATE INDEX</span> idx_forest_geom 
+  <span class="syntax-keyword">ON</span> forest_cover_changes 
+  <span class="syntax-keyword">USING</span> GIST (geom);</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Frontend Implementation -->
+            <div class="glass rounded-2xl p-6 mt-8">
+                <h2 class="text-2xl font-bold mb-6 text-center">Фронтенд реализация</h2>
+                
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <!-- Mapping Libraries -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-cyan-400">🗺️</span> Картографические библиотеки
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-white/5 rounded-lg">
+                                <h4 class="font-semibold text-cyan-400 mb-2">MapLibre GL JS (рекомендуется)</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-cyan-400">•</span>
+                                        <span>Открытая альтернатива Mapbox GL JS</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-cyan-400">•</span>
+                                        <span>Полная поддержка векторных тайлов</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-cyan-400">•</span>
+                                        <span>Рендеринг через WebGL (высокая производительность)</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 bg-white/5 rounded-lg">
+                                <h4 class="font-semibold text-blue-400 mb-2">Leaflet (альтернатива)</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Простота реализации и изучения</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Широкая экосистема плагинов</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Ограниченная производительность при большом количестве данных</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Frontend Framework -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-green-400">⚛️</span> Фреймворки фронтенда
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-white/5 rounded-lg">
+                                <h4 class="font-semibold text-green-400 mb-2">React (рекомендуется)</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>Компонентный подход к разработке</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>Богатая экосистема библиотек</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>Хорошая интеграция с MapLibre GL JS</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 bg-white/5 rounded-lg">
+                                <h4 class="font-semibold text-purple-400 mb-2">Vue.js (альтернатива)</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>Простота освоения</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>Плавная кривая обучения</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>Отличная документация</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Integration Example -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-yellow-400">🔌</span> Интеграция MapLibre + TiTiler
+                    </h3>
+                    <div class="code-block">
+                        <div class="code-header">src/components/BaikalMap.jsx (React)</div>
+                        <pre class="code-content mono text-xs overflow-x-auto"><span class="syntax-keyword">import</span> <span class="syntax-string">'maplibre-gl/dist/maplibre-gl.css'</span>;
+<span class="syntax-keyword">import</span> { useEffect, useRef } <span class="syntax-keyword">from</span> <span class="syntax-string">'react'</span>;
+<span class="syntax-keyword">import</span> maplibregl <span class="syntax-keyword">from</span> <span class="syntax-string">'maplibre-gl'</span>;
+
+<span class="syntax-keyword">const</span> <span class="syntax-type">BaikalMap</span> = () => {
+  <span class="syntax-keyword">const</span> mapContainer = useRef(<span class="syntax-keyword">null</span>);
+  <span class="syntax-keyword">const</span> map = useRef(<span class="syntax-keyword">null</span>);
+
+  useEffect(() => {
+    <span class="syntax-keyword">if</span> (map.current) <span class="syntax-keyword">return</span>; <span class="syntax-comment">// Инициализировать карту только один раз</span>
+    
+    map.current = <span class="syntax-keyword">new</span> maplibregl.Map({
+      container: mapContainer.current,
+      style: {
+        version: <span class="syntax-number">8</span>,
+        sources: {},
+        layers: []
+      },
+      center: [<span class="syntax-number">105.5</span>, <span class="syntax-number">53.0</span>], <span class="syntax-comment">// Центр Байкала</span>
+      zoom: <span class="syntax-number">7</span>
+    });
+
+    <span class="syntax-comment">// Добавление базового слоя OSM</span>
+    map.current.on(<span class="syntax-string">'load'</span>, () => {
+      map.current.addSource(<span class="syntax-string">'osm'</span>, {
+        <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+        <span class="syntax-type">tiles</span>: [
+          <span class="syntax-string">'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'</span>,
+          <span class="syntax-string">'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png'</span>
+        ],
+        <span class="syntax-type">tileSize</span>: <span class="syntax-number">256</span>
+      });
+
+      map.current.addLayer({
+        <span class="syntax-type">id</span>: <span class="syntax-string">'osm'</span>,
+        <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+        <span class="syntax-type">source</span>: <span class="syntax-string">'osm'</span>,
+        <span class="syntax-type">minzoom</span>: <span class="syntax-number">0</span>,
+        <span class="syntax-type">maxzoom</span>: <span class="syntax-number">19</span>
+      });
+
+      <span class="syntax-comment">// Добавление слоя NDVI из TiTiler</span>
+      map.current.addSource(<span class="syntax-string">'ndvi'</span>, {
+        <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+        <span class="syntax-type">tiles</span>: [
+          <span class="syntax-string">'https://your-titiler-endpoint.example/cog/tiles/{z}/{x}/{y}?url=s3://your-bucket/path/to/cog.tif&expression=(B08-B04)/(B08+B04)&colormap_name=rdylgn'</span>
+        ],
+        <span class="syntax-type">tileSize</span>: <span class="syntax-number">256</span>
+      });
+
+      map.current.addLayer({
+        <span class="syntax-type">id</span>: <span class="syntax-string">'ndvi-layer'</span>,
+        <span class="syntax-type">type</span>: <span class="syntax-string">'raster'</span>,
+        <span class="syntax-type">source</span>: <span class="syntax-string">'ndvi'</span>,
+        <span class="syntax-type">paint</span>: {
+          <span class="syntax-string">'raster-opacity'</span>: <span class="syntax-number">0.8</span>
+        }
+      });
+    });
+  }, []);
+
+  <span class="syntax-keyword">return</span> (
+    &lt;div className=<span class="syntax-string">"map-wrapper"</span>&gt;
+      &lt;div ref={mapContainer} className=<span class="syntax-string">"map-container"</span> /&gt;
+    &lt;/div&gt;
+  );
+};
+
+<span class="syntax-keyword">export</span> <span class="syntax-keyword">default</span> BaikalMap;</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Deployment Options -->
+    <section class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-8 text-center">Варианты развертывания</h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <!-- GEE Option -->
+                <div class="glass rounded-2xl p-6 border-2 border-green-500/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-3xl">🌍</span>
+                        <span class="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Рекомендуется</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Google Earth Engine</h3>
+                    <p class="text-gray-400 text-sm mb-4">Для исследований и MVP</p>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Бесплатный доступ к данным
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Встроенные вычисления
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> LandTrendr из коробки
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-400">
+                            <span>⚠</span> Ограничения API
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-400">
+                            <span>⚠</span> Vendor lock-in
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-white/10">
+                        <div class="text-2xl font-bold text-green-400">$0</div>
+                        <div class="text-xs text-gray-500">для некоммерческих</div>
+                    </div>
+                </div>
+                
+                <!-- AWS Option -->
+                <div class="glass rounded-2xl p-6 border-2 border-blue-500/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-3xl">☁️</span>
+                        <span class="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">Production</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">AWS Cloud-Native</h3>
+                    <p class="text-gray-400 text-sm mb-4">Полный контроль</p>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Неограниченная масштабируемость
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Собственная инфраструктура
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Полный контроль данных
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-400">
+                            <span>⚠</span> DevOps компетенции
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-400">
+                            <span>⚠</span> Начальные затраты
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-white/10">
+                        <div class="text-2xl font-bold text-blue-400">~$200-500</div>
+                        <div class="text-xs text-gray-500">/месяц (средняя нагрузка)</div>
+                    </div>
+                </div>
+                
+                <!-- Hybrid Option -->
+                <div class="glass rounded-2xl p-6 border-2 border-purple-500/30">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-3xl">🔀</span>
+                        <span class="px-3 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">Оптимально</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Гибридный подход</h3>
+                    <p class="text-gray-400 text-sm mb-4">GEE + Cloud Storage</p>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> GEE для обработки
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> S3 для результатов
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> TiTiler для визуализации
+                        </div>
+                        <div class="flex items-center gap-2 text-green-400">
+                            <span>✓</span> Баланс цена/качество
+                        </div>
+                        <div class="flex items-center gap-2 text-yellow-400">
+                            <span>⚠</span> Сложность интеграции
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-white/10">
+                        <div class="text-2xl font-bold text-purple-400">~$50-150</div>
+                        <div class="text-xs text-gray-500">/месяц</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Russian Infrastructure Implementation -->
+            <div class="glass rounded-2xl p-6">
+                <h2 class="text-2xl font-bold mb-6 text-center">Реализация на российской инфраструктуре</h2>
+                
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <!-- Storage Options -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-orange-400">💾</span> Объектное хранилище
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-white/5 rounded-lg border-l-4 border-orange-500">
+                                <h4 class="font-semibold text-orange-400 mb-2">Yandex Object Storage</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-orange-400">•</span>
+                                        <span>Полная совместимость с Amazon S3 API</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-orange-400">•</span>
+                                        <span>Хранение данных в 3 зонах доступности</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-orange-400">•</span>
+                                        <span>Цены от 1.57 ₽/ГБ/месяц</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 bg-white/5 rounded-lg border-l-4 border-blue-500">
+                                <h4 class="font-semibold text-blue-400 mb-2">Beget S3</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Экономичная альтернатива с S3 API</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Подходит для MVP и тестирования</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-400">•</span>
+                                        <span>Цены от 0.8 ₽/ГБ/месяц</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Compute Options -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <span class="text-green-400">🖥️</span> Вычислительные ресурсы
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-white/5 rounded-lg border-l-4 border-green-500">
+                                <h4 class="font-semibold text-green-400 mb-2">VPS серверы</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>Selectel: от 500 ₽/месяц (2 vCPU, 4 ГБ RAM)</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>FirstByte: от 450 ₽/месяц (2 vCPU, 2 ГБ RAM)</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-green-400">•</span>
+                                        <span>Timeweb: от 390 ₽/месяц (1 vCPU, 1 ГБ RAM)</span>
+                                    </li>
+                                </ul>
+                            </div>
+                            
+                            <div class="p-4 bg-white/5 rounded-lg border-l-4 border-purple-500">
+                                <h4 class="font-semibold text-purple-400 mb-2">Docker контейнеры</h4>
+                                <ul class="text-sm space-y-1">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>PostGIS через официальный образ postgis/postgis</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>TiTiler из ghcr.io/developmentseed/titiler</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-purple-400">•</span>
+                                        <span>STAC API через stac-utils/stac-fastapi</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Implementation Steps -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-yellow-400">📋</span> Пошаговая реализация MVP
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                                <div>
+                                    <h4 class="font-semibold">Подготовка инфраструктуры</h4>
+                                    <p class="text-sm text-gray-400">Регистрация в Yandex.Cloud, создание бакета S3, настройка VPS сервера с Docker</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                                <div>
+                                    <h4 class="font-semibold">Развертывание backend</h4>
+                                    <p class="text-sm text-gray-400">Запуск PostgreSQL + PostGIS, TiTiler и STAC API в Docker контейнерах</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                                <div>
+                                    <h4 class="font-semibold">Фронтенд разработка</h4>
+                                    <p class="text-sm text-gray-400">Создание веб-интерфейса на React/Vue с MapLibre GL JS для отображения карт</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start gap-3">
+                                <div class="flex-shrink-0 w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                                <div>
+                                    <h4 class="font-semibold">Тестирование и презентация</h4>
+                                    <p class="text-sm text-gray-400">Загрузка тестовых данных, проверка функциональности, подготовка демонстрации для инвесторов</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Component Details Modal -->
+    <div id="detailsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modalTitle" class="text-xl font-bold">Компонент</h3>
+                <button onclick="closeDetails()" class="p-2 hover:bg-white/10 rounded-lg transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="modalContent" class="text-gray-300"></div>
+        </div>
+    </div>
+
+    <script>
+        const componentDetails = {
+            'sentinel': {
+                title: '🛰️ Sentinel-2 A/B',
+                content: `
+                    <div class="space-y-4">
+                        <p>Мультиспектральный сенсор MSI с 13 каналами для мониторинга растительности.</p>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Разрешение</div>
+                                <div class="font-semibold">10/20/60 м</div>
+                            </div>
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Повторяемость</div>
+                                <div class="font-semibold">5 дней</div>
+                            </div>
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Охват</div>
+                                <div class="font-semibold">290 км</div>
+                            </div>
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Архив</div>
+                                <div class="font-semibold">с 2015</div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                            <div class="font-semibold mb-2">Ключевые каналы для NDVI:</div>
+                            <div class="mono text-sm">B04 (Red): 665nm | B08 (NIR): 842nm</div>
+                        </div>
+                    </div>
+                `
+            },
+            'titiler': {
+                title: '🗺️ TiTiler Dynamic Tile Server',
+                content: `
+                    <div class="space-y-4">
+                        <p>Динамический сервер тайлов на базе FastAPI, работающий напрямую с COG файлами в облаке.</p>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="font-semibold mb-2">Ключевые возможности:</div>
+                            <ul class="list-disc list-inside text-sm space-y-1">
+                                <li>Динамическое вычисление индексов (NDVI, NBR)</li>
+                                <li>Перепроекция на лету</li>
+                                <li>Применение colormaps</li>
+                                <li>HTTP Range Requests к S3</li>
+                            </ul>
+                        </div>
+                        <div class="code-block text-xs">
+                            <div class="code-header">API Endpoints</div>
+                            <pre class="code-content mono">GET /cog/info?url={cog_url}
+GET /cog/tiles/{z}/{x}/{y}?url={cog_url}&expression=...
+GET /cog/statistics?url={cog_url}
+GET /cog/preview?url={cog_url}&width=512</pre>
+                        </div>
+                    </div>
+                `
+            },
+            'postgis': {
+                title: '🐘 PostgreSQL + PostGIS',
+                content: `
+                    <div class="space-y-4">
+                        <p>Реляционная СУБД с расширением для работы с геопространственными данными.</p>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Версия</div>
+                                <div class="font-semibold">PostgreSQL 15</div>
+                            </div>
+                            <div class="p-3 bg-white/5 rounded-lg">
+                                <div class="text-gray-400">Расширение</div>
+                                <div class="font-semibold">PostGIS 3.3</div>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-white/5 rounded-lg">
+                            <div class="font-semibold mb-2">Хранимые данные:</div>
+                            <ul class="list-disc list-inside text-sm space-y-1">
+                                <li>Границы лесничеств и ООПТ</li>
+                                <li>Полигоны убыли/восстановления</li>
+                                <li>Метаданные снимков</li>
+                                <li>Результаты классификации</li>
+                            </ul>
+                        </div>
+                    </div>
+                `
+            },
+            's3': {
+                title: '☁️ AWS S3 Object Storage',
+                content: `
+                    <div class="space-y-4">
+                        <p>Объектное хранилище для растровых данных в формате Cloud Optimized GeoTIFF.</p>
+                        <div class="p-4 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+                            <div class="font-semibold mb-2">Преимущества COG:</div>
+                            <ul class="list-disc list-inside text-sm space-y-1">
+                                <li>Внутренняя тайловая структура</li>
+                                <li>Пирамиды разрешений (overviews)</li>
+                                <li>HTTP Range Requests</li>
+                                <li>Совместимость с GDAL/Rasterio</li>
+                            </ul>
+                        </div>
+                        <div class="text-sm">
+                            <div class="text-gray-400 mb-1">Примерные затраты:</div>
+                            <div>Хранение: ~$0.023/GB/месяц</div>
+                            <div>GET запросы: ~$0.0004/1000</div>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        function showDetails(componentId) {
+            const details = componentDetails[componentId];
+            if (!details) return;
+            
+            document.getElementById('modalTitle').innerHTML = details.title;
+            document.getElementById('modalContent').innerHTML = details.content;
+            document.getElementById('detailsModal').classList.remove('hidden');
+        }
+
+        function closeDetails() {
+            document.getElementById('detailsModal').classList.add('hidden');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeDetails();
+        });
+
+        // Highlight components on hover
+        document.querySelectorAll('.component').forEach(comp => {
+            comp.style.cursor = 'pointer';
+            comp.addEventListener('mouseenter', () => {
+                comp.querySelector('.component-rect').style.filter = 'brightness(1.2)';
+            });
+            comp.addEventListener('mouseleave', () => {
+                comp.querySelector('.component-rect').style.filter = 'brightness(1)';
+            });
+        });
+    </script>
+</body>
+</html>

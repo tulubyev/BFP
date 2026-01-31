@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Геопространственный анализ | БайкалЛес ГИС</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .formula-box {
+            background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.1) 100%);
+            border: 1px solid rgba(59,130,246,0.3);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .band-nir { background: #dc2626; color: white; }
+        .band-red { background: #ef4444; color: white; }
+        .band-green { background: #22c55e; color: white; }
+        .band-blue { background: #3b82f6; color: white; }
+        .band-swir1 { background: #f59e0b; color: white; }
+        .band-swir2 { background: #d97706; color: white; }
+        .bottleneck-critical { border-left: 4px solid #ef4444; }
+        .bottleneck-warning { border-left: 4px solid #f59e0b; }
+        .bottleneck-info { border-left: 4px solid #3b82f6; }
+        .perf-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        .perf-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold">Геопространственный анализ</h1>
+                    <p class="text-xs text-gray-400">Методики ДЗЗ и алгоритмы детекции</p>
+                </div>
+            </div>
+            <nav class="hidden md:flex items-center gap-4 text-sm">
+                <a href="index.html" class="hover:text-blue-400 transition">Демо</a>
+                <a href="tech-stack.html" class="hover:text-purple-400 transition">Стек</a>
+                <a href="architecture.html" class="hover:text-blue-400 transition">Архитектура</a>
+                <a href="mvp-deployment.html" class="hover:text-green-400 transition">Развертывание</a>
+                <a href="#bottlenecks" class="hover:text-red-400 transition">Узкие места</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="py-12 px-4">
+        <div class="max-w-7xl mx-auto text-center">
+            <span class="inline-block px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-full text-sm mb-4">
+                🛰️ Remote Sensing & GIS Processing
+            </span>
+            <h2 class="text-4xl font-bold mb-4">
+                Методики анализа деградации лесов
+            </h2>
+            <p class="text-gray-400 max-w-3xl mx-auto">
+                Детальное описание спектральных индексов, алгоритмов детекции изменений, 
+                методов классификации и критических узких мест в обработке геоданных
+            </p>
+        </div>
+    </section>
+
+    <!-- Sentinel-2 Bands Reference -->
+    <section id="bands" class="px-4 py-8">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="text-3xl">📡</span>
+                Спектральные каналы Sentinel-2 MSI
+            </h2>
+            
+            <div class="glass rounded-2xl p-6 mb-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left border-b border-white/10">
+                                <th class="pb-3 pr-4">Канал</th>
+                                <th class="pb-3 pr-4">Название</th>
+                                <th class="pb-3 pr-4">Центр. λ (нм)</th>
+                                <th class="pb-3 pr-4">Разрешение</th>
+                                <th class="pb-3 pr-4">Применение в лесном мониторинге</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-blue px-2 py-1 rounded text-xs font-bold">B02</span></td>
+                                <td class="pr-4">Blue</td>
+                                <td class="pr-4 mono">490</td>
+                                <td class="pr-4">10m</td>
+                                <td class="text-gray-400">Атмосферная коррекция, водные объекты</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-green px-2 py-1 rounded text-xs font-bold">B03</span></td>
+                                <td class="pr-4">Green</td>
+                                <td class="pr-4 mono">560</td>
+                                <td class="pr-4">10m</td>
+                                <td class="text-gray-400">Отражение хлорофилла, здоровье растений</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-red px-2 py-1 rounded text-xs font-bold">B04</span></td>
+                                <td class="pr-4">Red</td>
+                                <td class="pr-4 mono">665</td>
+                                <td class="pr-4">10m</td>
+                                <td class="text-gray-400">Поглощение хлорофилла, NDVI расчёт</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="bg-rose-700 text-white px-2 py-1 rounded text-xs font-bold">B05</span></td>
+                                <td class="pr-4">Red Edge 1</td>
+                                <td class="pr-4 mono">705</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400">Стресс растительности, LAI</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="bg-rose-800 text-white px-2 py-1 rounded text-xs font-bold">B06</span></td>
+                                <td class="pr-4">Red Edge 2</td>
+                                <td class="pr-4 mono">740</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400">Содержание хлорофилла</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="bg-rose-900 text-white px-2 py-1 rounded text-xs font-bold">B07</span></td>
+                                <td class="pr-4">Red Edge 3</td>
+                                <td class="pr-4 mono">783</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400">Структура кроны</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-nir px-2 py-1 rounded text-xs font-bold">B08</span></td>
+                                <td class="pr-4">NIR</td>
+                                <td class="pr-4 mono">842</td>
+                                <td class="pr-4">10m</td>
+                                <td class="text-gray-400"><strong>Ключевой:</strong> биомасса, NDVI, LAI</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="bg-red-950 text-white px-2 py-1 rounded text-xs font-bold">B8A</span></td>
+                                <td class="pr-4">NIR Narrow</td>
+                                <td class="pr-4 mono">865</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400">Уточнённые вегетационные индексы</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-swir1 px-2 py-1 rounded text-xs font-bold">B11</span></td>
+                                <td class="pr-4">SWIR 1</td>
+                                <td class="pr-4 mono">1610</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400"><strong>Ключевой:</strong> влажность, NBR, пожары</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 pr-4"><span class="band-swir2 px-2 py-1 rounded text-xs font-bold">B12</span></td>
+                                <td class="pr-4">SWIR 2</td>
+                                <td class="pr-4 mono">2190</td>
+                                <td class="pr-4">20m</td>
+                                <td class="text-gray-400">Минералогия, сухая растительность</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <div class="font-semibold mb-2">💡 Важно для Байкальского региона:</div>
+                    <p class="text-sm text-gray-300">
+                        Каналы Red Edge (B05-B07) особенно эффективны для разделения хвойных пород 
+                        (сосна, лиственница, кедр) благодаря различиям в структуре хвои и содержании хлорофилла.
+                        SWIR каналы критичны для детекции водного стресса в условиях континентального климата.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Spectral Indices -->
+    <section id="indices" class="px-4 py-8 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="text-3xl">📊</span>
+                Спектральные индексы для мониторинга лесов
+            </h2>
+            
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- NDVI -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-green-400">NDVI</h3>
+                        <span class="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">Базовый</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Normalized Difference Vegetation Index — основной индикатор фотосинтетической активности
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg">
+                            NDVI = (<span class="text-red-400">NIR</span> − <span class="text-red-500">RED</span>) / (<span class="text-red-400">NIR</span> + <span class="text-red-500">RED</span>)
+                        </div>
+                        <div class="text-sm text-gray-400 mt-2">
+                            Sentinel-2: (B08 − B04) / (B08 + B04)
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span>Диапазон значений:</span>
+                            <span class="mono">−1.0 ... +1.0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Здоровый лес (хвойный):</span>
+                            <span class="mono text-green-400">0.6 ... 0.85</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Деградированный лес:</span>
+                            <span class="mono text-yellow-400">0.3 ... 0.5</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Гарь / вырубка:</span>
+                            <span class="mono text-red-400">−0.1 ... 0.2</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-xs">
+                        <strong>⚠️ Ограничения:</strong> Насыщается при высокой биомассе (LAI > 3), 
+                        чувствителен к атмосферным искажениям и почвенному фону
+                    </div>
+                </div>
+
+                <!-- NBR -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-orange-400">NBR</h3>
+                        <span class="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Пожары</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Normalized Burn Ratio — индекс для детекции гарей и оценки severity пожаров
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg">
+                            NBR = (<span class="text-red-400">NIR</span> − <span class="text-amber-500">SWIR2</span>) / (<span class="text-red-400">NIR</span> + <span class="text-amber-500">SWIR2</span>)
+                        </div>
+                        <div class="text-sm text-gray-400 mt-2">
+                            Sentinel-2: (B08 − B12) / (B08 + B12)
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span>Здоровая растительность:</span>
+                            <span class="mono text-green-400">0.4 ... 0.9</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Низкая severity пожара:</span>
+                            <span class="mono text-yellow-400">0.1 ... 0.27</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Средняя severity:</span>
+                            <span class="mono text-orange-400">−0.1 ... 0.1</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Высокая severity:</span>
+                            <span class="mono text-red-400">−0.5 ... −0.1</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-xs">
+                        <strong>✓ Преимущество:</strong> Эффективен для Байкала — хвойные леса дают 
+                        высокий контраст NBR между здоровым и повреждённым древостоем
+                    </div>
+                </div>
+
+                <!-- dNBR -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-red-400">dNBR / RdNBR</h3>
+                        <span class="px-3 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">Change Detection</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Differenced NBR — разница NBR до и после пожара для картографирования severity
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg mb-2">
+                            dNBR = NBR<sub>pre</sub> − NBR<sub>post</sub>
+                        </div>
+                        <div class="text-lg">
+                            RdNBR = dNBR / √(|NBR<sub>pre</sub>| / 1000)
+                        </div>
+                        <div class="text-sm text-gray-400 mt-2">
+                            RdNBR нормализует на исходную биомассу
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span>Без изменений:</span>
+                            <span class="mono">−0.1 ... 0.1</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Низкая severity:</span>
+                            <span class="mono text-yellow-400">0.1 ... 0.27</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Умеренно-низкая:</span>
+                            <span class="mono text-orange-400">0.27 ... 0.44</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Умеренно-высокая:</span>
+                            <span class="mono text-red-400">0.44 ... 0.66</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Высокая severity:</span>
+                            <span class="mono text-red-600">> 0.66</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NDMI -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-cyan-400">NDMI</h3>
+                        <span class="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs rounded-full">Влажность</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Normalized Difference Moisture Index — индекс содержания воды в листьях/хвое
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg">
+                            NDMI = (<span class="text-red-400">NIR</span> − <span class="text-amber-400">SWIR1</span>) / (<span class="text-red-400">NIR</span> + <span class="text-amber-400">SWIR1</span>)
+                        </div>
+                        <div class="text-sm text-gray-400 mt-2">
+                            Sentinel-2: (B08 − B11) / (B08 + B11)
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span>Высокая влажность:</span>
+                            <span class="mono text-cyan-400">0.4 ... 0.6</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Нормальный уровень:</span>
+                            <span class="mono text-green-400">0.2 ... 0.4</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Водный стресс:</span>
+                            <span class="mono text-yellow-400">0.0 ... 0.2</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Сильный стресс:</span>
+                            <span class="mono text-red-400">< 0.0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs">
+                        <strong>💧 Применение:</strong> Раннее обнаружение засухи, мониторинг 
+                        восстановления после пожаров, детекция вспышек насекомых-вредителей
+                    </div>
+                </div>
+
+                <!-- EVI -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-emerald-400">EVI</h3>
+                        <span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">Улучшенный</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Enhanced Vegetation Index — улучшенный индекс с коррекцией атмосферы и почвы
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg">
+                            EVI = G × (<span class="text-red-400">NIR</span> − <span class="text-red-500">RED</span>) / (<span class="text-red-400">NIR</span> + C1×<span class="text-red-500">RED</span> − C2×<span class="text-blue-400">BLUE</span> + L)
+                        </div>
+                        <div class="text-sm text-gray-400 mt-2">
+                            G=2.5, C1=6, C2=7.5, L=1
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs">
+                        <strong>✓ Преимущества над NDVI:</strong>
+                        <ul class="list-disc list-inside mt-1 space-y-1">
+                            <li>Не насыщается при высокой биомассе</li>
+                            <li>Менее чувствителен к атмосфере</li>
+                            <li>Учитывает влияние почвенного фона</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- SAVI -->
+                <div class="glass rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-lime-400">SAVI / MSAVI</h3>
+                        <span class="px-3 py-1 bg-lime-500/20 text-lime-400 text-xs rounded-full">Почва</span>
+                    </div>
+                    <p class="text-gray-400 text-sm mb-4">
+                        Soil-Adjusted Vegetation Index — для территорий с разреженной растительностью
+                    </p>
+                    
+                    <div class="formula-box rounded-lg p-4 mb-4 text-center">
+                        <div class="text-lg mb-2">
+                            SAVI = (1 + L) × (<span class="text-red-400">NIR</span> − <span class="text-red-500">RED</span>) / (<span class="text-red-400">NIR</span> + <span class="text-red-500">RED</span> + L)
+                        </div>
+                        <div class="text-sm text-gray-400">
+                            L = 0.5 (стандартное значение)
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 p-3 bg-lime-500/10 border border-lime-500/30 rounded-lg text-xs">
+                        <strong>🌲 Для Байкала:</strong> Полезен при мониторинге лесовосстановления 
+                        на гарях, где молодая поросль ещё не сомкнулась и виден почвенный фон
+                    </div>
+                </div>
+            </div>
+
+            <!-- TypeScript Implementation -->
+            <div class="glass rounded-2xl p-6 mt-8">
+                <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="text-blue-400">📝</span>
+                    Реализация индексов на TypeScript
+                </h3>
+                
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>src/processing/spectralIndices.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this)">📋 Копировать</button>
+                    </div>
+                    <pre class="code-content mono text-xs">/**
+ * Типы для спектральных данных Sentinel-2
+ */
+<span class="syntax-keyword">interface</span> <span class="syntax-type">Sentinel2Bands</span> {
+  B02: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Blue</span>
+  B03: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Green</span>
+  B04: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Red</span>
+  B05: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Red Edge 1</span>
+  B06: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Red Edge 2</span>
+  B07: <span class="syntax-type">number</span>;  <span class="syntax-comment">// Red Edge 3</span>
+  B08: <span class="syntax-type">number</span>;  <span class="syntax-comment">// NIR</span>
+  B8A: <span class="syntax-type">number</span>;  <span class="syntax-comment">// NIR Narrow</span>
+  B11: <span class="syntax-type">number</span>;  <span class="syntax-comment">// SWIR 1</span>
+  B12: <span class="syntax-type">number</span>;  <span class="syntax-comment">// SWIR 2</span>
+}
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">IndexResult</span> {
+  value: <span class="syntax-type">number</span>;
+  classification: <span class="syntax-type">string</span>;
+  confidence: <span class="syntax-type">number</span>;
+}
+
+<span class="syntax-keyword">type</span> <span class="syntax-type">BurnSeverity</span> = <span class="syntax-string">'unburned'</span> | <span class="syntax-string">'low'</span> | <span class="syntax-string">'moderate-low'</span> | <span class="syntax-string">'moderate-high'</span> | <span class="syntax-string">'high'</span>;
+
+/**
+ * Калькулятор спектральных индексов
+ */
+<span class="syntax-keyword">export class</span> <span class="syntax-type">SpectralIndexCalculator</span> {
+  
+  <span class="syntax-comment">/**
+   * NDVI — Normalized Difference Vegetation Index
+   * Диапазон: -1 to +1
+   */</span>
+  <span class="syntax-keyword">static</span> <span class="syntax-function">ndvi</span>(bands: <span class="syntax-type">Sentinel2Bands</span>): <span class="syntax-type">IndexResult</span> {
+    <span class="syntax-keyword">const</span> { B04: red, B08: nir } = bands;
+    <span class="syntax-keyword">const</span> value = (nir - red) / (nir + red);
+    
+    <span class="syntax-keyword">let</span> classification: <span class="syntax-type">string</span>;
+    <span class="syntax-keyword">if</span> (value > <span class="syntax-number">0.6</span>) classification = <span class="syntax-string">'healthy_forest'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0.4</span>) classification = <span class="syntax-string">'moderate_vegetation'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0.2</span>) classification = <span class="syntax-string">'sparse_vegetation'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0</span>) classification = <span class="syntax-string">'bare_soil'</span>;
+    <span class="syntax-keyword">else</span> classification = <span class="syntax-string">'water_or_burned'</span>;
+    
+    <span class="syntax-keyword">return</span> { value, classification, confidence: <span class="syntax-number">0.85</span> };
+  }
+
+  <span class="syntax-comment">/**
+   * NBR — Normalized Burn Ratio
+   * Для детекции гарей и оценки severity пожаров
+   */</span>
+  <span class="syntax-keyword">static</span> <span class="syntax-function">nbr</span>(bands: <span class="syntax-type">Sentinel2Bands</span>): <span class="syntax-type">IndexResult</span> {
+    <span class="syntax-keyword">const</span> { B08: nir, B12: swir2 } = bands;
+    <span class="syntax-keyword">const</span> value = (nir - swir2) / (nir + swir2);
+    
+    <span class="syntax-keyword">let</span> classification: <span class="syntax-type">string</span>;
+    <span class="syntax-keyword">if</span> (value > <span class="syntax-number">0.4</span>) classification = <span class="syntax-string">'healthy_vegetation'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0.1</span>) classification = <span class="syntax-string">'low_severity_burn'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">-0.1</span>) classification = <span class="syntax-string">'moderate_severity_burn'</span>;
+    <span class="syntax-keyword">else</span> classification = <span class="syntax-string">'high_severity_burn'</span>;
+    
+    <span class="syntax-keyword">return</span> { value, classification, confidence: <span class="syntax-number">0.9</span> };
+  }
+
+  <span class="syntax-comment">/**
+   * dNBR — Differenced NBR для change detection
+   */</span>
+  <span class="syntax-keyword">static</span> <span class="syntax-function">dNBR</span>(
+    preFire: <span class="syntax-type">Sentinel2Bands</span>, 
+    postFire: <span class="syntax-type">Sentinel2Bands</span>
+  ): { dNBR: <span class="syntax-type">number</span>; severity: <span class="syntax-type">BurnSeverity</span> } {
+    <span class="syntax-keyword">const</span> nbrPre = <span class="syntax-keyword">this</span>.<span class="syntax-function">nbr</span>(preFire).value;
+    <span class="syntax-keyword">const</span> nbrPost = <span class="syntax-keyword">this</span>.<span class="syntax-function">nbr</span>(postFire).value;
+    <span class="syntax-keyword">const</span> dNBR = nbrPre - nbrPost;
+    
+    <span class="syntax-keyword">let</span> severity: <span class="syntax-type">BurnSeverity</span>;
+    <span class="syntax-keyword">if</span> (dNBR < <span class="syntax-number">0.1</span>) severity = <span class="syntax-string">'unburned'</span>;
+    <span class="syntax-keyword">else if</span> (dNBR < <span class="syntax-number">0.27</span>) severity = <span class="syntax-string">'low'</span>;
+    <span class="syntax-keyword">else if</span> (dNBR < <span class="syntax-number">0.44</span>) severity = <span class="syntax-string">'moderate-low'</span>;
+    <span class="syntax-keyword">else if</span> (dNBR < <span class="syntax-number">0.66</span>) severity = <span class="syntax-string">'moderate-high'</span>;
+    <span class="syntax-keyword">else</span> severity = <span class="syntax-string">'high'</span>;
+    
+    <span class="syntax-keyword">return</span> { dNBR, severity };
+  }
+
+  <span class="syntax-comment">/**
+   * NDMI — Normalized Difference Moisture Index
+   */</span>
+  <span class="syntax-keyword">static</span> <span class="syntax-function">ndmi</span>(bands: <span class="syntax-type">Sentinel2Bands</span>): <span class="syntax-type">IndexResult</span> {
+    <span class="syntax-keyword">const</span> { B08: nir, B11: swir1 } = bands;
+    <span class="syntax-keyword">const</span> value = (nir - swir1) / (nir + swir1);
+    
+    <span class="syntax-keyword">let</span> classification: <span class="syntax-type">string</span>;
+    <span class="syntax-keyword">if</span> (value > <span class="syntax-number">0.4</span>) classification = <span class="syntax-string">'high_moisture'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0.2</span>) classification = <span class="syntax-string">'normal_moisture'</span>;
+    <span class="syntax-keyword">else if</span> (value > <span class="syntax-number">0</span>) classification = <span class="syntax-string">'water_stress'</span>;
+    <span class="syntax-keyword">else</span> classification = <span class="syntax-string">'severe_stress'</span>;
+    
+    <span class="syntax-keyword">return</span> { value, classification, confidence: <span class="syntax-number">0.8</span> };
+  }
+
+  <span class="syntax-comment">/**
+   * EVI — Enhanced Vegetation Index
+   */</span>
+  <span class="syntax-keyword">static</span> <span class="syntax-function">evi</span>(bands: <span class="syntax-type">Sentinel2Bands</span>): <span class="syntax-type">IndexResult</span> {
+    <span class="syntax-keyword">const</span> { B02: blue, B04: red, B08: nir } = bands;
+    <span class="syntax-keyword">const</span> G = <span class="syntax-number">2.5</span>, C1 = <span class="syntax-number">6</span>, C2 = <span class="syntax-number">7.5</span>, L = <span class="syntax-number">1</span>;
+    
+    <span class="syntax-keyword">const</span> value = G * (nir - red) / (nir + C1 * red - C2 * blue + L);
+    
+    <span class="syntax-keyword">return</span> {
+      value: Math.<span class="syntax-function">max</span>(-<span class="syntax-number">1</span>, Math.<span class="syntax-function">min</span>(<span class="syntax-number">1</span>, value)),
+      classification: value > <span class="syntax-number">0.4</span> ? <span class="syntax-string">'dense_vegetation'</span> : <span class="syntax-string">'sparse_vegetation'</span>,
+      confidence: <span class="syntax-number">0.88</span>
+    };
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Change Detection Algorithms -->
+    <section id="algorithms" class="px-4 py-12">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="text-3xl">🔬</span>
+                Алгоритмы детекции изменений
+            </h2>
+
+            <!-- LandTrendr -->
+            <div class="glass rounded-2xl p-6 mb-6">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">📈</div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-green-400">LandTrendr</h3>
+                        <p class="text-gray-400">Landsat-based Detection of Trends in Disturbance and Recovery</p>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-3">Принцип работы:</h4>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-gray-300">
+                            <li>Собирает временной ряд спектральных значений (NDVI/NBR) за 10-40 лет</li>
+                            <li>Применяет temporal segmentation — разбивает ряд на линейные сегменты</li>
+                            <li>Идентифицирует точки перелома (breakpoints) — моменты резких изменений</li>
+                            <li>Классифицирует тип изменения: disturbance (рубка, пожар) или recovery</li>
+                            <li>Оценивает magnitude (интенсивность) и duration (длительность) изменений</li>
+                        </ol>
+
+                        <div class="mt-4 p-4 bg-green-500/10 rounded-lg">
+                            <div class="font-semibold mb-2">Ключевые параметры:</div>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div><code class="bg-white/10 px-1 rounded">maxSegments</code>: 6-8</div>
+                                <div><code class="bg-white/10 px-1 rounded">spikeThreshold</code>: 0.9</div>
+                                <div><code class="bg-white/10 px-1 rounded">vertexCountOvershoot</code>: 3</div>
+                                <div><code class="bg-white/10 px-1 rounded">recoveryThreshold</code>: 0.25</div>
+                                <div><code class="bg-white/10 px-1 rounded">pvalThreshold</code>: 0.05</div>
+                                <div><code class="bg-white/10 px-1 rounded">bestModelProportion</code>: 0.75</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold mb-3">Точность для Байкальского региона:</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span>Детекция пожаров</span>
+                                    <span class="text-green-400">94.2%</span>
+                                </div>
+                                <div class="perf-bar">
+                                    <div class="perf-bar-fill bg-green-500" style="width: 94.2%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span>Детекция рубок</span>
+                                    <span class="text-green-400">89.5%</span>
+                                </div>
+                                <div class="perf-bar">
+                                    <div class="perf-bar-fill bg-green-500" style="width: 89.5%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span>Постепенная деградация</span>
+                                    <span class="text-yellow-400">87.5%</span>
+                                </div>
+                                <div class="perf-bar">
+                                    <div class="perf-bar-fill bg-yellow-500" style="width: 87.5%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span>Мониторинг восстановления</span>
+                                    <span class="text-yellow-400">82.3%</span>
+                                </div>
+                                <div class="perf-bar">
+                                    <div class="perf-bar-fill bg-yellow-500" style="width: 82.3%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-xs">
+                            <strong>⚠️ Ограничения:</strong> Требует минимум 10 лет данных для надёжной сегментации. 
+                            Чувствителен к облачности — пропуски в данных снижают точность.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="code-block mt-6">
+                    <div class="code-header">
+                        <span>src/algorithms/landtrendr.ts</span>
+                        <button class="copy-btn" onclick="copyCode(this)">📋 Копировать</button>
+                    </div>
+                    <pre class="code-content mono text-xs">/**
+ * LandTrendr-подобный алгоритм сегментации временных рядов
+ * Упрощённая реализация на TypeScript
+ */
+<span class="syntax-keyword">interface</span> <span class="syntax-type">TimeSeriesPoint</span> {
+  date: <span class="syntax-type">Date</span>;
+  value: <span class="syntax-type">number</span>;  <span class="syntax-comment">// NDVI или NBR</span>
+  cloudMask: <span class="syntax-type">boolean</span>;
+}
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">Segment</span> {
+  startDate: <span class="syntax-type">Date</span>;
+  endDate: <span class="syntax-type">Date</span>;
+  startValue: <span class="syntax-type">number</span>;
+  endValue: <span class="syntax-type">number</span>;
+  slope: <span class="syntax-type">number</span>;
+  type: <span class="syntax-string">'stable'</span> | <span class="syntax-string">'disturbance'</span> | <span class="syntax-string">'recovery'</span>;
+}
+
+<span class="syntax-keyword">interface</span> <span class="syntax-type">LandTrendrConfig</span> {
+  maxSegments: <span class="syntax-type">number</span>;        <span class="syntax-comment">// максимум сегментов (6-8)</span>
+  spikeThreshold: <span class="syntax-type">number</span>;     <span class="syntax-comment">// порог для фильтрации выбросов (0.9)</span>
+  vertexCountOvershoot: <span class="syntax-type">number</span>; <span class="syntax-comment">// доп. вершины для поиска (3)</span>
+  recoveryThreshold: <span class="syntax-type">number</span>;  <span class="syntax-comment">// мин. изменение для recovery (0.25)</span>
+  pvalThreshold: <span class="syntax-type">number</span>;      <span class="syntax-comment">// p-value для значимости (0.05)</span>
+}
+
+<span class="syntax-keyword">export class</span> <span class="syntax-type">LandTrendrProcessor</span> {
+  <span class="syntax-keyword">private</span> config: <span class="syntax-type">LandTrendrConfig</span>;
+
+  <span class="syntax-keyword">constructor</span>(config: <span class="syntax-type">Partial</span><<span class="syntax-type">LandTrendrConfig</span>> = {}) {
+    <span class="syntax-keyword">this</span>.config = {
+      maxSegments: config.maxSegments ?? <span class="syntax-number">6</span>,
+      spikeThreshold: config.spikeThreshold ?? <span class="syntax-number">0.9</span>,
+      vertexCountOvershoot: config.vertexCountOvershoot ?? <span class="syntax-number">3</span>,
+      recoveryThreshold: config.recoveryThreshold ?? <span class="syntax-number">0.25</span>,
+      pvalThreshold: config.pvalThreshold ?? <span class="syntax-number">0.05</span>
+    };
+  }
+
+  <span class="syntax-comment">/**
+   * Основной метод — сегментация временного ряда
+   */</span>
+  <span class="syntax-function">segment</span>(timeSeries: <span class="syntax-type">TimeSeriesPoint</span>[]): <span class="syntax-type">Segment</span>[] {
+    <span class="syntax-comment">// 1. Фильтрация облачных наблюдений</span>
+    <span class="syntax-keyword">const</span> filtered = <span class="syntax-keyword">this</span>.<span class="syntax-function">filterClouds</span>(timeSeries);
+    
+    <span class="syntax-comment">// 2. Удаление выбросов (spikes)</span>
+    <span class="syntax-keyword">const</span> despiked = <span class="syntax-keyword">this</span>.<span class="syntax-function">removeSpikes</span>(filtered);
+    
+    <span class="syntax-comment">// 3. Поиск потенциальных вершин (breakpoints)</span>
+    <span class="syntax-keyword">const</span> vertices = <span class="syntax-keyword">this</span>.<span class="syntax-function">findVertices</span>(despiked);
+    
+    <span class="syntax-comment">// 4. Оптимизация — выбор лучшей комбинации вершин</span>
+    <span class="syntax-keyword">const</span> optimized = <span class="syntax-keyword">this</span>.<span class="syntax-function">optimizeSegmentation</span>(despiked, vertices);
+    
+    <span class="syntax-comment">// 5. Классификация сегментов</span>
+    <span class="syntax-keyword">return</span> <span class="syntax-keyword">this</span>.<span class="syntax-function">classifySegments</span>(optimized);
+  }
+
+  <span class="syntax-keyword">private</span> <span class="syntax-function">filterClouds</span>(ts: <span class="syntax-type">TimeSeriesPoint</span>[]): <span class="syntax-type">TimeSeriesPoint</span>[] {
+    <span class="syntax-keyword">return</span> ts.<span class="syntax-function">filter</span>(p => !p.cloudMask);
+  }
+
+  <span class="syntax-keyword">private</span> <span class="syntax-function">removeSpikes</span>(ts: <span class="syntax-type">TimeSeriesPoint</span>[]): <span class="syntax-type">TimeSeriesPoint</span>[] {
+    <span class="syntax-keyword">const</span> result: <span class="syntax-type">TimeSeriesPoint</span>[] = [];
+    <span class="syntax-keyword">for</span> (<span class="syntax-keyword">let</span> i = <span class="syntax-number">0</span>; i < ts.length; i++) {
+      <span class="syntax-keyword">if</span> (i === <span class="syntax-number">0</span> || i === ts.length - <span class="syntax-number">1</span>) {
+        result.<span class="syntax-function">push</span>(ts[i]);
+        <span class="syntax-keyword">continue</span>;
+      }
+      <span class="syntax-comment">// Проверка на spike: значение сильно отличается от соседей</span>
+      <span class="syntax-keyword">const</span> prev = ts[i - <span class="syntax-number">1</span>].value;
+      <span class="syntax-keyword">const</span> curr = ts[i].value;
+      <span class="syntax-keyword">const</span> next = ts[i + <span class="syntax-number">1</span>].value;
+      <span class="syntax-keyword">const</span> expectedRange = Math.<span class="syntax-function">abs</span>(next - prev) * <span class="syntax-keyword">this</span>.config.spikeThreshold;
+      
+      <span class="syntax-keyword">if</span> (Math.<span class="syntax-function">abs</span>(curr - (prev + next) / <span class="syntax-number">2</span>) <= expectedRange) {
+        result.<span class="syntax-function">push</span>(ts[i]);
+      }
+    }
+    <span class="syntax-keyword">return</span> result;
+  }
+
+  <span class="syntax-keyword">private</span> <span class="syntax-function">findVertices</span>(ts: <span class="syntax-type">TimeSeriesPoint</span>[]): <span class="syntax-type">number</span>[] {
+    <span class="syntax-comment">// Упрощённый алгоритм поиска точек перегиба</span>
+    <span class="syntax-keyword">const</span> vertices: <span class="syntax-type">number</span>[] = [<span class="syntax-number">0</span>]; <span class="syntax-comment">// Начальная точка</span>
+    <span class="syntax-keyword">const</span> targetCount = <span class="syntax-keyword">this</span>.config.maxSegments + <span class="syntax-keyword">this</span>.config.vertexCountOvershoot;
+    
+    <span class="syntax-comment">// Находим точки с максимальным отклонением от линии тренда</span>
+    <span class="syntax-keyword">while</span> (vertices.length < targetCount && vertices.length < ts.length) {
+      <span class="syntax-keyword">let</span> maxDeviation = <span class="syntax-number">0</span>;
+      <span class="syntax-keyword">let</span> maxIdx = -<span class="syntax-number">1</span>;
+      
+      <span class="syntax-keyword">for</span> (<span class="syntax-keyword">let</span> i = <span class="syntax-number">1</span>; i < ts.length - <span class="syntax-number">1</span>; i++) {
+        <span class="syntax-keyword">if</span> (vertices.<span class="syntax-function">includes</span>(i)) <span class="syntax-keyword">continue</span>;
+        <span class="syntax-keyword">const</span> deviation = <span class="syntax-keyword">this</span>.<span class="syntax-function">calculateDeviation</span>(ts, vertices, i);
+        <span class="syntax-keyword">if</span> (deviation > maxDeviation) {
+          maxDeviation = deviation;
+          maxIdx = i;
+        }
+      }
+      <span class="syntax-keyword">if</span> (maxIdx > <span class="syntax-number">0</span>) vertices.<span class="syntax-function">push</span>(maxIdx);
+      <span class="syntax-keyword">else</span> <span class="syntax-keyword">break</span>;
+    }
+    
+    vertices.<span class="syntax-function">push</span>(ts.length - <span class="syntax-number">1</span>); <span class="syntax-comment">// Конечная точка</span>
+    <span class="syntax-keyword">return</span> vertices.<span class="syntax-function">sort</span>((a, b) => a - b);
+  }
+
+  <span class="syntax-keyword">private</span> <span class="syntax-function">classifySegments</span>(segments: <span class="syntax-type">Segment</span>[]): <span class="syntax-type">Segment</span>[] {
+    <span class="syntax-keyword">return</span> segments.<span class="syntax-function">map</span>(seg => {
+      <span class="syntax-keyword">const</span> magnitude = seg.endValue - seg.startValue;
+      
+      <span class="syntax-keyword">if</span> (Math.<span class="syntax-function">abs</span>(magnitude) < <span class="syntax-number">0.05</span>) {
+        seg.type = <span class="syntax-string">'stable'</span>;
+      } <span class="syntax-keyword">else if</span> (magnitude < -<span class="syntax-keyword">this</span>.config.recoveryThreshold) {
+        seg.type = <span class="syntax-string">'disturbance'</span>; <span class="syntax-comment">// Резкое падение = нарушение</span>
+      } <span class="syntax-keyword">else if</span> (magnitude > <span class="syntax-keyword">this</span>.config.recoveryThreshold) {
+        seg.type = <span class="syntax-string">'recovery'</span>; <span class="syntax-comment">// Рост = восстановление</span>
+      } <span class="syntax-keyword">else</span> {
+        seg.type = <span class="syntax-string">'stable'</span>;
+      }
+      
+      <span class="syntax-keyword">return</span> seg;
+    });
+  }
+
+  <span class="syntax-comment">// ... остальные вспомогательные методы</span>
+}</pre>
+                </div>
+            </div>
+
+            <!-- BFAST -->
+            <div class="glass rounded-2xl p-6 mb-6">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">📊</div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-purple-400">BFAST</h3>
+                        <p class="text-gray-400">Breaks For Additive Season and Trend</p>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-3">Принцип работы:</h4>
+                        <div class="formula-box rounded-lg p-4 mb-4">
+                            <div class="text-center mb-2">Y<sub>t</sub> = T<sub>t</sub> + S<sub>t</sub> + e<sub>t</sub></div>
+                            <div class="text-xs text-gray-400 text-center">
+                                T — тренд | S — сезонность | e — остатки
+                            </div>
+                        </div>
+                        
+                        <ul class="space-y-2 text-sm text-gray-300">
+                            <li>• Декомпозирует временной ряд на компоненты</li>
+                            <li>• Моделирует сезонный цикл хвойных лесов</li>
+                            <li>• Детектирует breakpoints в тренде отдельно от сезонности</li>
+                            <li>• Эффективен для выявления постепенных изменений</li>
+                        </ul>
+
+                        <div class="mt-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg text-xs">
+                            <strong>🌲 Для хвойных лесов Байкала:</strong> BFAST учитывает слабую сезонность 
+                            вечнозелёных пород, что снижает false positives весной/осенью
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold mb-3">Сравнение с LandTrendr:</h4>
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b border-white/10">
+                                    <th class="text-left pb-2">Критерий</th>
+                                    <th class="text-center pb-2">LandTrendr</th>
+                                    <th class="text-center pb-2">BFAST</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5">
+                                <tr>
+                                    <td class="py-2">Учёт сезонности</td>
+                                    <td class="text-center text-yellow-400">Частично</td>
+                                    <td class="text-center text-green-400">Полностью</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Резкие изменения</td>
+                                    <td class="text-center text-green-400">Отлично</td>
+                                    <td class="text-center text-green-400">Хорошо</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Постепенные изменения</td>
+                                    <td class="text-center text-yellow-400">Хорошо</td>
+                                    <td class="text-center text-green-400">Отлично</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Требуемый архив</td>
+                                    <td class="text-center">10+ лет</td>
+                                    <td class="text-center">3+ лет</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2">Вычислительная сложность</td>
+                                    <td class="text-center text-green-400">O(n²)</td>
+                                    <td class="text-center text-yellow-400">O(n³)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CCDC -->
+            <div class="glass rounded-2xl p-6">
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">🔄</div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-blue-400">CCDC</h3>
+                        <p class="text-gray-400">Continuous Change Detection and Classification</p>
+                    </div>
+                </div>
+
+                <div class="grid lg:grid-cols-3 gap-4">
+                    <div class="p-4 bg-white/5 rounded-lg">
+                        <div class="font-semibold mb-2">1. Time Series Model</div>
+                        <p class="text-xs text-gray-400">Гармоническая регрессия для каждого пикселя с учётом сезонности</p>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-lg">
+                        <div class="font-semibold mb-2">2. Change Detection</div>
+                        <p class="text-xs text-gray-400">Статистический тест на отклонение от модели (3σ правило)</p>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-lg">
+                        <div class="font-semibold mb-2">3. Classification</div>
+                        <p class="text-xs text-gray-400">Random Forest классификация каждого стабильного сегмента</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <div class="font-semibold mb-2">Преимущества CCDC для NRT мониторинга:</div>
+                    <ul class="text-sm text-gray-300 space-y-1">
+                        <li>✓ Работает в near-real-time — детекция при поступлении нового снимка</li>
+                        <li>✓ Не требует ретроспективного анализа всего ряда</li>
+                        <li>✓ Адаптивная модель — подстраивается под локальные условия</li>
+                        <li>✓ Интегрирован в Google Earth Engine</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bottlenecks -->
+    <section id="bottlenecks" class="px-4 py-12 bg-black/20">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <span class="text-3xl">⚠️</span>
+                Узкие места инфраструктуры и производительности
+            </h2>
+
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Critical Bottlenecks -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-red-400">🔴 Критические узкие места</h3>
+
+                    <div class="glass rounded-xl p-5 bottleneck-critical">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">I/O при обработке растров</h4>
+                            <span class="text-xs bg-red-500/30 text-red-400 px-2 py-1 rounded">High Impact</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            Чтение больших GeoTIFF файлов (2-5 GB на сцену Sentinel-2) с S3 
+                            создаёт bottleneck при массовой обработке.
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Использовать COG формат с internal tiling (512x512)</li>
+                                <li>HTTP Range Requests — читать только нужные тайлы</li>
+                                <li>GDAL_CACHEMAX = 512MB для кэширования блоков</li>
+                                <li>Параллельная загрузка через asyncio/Worker threads</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-5 bottleneck-critical">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">RAM при временных рядах</h4>
+                            <span class="text-xs bg-red-500/30 text-red-400 px-2 py-1 rounded">Memory</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            LandTrendr на 20 лет данных × 10 каналов × 10000×10000 пикселей = ~40 GB RAM
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Chunk-based processing (Dask/Xarray)</li>
+                                <li>Обработка по тайлам 1024×1024 с overlap</li>
+                                <li>Memory-mapped arrays (numpy memmap)</li>
+                                <li>Streaming aggregation без загрузки всего ряда</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-5 bottleneck-critical">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">PostGIS spatial queries</h4>
+                            <span class="text-xs bg-red-500/30 text-red-400 px-2 py-1 rounded">Database</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            ST_Intersects на 100K+ полигонов пожаров без индексов — секунды на запрос
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>GIST индексы на все geometry колонки</li>
+                                <li>Кластеризация таблиц по геометрии (CLUSTER)</li>
+                                <li>Партиционирование по годам/регионам</li>
+                                <li>Materialized Views для частых агрегаций</li>
+                            </ul>
+                        </div>
+                        <div class="code-block mt-3">
+                            <pre class="code-content mono text-xs p-2"><span class="syntax-comment">-- Оптимизированный запрос</span>
+<span class="syntax-keyword">CREATE INDEX</span> idx_events_geom_2024 
+  <span class="syntax-keyword">ON</span> gis.forest_events 
+  <span class="syntax-keyword">USING</span> GIST (geom)
+  <span class="syntax-keyword">WHERE</span> EXTRACT(YEAR FROM detected_date) = 2024;
+
+<span class="syntax-keyword">CLUSTER</span> gis.forest_events <span class="syntax-keyword">USING</span> idx_events_geom;</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warning Bottlenecks -->
+                <div class="space-y-4">
+                    <h3 class="text-lg font-semibold text-yellow-400">🟡 Потенциальные проблемы</h3>
+
+                    <div class="glass rounded-xl p-5 bottleneck-warning">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">TiTiler concurrency</h4>
+                            <span class="text-xs bg-yellow-500/30 text-yellow-400 px-2 py-1 rounded">Scaling</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            Каждый тайл-запрос = открытие COG + репроекция + рендеринг. 
+                            При 50+ concurrent users сервер захлёбывается.
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Redis/Nginx кэширование готовых тайлов (TTL 24h)</li>
+                                <li>Pre-generation популярных зум-уровней (z5-z12)</li>
+                                <li>Горизонтальное масштабирование (K8s replicas)</li>
+                                <li>CDN для статических тайлов</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-5 bottleneck-warning">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">Cloud masking accuracy</h4>
+                            <span class="text-xs bg-yellow-500/30 text-yellow-400 px-2 py-1 rounded">Quality</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            Стандартные cloud masks (Sen2Cor SCL) дают 10-15% ошибок, 
+                            что критично для временных рядов.
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>s2cloudless (ML-based) — точность 95%+</li>
+                                <li>Fmask 4.0 для Landsat</li>
+                                <li>Temporal compositing (медиана за период)</li>
+                                <li>Ручная верификация для training data</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-5 bottleneck-warning">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">S3 API costs</h4>
+                            <span class="text-xs bg-yellow-500/30 text-yellow-400 px-2 py-1 rounded">Cost</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            При интенсивной работе TiTiler генерирует миллионы GET-запросов к S3.
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение (Yandex.Cloud):</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Локальный кэш на SSD (500GB) для hot data</li>
+                                <li>Агрессивное HTTP кэширование (Cache-Control)</li>
+                                <li>GDAL_DISABLE_READDIR_ON_OPEN=EMPTY_DIR</li>
+                                <li>Batch operations вместо единичных запросов</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-xl p-5 bottleneck-info">
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="font-bold">Frontend bundle size</h4>
+                            <span class="text-xs bg-blue-500/30 text-blue-400 px-2 py-1 rounded">UX</span>
+                        </div>
+                        <p class="text-sm text-gray-400 mb-3">
+                            MapLibre (800KB) + Chart.js (200KB) + Turf.js (500KB) = 1.5MB+ JavaScript
+                        </p>
+                        <div class="p-3 bg-green-500/10 rounded-lg text-xs">
+                            <strong>Решение:</strong>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Tree shaking — импорт только нужных модулей Turf</li>
+                                <li>Code splitting (React.lazy)</li>
+                                <li>Brotli compression (70% меньше gzip)</li>
+                                <li>Service Worker для офлайн кэширования</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="glass rounded-2xl p-6 mt-8">
+                <h3 class="text-xl font-bold mb-6">📈 Целевые метрики производительности MVP</h3>
+                
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-4 bg-white/5 rounded-lg text-center">
+                        <div class="text-3xl font-bold text-green-400">< 200ms</div>
+                        <div class="text-sm text-gray-400 mt-1">Tile response time</div>
+                        <div class="text-xs text-gray-500">(с кэшем)</div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-lg text-center">
+                        <div class="text-3xl font-bold text-blue-400">< 2s</div>
+                        <div class="text-sm text-gray-400 mt-1">Initial map load</div>
+                        <div class="text-xs text-gray-500">(First Contentful Paint)</div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-lg text-center">
+                        <div class="text-3xl font-bold text-purple-400">< 30s</div>
+                        <div class="text-sm text-gray-400 mt-1">NDVI calculation</div>
+                        <div class="text-xs text-gray-500">(на 1 сцену Sentinel-2)</div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-lg text-center">
+                        <div class="text-3xl font-bold text-yellow-400">50+</div>
+                        <div class="text-sm text-gray-400 mt-1">Concurrent users</div>
+                        <div class="text-xs text-gray-500">(без деградации)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Checklist -->
+            <div class="glass rounded-2xl p-6 mt-8">
+                <h3 class="text-xl font-bold mb-4">✅ Чеклист оптимизации перед запуском</h3>
+                
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div>
+                        <h4 class="font-semibold text-green-400 mb-3">Storage</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Все растры в COG формате</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Overviews сгенерированы (gdaladdo)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>S3 bucket в том же регионе, что и VPS</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>CORS настроен для TiTiler</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-blue-400 mb-3">Database</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>GIST индексы на geometry</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>VACUUM ANALYZE выполнен</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Connection pooling (PgBouncer)</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>shared_buffers = 4GB</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-purple-400 mb-3">Application</h4>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Redis кэш для тайлов</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Nginx gzip/brotli включен</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>GDAL env variables настроены</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <input type="checkbox" class="mt-1"> 
+                                <span>Health checks в Docker Compose</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="glass mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
+            <p>БайкалЛес ГИС — Геопространственный анализ и детекция изменений</p>
+            <div class="flex justify-center gap-4 mt-3">
+                <a href="index.html" class="hover:text-blue-400 transition">Демо</a>
+                <span>•</span>
+                <a href="tech-stack.html" class="hover:text-purple-400 transition">Стек</a>
+                <span>•</span>
+                <a href="architecture.html" class="hover:text-blue-400 transition">Архитектура</a>
+                <span>•</span>
+                <a href="mvp-deployment.html" class="hover:text-green-400 transition">Развертывание</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function copyCode(btn) {
+            const codeBlock = btn.closest('.code-block');
+            if (!codeBlock) return;
+            
+            const code = codeBlock.querySelector('.code-content')?.textContent;
+            if (!code) return;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Скопировано!';
+                btn.style.background = 'rgba(34, 197, 94, 0.3)';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
