@@ -17,7 +17,7 @@ class Server {
 
   constructor() {
     this.app = express();
-    this.port = parseInt(process.env.PORT || '5000', 10);
+    this.port = parseInt(process.env.PORT || '3000', 10);
     this.host = '0.0.0.0';
     this.initializeMiddlewares();
     this.initializeRoutes();

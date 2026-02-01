@@ -4,34 +4,42 @@
   "description": "GIS monitoring system for Baikal region forests using satellite data",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:client",
+    "build:server": "tsc",
+    "build:client": "cd client && npx vite build",
     "start": "node dist/server.js",
     "dev": "npx ts-node -r tsconfig-paths/register src/server.ts",
+    "dev:client": "cd client && npx vite --host 0.0.0.0 --port 5000",
+    "dev:all": "npm run dev & npm run dev:client",
     "test": "jest"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "@turf/turf": "^6.5.0",
+    "@types/geojson": "^7946.0.10",
+    "autoprefixer": "^10.4.24",
+    "axios": "^1.4.0",
     "cors": "^2.8.5",
-    "helmet": "^7.0.0",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
     "pg": "^8.11.0",
     "pg-format": "^1.0.4",
-    "axios": "^1.4.0",
+    "postcss": "^8.5.6",
     "sharp": "^0.32.4",
-    "@types/geojson": "^7946.0.10",
-    "@turf/turf": "^6.5.0"
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.4.0",
-    "@types/express": "^4.17.17",
-    "@types/pg": "^8.10.2",
     "@types/cors": "^2.8.13",
-    "@types/sharp": "^0.31.1",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.3",
+    "@types/node": "^20.4.0",
+    "@types/pg": "^8.10.2",
     "@types/pg-format": "^1.0.2",
-    "typescript": "^5.1.6",
+    "@types/sharp": "^0.31.1",
+    "jest": "^29.6.1",
     "ts-node": "^10.9.1",
     "tsconfig-paths": "^4.2.0",
-    "jest": "^29.6.1",
-    "@types/jest": "^29.5.3"
+    "typescript": "^5.1.6"
   }
 }
