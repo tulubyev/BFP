@@ -43,6 +43,11 @@ const baseLayers = {
     name: 'Carto Dark',
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; CARTO'
+  },
+  hybrid: {
+    name: 'Гибрид (ESRI)',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri'
   }
 };
 
@@ -69,10 +74,19 @@ export function initializeMap(containerId: string, config: MapConfig = DEFAULT_C
   });
   baseLayer.addTo(map);
 
+  const hybridLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri',
+    pane: 'shadowPane'
+  });
+
   const layerControl = L.control.layers({
     'Carto Dark': baseLayer,
     'OpenStreetMap': L.tileLayer(baseLayers.osm.url, { attribution: baseLayers.osm.attribution }),
-    'Спутник': L.tileLayer(baseLayers.satellite.url, { attribution: baseLayers.satellite.attribution }),
+    'Спутник (ESRI)': L.tileLayer(baseLayers.satellite.url, { attribution: baseLayers.satellite.attribution }),
+    'Гибрид (Спутник + Подписи)': L.layerGroup([
+      L.tileLayer(baseLayers.satellite.url, { attribution: baseLayers.satellite.attribution }),
+      hybridLabels
+    ]),
     'Рельеф': L.tileLayer(baseLayers.terrain.url, { attribution: baseLayers.terrain.attribution }),
   }, {
     'Границы и дороги': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
