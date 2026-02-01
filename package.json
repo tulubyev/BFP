@@ -11,17 +11,22 @@
     "dev": "npx ts-node -r tsconfig-paths/register src/server.ts",
     "dev:client": "cd client && npx vite --host 0.0.0.0 --port 5000",
     "dev:all": "npm run dev & npm run dev:client",
-    "test": "jest"
+    "test": "jest",
+    "db:migrate": "npx ts-node database/run-migrations.ts migrate",
+    "db:seed": "npx ts-node database/run-migrations.ts seed",
+    "db:setup": "npx ts-node database/run-migrations.ts all"
   },
   "dependencies": {
     "@turf/turf": "^6.5.0",
     "@types/geojson": "^7946.0.10",
+    "@types/leaflet": "^1.9.21",
     "autoprefixer": "^10.4.24",
     "axios": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "helmet": "^7.0.0",
+    "leaflet": "^1.9.4",
     "pg": "^8.11.0",
     "pg-format": "^1.0.4",
     "postcss": "^8.5.6",

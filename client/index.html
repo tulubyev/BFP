@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ГИС Мониторинг лесов Байкала | Спутниковая система</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 </head>
 <body class="gradient-bg min-h-screen text-white">
     <header class="glass sticky top-0 z-50">
@@ -86,8 +87,12 @@
         <div class="max-w-7xl mx-auto">
             <div class="card">
                 <h3 class="text-xl font-bold mb-4">Интерактивная карта</h3>
-                <div id="map-container" class="bg-slate-700/50 rounded-lg h-96 flex items-center justify-center">
-                    <p class="text-gray-400">Карта в разработке</p>
+                <div id="map-container" class="bg-slate-700/50 rounded-lg" style="height: 500px; z-index: 1;"></div>
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <button id="btn-load-forests" class="btn-secondary text-sm">Загрузить леса</button>
+                    <button id="btn-load-changes" class="btn-secondary text-sm">Изменения</button>
+                    <button id="btn-load-fires" class="btn-secondary text-sm">Термоточки</button>
+                    <button id="btn-fit-baikal" class="btn-secondary text-sm">Весь Байкал</button>
                 </div>
             </div>
         </div>

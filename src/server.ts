@@ -9,6 +9,7 @@ dotenv.config();
 import titilerRoutes from './routes/titiler';
 import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
+import monitoringRoutes from './routes/monitoring';
 
 class Server {
   private app: Application;
@@ -31,8 +32,8 @@ class Server {
           scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
           fontSrc: ["'self'", "fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "blob:"],
-          connectSrc: ["'self'"]
+          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org"],
+          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org"]
         }
       }
     }));
@@ -45,6 +46,7 @@ class Server {
     this.app.use('/api/titiler', titilerRoutes);
     this.app.use('/api/stac', stacRoutes);
     this.app.use('/api/analytics', analyticsRoutes);
+    this.app.use('/api/monitoring', monitoringRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'));
