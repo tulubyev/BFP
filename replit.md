@@ -117,6 +117,12 @@ External PostgreSQL database on beget.com (quoquuquosijo.beget.app).
 - **Testing**: Jest, ts-jest
 - **Database**: PostgreSQL with PostGIS (external)
 
+## Documentation
+See `docs/` folder for detailed documentation:
+- `docs/README.md` - Project overview
+- `docs/DEVELOPMENT.md` - Development guidelines
+- `docs/ARCHITECTURE.md` - System architecture
+
 ## TODO Areas (marked with alerts)
 - [ ] Map integration (Leaflet/MapLibre)
 - [ ] STAC API search implementation
