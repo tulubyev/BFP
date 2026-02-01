@@ -1,0 +1,75 @@
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+export enum AlertLevel {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  TODO = 'TODO',
+  STUB = 'STUB',
+  CRITICAL = 'CRITICAL'
+}
+
+interface DevAlert {
+  level: AlertLevel;
+  message: string;
+  file?: string;
+  line?: number;
+}
+
+const alerts: DevAlert[] = [];
+
+export function devAlert(level: AlertLevel, message: string, file?: string, line?: number): void {
+  if (!isDevelopment) return;
+  
+  const alert: DevAlert = { level, message, file, line };
+  alerts.push(alert);
+  
+  const prefix = `[${level}]`;
+  const location = file ? ` (${file}${line ? `:${line}` : ''})` : '';
+  
+  switch (level) {
+    case AlertLevel.CRITICAL:
+      console.error(`${prefix}${location}: ${message}`);
+      break;
+    case AlertLevel.WARNING:
+    case AlertLevel.TODO:
+      console.warn(`${prefix}${location}: ${message}`);
+      break;
+    default:
+      console.log(`${prefix}${location}: ${message}`);
+  }
+}
+
+export function todo(message: string, file?: string): void {
+  devAlert(AlertLevel.TODO, message, file);
+}
+
+export function stub(functionName: string, file?: string): void {
+  devAlert(AlertLevel.STUB, `Function '${functionName}' is a stub - implementation needed`, file);
+}
+
+export function needsWork(area: string, description: string, file?: string): void {
+  devAlert(AlertLevel.WARNING, `${area}: ${description}`, file);
+}
+
+export function getAlerts(): DevAlert[] {
+  return [...alerts];
+}
+
+export function printAlertsSummary(): void {
+  if (!isDevelopment || alerts.length === 0) return;
+  
+  console.log('\n========== DEVELOPMENT ALERTS SUMMARY ==========');
+  console.log(`Total alerts: ${alerts.length}`);
+  
+  const byLevel = alerts.reduce((acc, alert) => {
+    acc[alert.level] = (acc[alert.level] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  Object.entries(byLevel).forEach(([level, count]) => {
+    console.log(`  ${level}: ${count}`);
+  });
+  console.log('=================================================\n');
+}
+
+export default { devAlert, todo, stub, needsWork, getAlerts, printAlertsSummary };
