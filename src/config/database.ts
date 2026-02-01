@@ -5,12 +5,15 @@ dotenv.config();
 
 let pool: Pool;
 
-if (process.env.DATABASE_URL) {
+const connectionString = process.env.EXTERNAL_DATABASE_URL || process.env.DATABASE_URL;
+
+if (connectionString) {
   pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: connectionString,
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
+    ssl: process.env.EXTERNAL_DATABASE_URL ? { rejectUnauthorized: false } : undefined,
   });
 } else {
   const dbConfig: PoolConfig = {
@@ -21,7 +24,7 @@ if (process.env.DATABASE_URL) {
     database: process.env.DB_NAME || 'baikal_gis',
     max: 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
   };
   pool = new Pool(dbConfig);
 }
@@ -30,7 +33,7 @@ pool.query('SELECT NOW()', (err, res) => {
   if (err) {
     console.error('Database connection error:', err.stack);
   } else {
-    console.log('Database connected successfully');
+    console.log('Database connected successfully to:', connectionString ? 'external database' : 'local database');
   }
 });
 
