@@ -74,7 +74,16 @@ export function initializeMap(containerId: string, config: MapConfig = DEFAULT_C
     'OpenStreetMap': L.tileLayer(baseLayers.osm.url, { attribution: baseLayers.osm.attribution }),
     'Спутник': L.tileLayer(baseLayers.satellite.url, { attribution: baseLayers.satellite.attribution }),
     'Рельеф': L.tileLayer(baseLayers.terrain.url, { attribution: baseLayers.terrain.attribution }),
-  }, {}, { position: 'topright' });
+  }, {
+    'Границы и дороги': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      opacity: 0.5
+    }),
+    'Населенные пункты': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CARTO',
+      pane: 'shadowPane'
+    })
+  }, { position: 'topright' });
   layerControl.addTo(map);
 
   L.control.scale({ metric: true, imperial: false }).addTo(map);
