@@ -194,13 +194,27 @@ export async function loadForestChanges(map: L.Map, changeType?: string): Promis
       },
       onEachFeature: (feature, layer) => {
         const p = feature.properties;
-        layer.bindPopup(`
+        let popupContent = `
           <strong>${p.change_type?.toUpperCase()}</strong><br>
           Дата: ${p.detected_date}<br>
           Площадь: ${p.area_ha} га<br>
           Серьёзность: ${p.severity}<br>
           Источник: ${p.source}
-        `);
+        `;
+        
+        if (p.logging_permit_id) {
+          popupContent += `
+            <hr class="my-2 border-slate-600">
+            <div class="text-xs bg-slate-800 p-2 rounded">
+              <strong>Разрешение:</strong> ${p.logging_permit_id}<br>
+              <strong>Исполнитель:</strong> ${p.contractor_name || 'н/д'}<br>
+              <strong>Контроль:</strong> ${p.control_authority || 'Рослесхоз'}<br>
+              <strong>Срок до:</strong> ${p.permit_expiry_date || 'н/д'}
+            </div>
+          `;
+        }
+        
+        layer.bindPopup(popupContent);
       },
     });
     

@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS gis.forest_changes (
     bbox_max_lng NUMERIC(10, 6),
     geojson TEXT,
     metadata JSONB DEFAULT '{}',
+    logging_permit_id VARCHAR(100), -- Номер разрешения на вырубку
+    contractor_name VARCHAR(255),  -- Исполнитель работ
+    control_authority VARCHAR(255), -- Контролирующее ведомство
+    permit_expiry_date DATE,       -- Срок действия разрешения
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
