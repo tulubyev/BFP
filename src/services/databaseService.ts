@@ -1,5 +1,5 @@
-import pool from '@/config/database';
-import { ForestArea, ForestChange } from '@/models/forestArea';
+import pool from '../config/database';
+import { ForestArea, ForestChange } from '../models/forestArea';
 import { Geometry } from 'geojson';
 import format from 'pg-format';
 

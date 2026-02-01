@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import titilerConfig from '@/config/titiler';
+import titilerConfig from '../config/titiler';
 
 export interface TileRequest {
   url: string; // COG URL
