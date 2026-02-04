@@ -6,10 +6,10 @@
   "scripts": {
     "build": "tsc && npm run build:client",
     "build:server": "tsc",
-    "build:client": "cd client && npx vite build",
+    "build:client": "cd frontend && npx vite build",
     "start": "node dist/server.js",
-    "dev": "npx ts-node -r tsconfig-paths/register src/server.ts",
-    "dev:client": "cd client && npx vite --host 0.0.0.0 --port 5000",
+    "dev": "npx ts-node -r tsconfig-paths/register backend/server.ts",
+    "dev:client": "cd frontend && npx vite --host 0.0.0.0 --port 5000",
     "dev:all": "npm run dev & npm run dev:client",
     "test": "jest",
     "db:migrate": "npx ts-node database/run-migrations.ts migrate",

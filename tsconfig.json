@@ -4,7 +4,7 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./backend",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -23,16 +23,16 @@
     "moduleResolution": "node",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/services/*": ["src/services/*"],
-      "@/models/*": ["src/models/*"],
-      "@/routes/*": ["src/routes/*"],
-      "@/middleware/*": ["src/middleware/*"]
+      "@/*": ["backend/*"],
+      "@/utils/*": ["backend/utils/*"],
+      "@/services/*": ["backend/services/*"],
+      "@/models/*": ["backend/models/*"],
+      "@/routes/*": ["backend/routes/*"],
+      "@/middleware/*": ["backend/middleware/*"]
     }
   },
   "include": [
-    "src/**/*"
+    "backend/**/*"
   ],
   "exclude": [
     "node_modules",

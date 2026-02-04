@@ -13,7 +13,7 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 
 ## Project Structure
 ```
-├── src/                        # Backend (Express + TypeScript)
+├── backend/                    # Backend (Express + TypeScript)
 │   ├── server.ts               # Main Express server (port 3000)
 │   ├── config/
 │   │   ├── database.ts         # PostgreSQL connection pool
@@ -35,7 +35,7 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 │   └── utils/
 │       ├── devAlerts.ts        # Development alerts/warnings system
 │       └── stubs.ts            # Stub functions for unimplemented features
-├── client/                     # Frontend (React + Vite + TypeScript + Tailwind)
+├── frontend/                   # Frontend (React + Vite + TypeScript + Tailwind)
 │   ├── index.html              # HTML entry point
 │   ├── src/
 │   │   ├── main.tsx            # React entry point
