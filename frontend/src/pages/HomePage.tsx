@@ -34,6 +34,15 @@ function HomePage() {
         }
       })
       .catch(console.error);
+
+    fetch('/api/monitoring/fire-hotspots/firms')
+      .then(res => res.json())
+      .then(response => {
+        if (response.success) {
+          setStatistics(prev => prev ? { ...prev, fireHotspots: response.count || 0 } : null);
+        }
+      })
+      .catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -102,6 +111,40 @@ function HomePage() {
           }
         });
         forestLayer.addTo(map);
+      })
+      .catch(console.error);
+
+    fetch('/api/monitoring/fire-hotspots/firms')
+      .then(res => res.json())
+      .then(response => {
+        if (response.success && response.geojson) {
+          const fireIcon = L.divIcon({
+            className: 'fire-marker',
+            html: '<div style="width: 16px; height: 16px; background: #ef4444; border-radius: 50%; border: 2px solid #fbbf24; box-shadow: 0 0 8px #ef4444;"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+          });
+
+          const fireLayer = L.geoJSON(response.geojson, {
+            pointToLayer: (_feature, latlng) => L.marker(latlng, { icon: fireIcon }),
+            onEachFeature: (feature, layer) => {
+              const props = feature.properties;
+              const confidence = props.confidence === 'high' ? 'Высокая' : props.confidence === 'nominal' ? 'Средняя' : 'Низкая';
+              layer.bindPopup(`
+                <div style="min-width: 180px">
+                  <h3 style="font-weight: bold; color: #ef4444; margin-bottom: 8px">🔥 Термоточка</h3>
+                  <p><strong>Спутник:</strong> ${props.satellite}</p>
+                  <p><strong>Дата:</strong> ${props.acq_date}</p>
+                  <p><strong>Время:</strong> ${props.acq_time}</p>
+                  <p><strong>Яркость:</strong> ${props.brightness}K</p>
+                  <p><strong>Мощность:</strong> ${props.frp} MW</p>
+                  <p><strong>Достоверность:</strong> ${confidence}</p>
+                </div>
+              `);
+            }
+          });
+          fireLayer.addTo(map);
+        }
       })
       .catch(console.error);
 
