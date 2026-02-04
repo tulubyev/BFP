@@ -23,7 +23,16 @@ function HomePage() {
 
     fetch('/api/monitoring/statistics')
       .then(res => res.json())
-      .then(data => setStatistics(data))
+      .then(response => {
+        if (response.success && response.data) {
+          setStatistics({
+            forestAreas: parseInt(response.data.forest_areas?.count) || 0,
+            forestChanges: response.data.changes_by_type?.length || 0,
+            fireHotspots: parseInt(response.data.recent_fires_7d) || 0,
+            monitoringZones: response.data.active_alerts?.length || 0
+          });
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -65,6 +74,36 @@ function HomePage() {
 
     baseLayers['OpenStreetMap'].addTo(map);
     L.control.layers(baseLayers, overlayLayers).addTo(map);
+
+    fetch('/api/monitoring/forest-areas/geojson')
+      .then(res => res.json())
+      .then(geojson => {
+        const forestLayer = L.geoJSON(geojson, {
+          style: (feature) => {
+            const status = feature?.properties?.protection_status;
+            return {
+              color: status === 'reserve' ? '#22c55e' : '#3b82f6',
+              weight: 2,
+              fillOpacity: 0.3,
+              fillColor: status === 'reserve' ? '#22c55e' : '#3b82f6'
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const props = feature.properties;
+            layer.bindPopup(`
+              <div style="min-width: 200px">
+                <h3 style="font-weight: bold; margin-bottom: 8px">${props.name}</h3>
+                <p><strong>Регион:</strong> ${props.region}</p>
+                <p><strong>Тип леса:</strong> ${props.forest_type === 'coniferous' ? 'Хвойный' : 'Смешанный'}</p>
+                <p><strong>Площадь:</strong> ${Number(props.area_ha).toLocaleString()} га</p>
+                <p><strong>Статус:</strong> ${props.protection_status === 'reserve' ? 'Заповедник' : 'Национальный парк'}</p>
+              </div>
+            `);
+          }
+        });
+        forestLayer.addTo(map);
+      })
+      .catch(console.error);
 
     return () => {
       map.remove();
