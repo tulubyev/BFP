@@ -6,6 +6,40 @@
     <title>Wiki - Сохранение лесов Байкала</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/src/style.css">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+        }
+        .modal-content {
+            background: rgba(30, 41, 59, 0.95);
+            margin: 5% auto;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 80%;
+            max-width: 800px;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .close {
+            color: #94a3b8;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: white;
+        }
+    </style>
 </head>
 <body class="gradient-bg min-h-screen text-white">
     <header class="glass sticky top-0 z-50">
@@ -43,52 +77,102 @@
             </div>
 
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
+                <div class="card hover:border-green-500/50 transition cursor-pointer" onclick="openModal('save-forests')">
                     <h4 class="text-xl font-bold mb-3">Сохранение лесов мира</h4>
-                    <p class="text-gray-400 mb-4">Базовые знания о методах защиты лесных экосистем и международные стандарты мониторинга.</p>
+                    <p class="text-gray-400 mb-4 text-sm">Базовые знания о методах защиты лесных экосистем и международные стандарты мониторинга.</p>
                     <span class="text-green-400 text-sm font-medium">Подробнее →</span>
                 </div>
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
+                <div class="card hover:border-green-500/50 transition cursor-pointer" onclick="openModal('funds')">
                     <h4 class="text-xl font-bold mb-3">Специализированные фонды</h4>
-                    <p class="text-gray-400 mb-4">Список организаций и фондов, занимающихся восстановлением лесов и борьбой с вырубкой.</p>
+                    <p class="text-gray-400 mb-4 text-sm">Список организаций и фондов, занимающихся восстановлением лесов и борьбой с вырубкой.</p>
                     <span class="text-green-400 text-sm font-medium">Список сайтов →</span>
                 </div>
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
+                <div class="card hover:border-green-500/50 transition cursor-pointer" onclick="openModal('methods')">
                     <h4 class="text-xl font-bold mb-3">Методы восстановления</h4>
-                    <p class="text-gray-400 mb-4">Как правильно проводить лесовосстановление и какие виды деревьев наиболее эффективны.</p>
+                    <p class="text-gray-400 mb-4 text-sm">Как правильно проводить лесовосстановление и какие виды деревьев наиболее эффективны.</p>
                     <span class="text-green-400 text-sm font-medium">Руководство →</span>
                 </div>
             </div>
 
-            <div class="mt-16">
+            <div class="mt-20">
                 <h3 class="text-2xl font-bold mb-8">Медиа-материалы</h3>
                 <div class="grid md:grid-cols-2 gap-8">
-                    <article class="card flex flex-col md:flex-row gap-6 p-6">
+                    <article class="card flex flex-col md:flex-row gap-6 p-6 hover:border-blue-500/50 transition cursor-pointer" onclick="openModal('article-deforestation')">
                         <div class="w-full md:w-48 h-32 bg-slate-800 rounded-lg shrink-0 overflow-hidden">
                             <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=400" alt="Статья" class="w-full h-full object-cover">
                         </div>
                         <div>
                             <span class="text-blue-400 text-xs font-bold uppercase tracking-wider">Проблема дефорестации</span>
-                            <h4 class="text-xl font-bold mt-1 mb-2">Глобальное исчезновение лесов: масштаб проблемы 2024</h4>
-                            <p class="text-gray-400 text-sm mb-4">Аналитический обзор текущего состояния мировых лесных ресурсов и прогнозы экспертов.</p>
-                            <a href="#" class="text-blue-400 text-sm font-medium hover:underline">Читать статью</a>
+                            <h4 class="text-xl font-bold mt-1 mb-2">Исчезновение лесов 2024</h4>
+                            <p class="text-gray-400 text-sm mb-4">Аналитический обзор текущего состояния мировых лесных ресурсов.</p>
+                            <span class="text-blue-400 text-sm font-medium">Читать статью</span>
                         </div>
                     </article>
-                    <article class="card flex flex-col md:flex-row gap-6 p-6">
+                    <article class="card flex flex-col md:flex-row gap-6 p-6 hover:border-blue-500/50 transition cursor-pointer" onclick="openModal('article-baikal')">
                         <div class="w-full md:w-48 h-32 bg-slate-800 rounded-lg shrink-0 overflow-hidden">
                             <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=400" alt="Статья" class="w-full h-full object-cover">
                         </div>
                         <div>
                             <span class="text-green-400 text-xs font-bold uppercase tracking-wider">Экология Байкала</span>
-                            <h4 class="text-xl font-bold mt-1 mb-2">Защита прибрежных лесов Байкала: новые вызовы</h4>
-                            <p class="text-gray-400 text-sm mb-4">Почему сохранение лесов в прибрежной зоне критически важно для чистоты воды в озере.</p>
-                            <a href="#" class="text-blue-400 text-sm font-medium hover:underline">Читать статью</a>
+                            <h4 class="text-xl font-bold mt-1 mb-2">Защита прибрежных лесов</h4>
+                            <p class="text-gray-400 text-sm mb-4">Почему сохранение лесов критически важно для чистоты воды в озере.</p>
+                            <span class="text-blue-400 text-sm font-medium">Читать статью</span>
                         </div>
                     </article>
                 </div>
             </div>
         </div>
     </main>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const content = {
+            'save-forests': {
+                title: 'Сохранение лесов мира',
+                body: '<p class="mb-4 text-gray-300">Леса покрывают около 31% суши, но эта площадь стремительно сокращается. Международные стандарты мониторинга, такие как FAO FRA, помогают отслеживать состояние лесных ресурсов.</p><ul class="list-disc list-inside text-gray-300 gap-2 flex flex-col"><li>Устойчивое лесопользование</li><li>Борьба с изменением климата</li><li>Сохранение биоразнообразия</li></ul>'
+            },
+            'funds': {
+                title: 'Специализированные фонды',
+                body: '<p class="mb-4 text-gray-300">Организации, которым можно доверять:</p><ul class="list-disc list-inside text-gray-300 gap-2 flex flex-col"><li>WWF (Всемирный фонд дикой природы)</li><li>Greenpeace International</li><li>Rainforest Alliance</li><li>The Nature Conservancy</li></ul>'
+            },
+            'methods': {
+                title: 'Методы восстановления',
+                body: '<p class="mb-4 text-gray-300">Эффективное лесовосстановление включает:</p><ol class="list-decimal list-inside text-gray-300 gap-2 flex flex-col"><li>Выбор местных видов саженцев</li><li>Подготовка почвы с учетом микроклимата</li><li>Последующий уход в течение 5-10 лет</li></ol>'
+            },
+            'article-deforestation': {
+                title: 'Глобальное исчезновение лесов 2024',
+                body: '<p class="text-gray-300">Полный текст статьи о масштабах проблемы дефорестации в мире. Исследование показывает, что основные потери лесов в 2024 году пришлись на тропические регионы, однако северные леса также подвергаются угрозе из-за пожаров и вырубки...</p>'
+            },
+            'article-baikal': {
+                title: 'Защита прибрежных лесов Байкала',
+                body: '<p class="text-gray-300">Подробный материал о роли лесов в экосистеме Байкала. Леса выполняют функцию природного фильтра, задерживая загрязнения и регулируя сток воды в озеро. Нарушение этого баланса грозит изменением качества воды...</p>'
+            }
+        };
+
+        function openModal(id) {
+            const data = content[id];
+            if (data) {
+                document.getElementById('modal-body').innerHTML = `<h2 class="text-3xl font-bold mb-6 text-green-400">${data.title}</h2>${data.body}`;
+                document.getElementById('modal').style.display = "block";
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('modal')) {
+                closeModal();
+            }
+        }
+    </script>
 
     <footer class="glass mt-16 py-8">
         <div class="max-w-7xl mx-auto px-4 text-center text-gray-400 text-sm">
