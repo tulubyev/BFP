@@ -33,7 +33,7 @@ function HomePage() {
     const map = L.map(mapRef.current).setView([53.5, 108.0], 7);
     mapInstanceRef.current = map;
 
-    const baseLayers = {
+    const baseLayers: Record<string, L.TileLayer> = {
       'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
       }),
@@ -48,8 +48,23 @@ function HomePage() {
       })
     };
 
+    const overlayLayers: Record<string, L.TileLayer> = {
+      'Гибридный (подписи)': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+      }),
+      'Административные границы': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+      }),
+      'Дороги': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+      }),
+      'Населённые пункты': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+        attribution: '© CartoDB'
+      })
+    };
+
     baseLayers['OpenStreetMap'].addTo(map);
-    L.control.layers(baseLayers).addTo(map);
+    L.control.layers(baseLayers, overlayLayers).addTo(map);
 
     return () => {
       map.remove();
