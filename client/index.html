@@ -22,9 +22,9 @@
                 </div>
             </div>
             <nav class="hidden md:flex items-center gap-6 text-sm">
-                <a href="#map" class="hover:text-green-400 transition">Карта</a>
-                <a href="#analytics" class="hover:text-green-400 transition">Аналитика</a>
-                <a href="#wiki" class="hover:text-green-400 transition">Wiki</a>
+                <a href="/" class="hover:text-green-400 transition">Карта</a>
+                <a href="/analytics.html" class="hover:text-green-400 transition text-gray-400">Аналитика</a>
+                <a href="/wiki.html" class="hover:text-green-400 transition text-gray-400">Wiki</a>
             </nav>
             <div class="flex items-center gap-3">
                 <span id="server-status" class="flex items-center gap-2 text-xs bg-green-500/20 text-green-400 px-3 py-1.5 rounded-full">
@@ -93,93 +93,6 @@
                     <button id="btn-load-fires" class="btn-secondary text-sm">Термоточки</button>
                     <button id="btn-fit-baikal" class="btn-secondary text-sm">Весь Байкал</button>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="analytics" class="px-4 py-8">
-        <div class="max-w-7xl mx-auto">
-            <h3 class="text-2xl font-bold mb-6 text-center">Аналитика лесного покрова</h3>
-            <div class="grid md:grid-cols-3 gap-6">
-                <div class="card">
-                    <h4 class="font-semibold text-green-400 mb-2">Состояние лесов</h4>
-                    <p class="text-gray-400 text-sm">Мониторинг здоровья лесных массивов на основе NDVI</p>
-                </div>
-                <div class="card">
-                    <h4 class="font-semibold text-red-400 mb-2">Пожарная активность</h4>
-                    <p class="text-gray-400 text-sm">Отслеживание термоточек и площадей возгораний</p>
-                </div>
-                <div class="card">
-                    <h4 class="font-semibold text-orange-400 mb-2">Вырубки</h4>
-                    <p class="text-gray-400 text-sm">Детекция изменений лесного покрова</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="wiki" class="px-4 py-16 bg-slate-900/50">
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-center gap-4 mb-8">
-                <div class="w-12 h-12 bg-green-500/20 text-green-400 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                    </svg>
-                </div>
-                <h3 class="text-3xl font-bold">Лесная Wiki</h3>
-            </div>
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
-                    <h4 class="text-xl font-bold mb-3">Сохранение лесов мира</h4>
-                    <p class="text-gray-400 mb-4">Базовые знания о методах защиты лесных экосистем и международные стандарты мониторинга.</p>
-                    <span class="text-green-400 text-sm font-medium">Подробнее →</span>
-                </div>
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
-                    <h4 class="text-xl font-bold mb-3">Специализированные фонды</h4>
-                    <p class="text-gray-400 mb-4">Список организаций и фондов, занимающихся восстановлением лесов и борьбой с вырубкой.</p>
-                    <span class="text-green-400 text-sm font-medium">Список сайтов →</span>
-                </div>
-                <div class="card hover:border-green-500/50 transition cursor-pointer">
-                    <h4 class="text-xl font-bold mb-3">Методы восстановления</h4>
-                    <p class="text-gray-400 mb-4">Как правильно проводить лесовосстановление и какие виды деревьев наиболее эффективны.</p>
-                    <span class="text-green-400 text-sm font-medium">Руководство →</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="media" class="px-4 py-16">
-        <div class="max-w-7xl mx-auto">
-            <div class="flex items-center gap-4 mb-8">
-                <div class="w-12 h-12 bg-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
-                    </svg>
-                </div>
-                <h3 class="text-3xl font-bold">Медиа-центр</h3>
-            </div>
-            <div class="grid md:grid-cols-2 gap-8">
-                <article class="card flex flex-col md:flex-row gap-6 p-6">
-                    <div class="w-full md:w-48 h-32 bg-slate-800 rounded-lg shrink-0 overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=400" alt="Статья" class="w-full h-full object-cover">
-                    </div>
-                    <div>
-                        <span class="text-blue-400 text-xs font-bold uppercase tracking-wider">Проблема дефорестации</span>
-                        <h4 class="text-xl font-bold mt-1 mb-2">Глобальное исчезновение лесов: масштаб проблемы 2024</h4>
-                        <p class="text-gray-400 text-sm mb-4">Аналитический обзор текущего состояния мировых лесных ресурсов и прогнозы экспертов.</p>
-                        <a href="#" class="text-blue-400 text-sm font-medium hover:underline">Читать статью</a>
-                    </div>
-                </article>
-                <article class="card flex flex-col md:flex-row gap-6 p-6">
-                    <div class="w-full md:w-48 h-32 bg-slate-800 rounded-lg shrink-0 overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=400" alt="Статья" class="w-full h-full object-cover">
-                    </div>
-                    <div>
-                        <span class="text-green-400 text-xs font-bold uppercase tracking-wider">Экология Байкала</span>
-                        <h4 class="text-xl font-bold mt-1 mb-2">Защита прибрежных лесов Байкала: новые вызовы</h4>
-                        <p class="text-gray-400 text-sm mb-4">Почему сохранение лесов в прибрежной зоне критически важно для чистоты воды в озере.</p>
-                        <a href="#" class="text-blue-400 text-sm font-medium hover:underline">Читать статью</a>
-                    </div>
-                </article>
             </div>
         </div>
     </section>
