@@ -1,9 +1,10 @@
-# Baikal Forest Monitoring System
+# ForestGIS - Baikal Forest Monitoring System
 
 ## Overview
 A GIS monitoring system for Baikal region forests using satellite data. Full-stack TypeScript application with:
 - Express backend with PostgreSQL database
-- Vite + TypeScript + Tailwind CSS frontend
+- React + Vite + TypeScript + Tailwind CSS frontend (SPA)
+- React Router for client-side navigation
 - Leaflet interactive map integration
 - NASA FIRMS fire hotspot integration
 - Global Forest Watch deforestation data
@@ -21,52 +22,43 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 │   │   └── forestArea.ts       # Forest area & change interfaces
 │   ├── routes/
 │   │   ├── analytics.ts        # Forest analytics endpoints
-│   │   ├── monitoring.ts       # Monitoring data endpoints (NEW)
+│   │   ├── monitoring.ts       # Monitoring data endpoints
 │   │   ├── stac.ts             # STAC API proxy endpoints
 │   │   └── titiler.ts          # TiTiler proxy endpoints
 │   ├── services/
 │   │   ├── databaseService.ts  # Database operations
-│   │   ├── spectralIndices.ts  # NDVI, NBR, EVI calculators (NEW)
-│   │   ├── firmsService.ts     # NASA FIRMS integration (NEW)
-│   │   ├── globalForestWatch.ts # GFW API integration (NEW)
+│   │   ├── spectralIndices.ts  # NDVI, NBR, EVI calculators
+│   │   ├── firmsService.ts     # NASA FIRMS integration
+│   │   ├── globalForestWatch.ts # GFW API integration
 │   │   ├── stacService.ts      # STAC API client
 │   │   └── titilerService.ts   # TiTiler API client
 │   └── utils/
 │       ├── devAlerts.ts        # Development alerts/warnings system
 │       └── stubs.ts            # Stub functions for unimplemented features
-├── client/                     # Frontend (Vite + TypeScript + Tailwind)
-│   ├── index.html              # Main HTML entry point
+├── client/                     # Frontend (React + Vite + TypeScript + Tailwind)
+│   ├── index.html              # HTML entry point
 │   ├── src/
-│   │   ├── main.ts             # TypeScript entry point
+│   │   ├── main.tsx            # React entry point
+│   │   ├── App.tsx             # Main app with React Router
 │   │   ├── style.css           # Tailwind CSS styles
-│   │   ├── api/                # API client modules
 │   │   ├── components/
-│   │   │   ├── StatusIndicator.ts
-│   │   │   └── MapContainer.ts # Leaflet map integration (IMPLEMENTED)
+│   │   │   ├── Layout.tsx      # Main layout with Header/Footer
+│   │   │   ├── Header.tsx      # Navigation header
+│   │   │   └── Footer.tsx      # Page footer
+│   │   ├── pages/
+│   │   │   ├── HomePage.tsx    # Map page with statistics
+│   │   │   ├── AnalyticsPage.tsx # Analytics dashboard
+│   │   │   └── WikiPage.tsx    # Wiki with modals
+│   │   ├── api/                # API client modules
 │   │   ├── types/
 │   │   └── utils/
 │   ├── vite.config.ts
+│   ├── tsconfig.json
 │   └── tailwind.config.js
-├── database/                   # Database migrations (NEW)
+├── database/                   # Database migrations
 │   ├── migrations/             # SQL migration files
-│   │   ├── 001_init_postgis.sql
-│   │   ├── 002_forest_areas.sql
-│   │   ├── 003_forest_changes.sql
-│   │   ├── 004_satellite_scenes.sql
-│   │   ├── 005_spectral_indices.sql
-│   │   ├── 006_monitoring_zones.sql
-│   │   ├── 007_alerts.sql
-│   │   ├── 008_fire_hotspots.sql
-│   │   ├── 009_reports.sql
-│   │   └── 010_lookup_tables.sql
-│   ├── seeds/                  # Seed data
-│   │   ├── 001_lookup_data.sql
-│   │   └── 002_baikal_data.sql
-│   └── run-migrations.ts
+│   └── seeds/                  # Seed data
 ├── docs/                       # Documentation
-│   ├── README.md
-│   ├── DEVELOPMENT.md
-│   └── ARCHITECTURE.md
 ├── tests/                      # Jest test files
 ├── jest.config.js
 └── package.json
@@ -74,10 +66,15 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 
 ## Running the Project
 - **Backend**: `npm run dev` - Express API on port 3000
-- **Frontend**: `npm run dev:client` - Vite dev server on port 5000
+- **Frontend**: `npm run dev:client` - Vite React dev server on port 5000
 - **Tests**: `npm test` - Run Jest tests
 - **Database**: `npm run db:setup` - Run migrations and seeds
 - **Both**: Two workflows run simultaneously
+
+## Frontend Routes (React Router)
+- `/` - Home page with map and statistics
+- `/analytics` - Analytics dashboard
+- `/wiki` - Wiki with educational content
 
 ## Database Schema (gis schema)
 - `forest_areas` - Forest polygons with metadata
@@ -134,8 +131,8 @@ Implemented in `src/services/spectralIndices.ts`:
 
 ## Tech Stack
 - **Backend**: Node.js, Express, TypeScript, PostgreSQL
-- **Frontend**: Vite, TypeScript, Tailwind CSS, Leaflet
-- **Maps**: Leaflet with OSM, ESRI, CartoDB base layers
+- **Frontend**: React, Vite, TypeScript, Tailwind CSS, Leaflet, React Router
+- **Maps**: Leaflet with OSM, ESRI, OpenTopoMap, CartoDB base layers
 - **Testing**: Jest, ts-jest
 - **Database**: PostgreSQL on beget.com
 
@@ -148,12 +145,14 @@ See `docs/` folder for detailed documentation:
 ## Completed Features
 - [x] Database schema with 10 tables
 - [x] Seed data for Baikal region
+- [x] React SPA with React Router
 - [x] Leaflet map integration
 - [x] Spectral indices calculator
 - [x] NASA FIRMS service
 - [x] Global Forest Watch service
 - [x] Monitoring API endpoints
 - [x] GeoJSON export endpoints
+- [x] TypeScript migration (React frontend)
 
 ## TODO Areas
 - [ ] TiTiler COG preview (requires external TiTiler)
