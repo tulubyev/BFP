@@ -122,7 +122,7 @@ Implemented in `src/services/spectralIndices.ts`:
 - **STAC API** - Satellite catalog (pending external service)
 
 ## Environment Variables
-- `EXTERNAL_DATABASE_URL` - PostgreSQL connection (beget.com)
+- `EXTERNAL_DATABASE_URL` - PostgreSQL connection (62.217.178.173, forest_db)
 - `DATABASE_URL` - PostgreSQL fallback (Replit)
 - `NASA_FIRMS_API_KEY` - NASA FIRMS API key (optional)
 - `GFW_API_KEY` - Global Forest Watch API key (optional)
