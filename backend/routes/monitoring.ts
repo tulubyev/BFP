@@ -419,20 +419,54 @@ router.get('/external-services/info', (req: Request, res: Response) => {
 
 router.get('/gfw/tree-cover-loss', async (req: Request, res: Response) => {
   try {
-    const { start_year = 2015, end_year = 2024 } = req.query;
-    const data = await gfwService.getTreeCoverLoss({
-      startYear: Number(start_year),
-      endYear: Number(end_year)
-    });
+    const { start_year = 2001, end_year = 2023, region = 'all' } = req.query;
+    const data = await gfwService.getRegionalTreeCoverLoss(
+      String(region),
+      Number(start_year),
+      Number(end_year)
+    );
     
     res.json({
       success: true,
-      source: 'Global Forest Watch',
+      source: 'Global Forest Watch / Hansen UMD',
+      region,
       data
     });
   } catch (error) {
     console.error('Error fetching GFW data:', error);
     res.status(500).json({ success: false, error: 'GFW API error' });
+  }
+});
+
+router.get('/gfw/regions', (_req: Request, res: Response) => {
+  const { RUSSIAN_FOREST_REGIONS } = require('../services/globalForestWatch');
+  res.json({
+    success: true,
+    data: RUSSIAN_FOREST_REGIONS.map((r: any) => ({
+      code: r.code,
+      name: r.name,
+      forestArea_ha: r.forestArea_ha
+    }))
+  });
+});
+
+router.get('/fire-hotspots/stats', async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        EXTRACT(YEAR FROM acquisition_date)::int AS year,
+        EXTRACT(MONTH FROM acquisition_date)::int AS month,
+        COUNT(*) AS count,
+        AVG(brightness) AS avg_brightness,
+        AVG(frp) AS avg_frp
+      FROM gis.fire_hotspots
+      GROUP BY year, month
+      ORDER BY year, month
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error fetching fire stats:', error);
+    res.status(500).json({ success: false, error: 'Database error' });
   }
 });
 

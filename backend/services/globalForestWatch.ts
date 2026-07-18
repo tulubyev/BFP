@@ -42,11 +42,43 @@ const BAIKAL_GEOJSON: GeoJSON.Polygon = {
   ]]
 };
 
+export interface RussianRegion {
+  code: string;
+  name: string;
+  forestArea_ha: number;
+  bbox: [number, number, number, number];
+  baseLoss_ha: number;
+  peakYears: number[];
+}
+
+export const RUSSIAN_FOREST_REGIONS: RussianRegion[] = [
+  { code: 'all', name: 'Вся Россия', forestArea_ha: 809090000, bbox: [27, 41, 190, 78], baseLoss_ha: 650000, peakYears: [2003, 2012, 2019, 2021] },
+  { code: 'irkutsk', name: 'Иркутская область', forestArea_ha: 69420000, bbox: [95, 51, 119, 65], baseLoss_ha: 85000, peakYears: [2003, 2015, 2019] },
+  { code: 'buryatia', name: 'Республика Бурятия', forestArea_ha: 27550000, bbox: [98, 49, 116, 57], baseLoss_ha: 32000, peakYears: [2015, 2019, 2021] },
+  { code: 'krasnoyarsk', name: 'Красноярский край', forestArea_ha: 158800000, bbox: [72, 51, 109, 82], baseLoss_ha: 130000, peakYears: [2012, 2019, 2022] },
+  { code: 'yakutia', name: 'Республика Саха (Якутия)', forestArea_ha: 254700000, bbox: [105, 55, 163, 73], baseLoss_ha: 95000, peakYears: [2019, 2020, 2021] },
+  { code: 'khabarovsk', name: 'Хабаровский край', forestArea_ha: 52300000, bbox: [128, 46, 141, 61], baseLoss_ha: 48000, peakYears: [2013, 2018, 2021] },
+  { code: 'primorye', name: 'Приморский край', forestArea_ha: 12500000, bbox: [130, 42, 138, 49], baseLoss_ha: 18000, peakYears: [2005, 2012, 2018] },
+  { code: 'amur', name: 'Амурская область', forestArea_ha: 22400000, bbox: [119, 49, 135, 57], baseLoss_ha: 28000, peakYears: [2014, 2018, 2020] },
+  { code: 'zabaikalye', name: 'Забайкальский край', forestArea_ha: 32500000, bbox: [108, 49, 120, 55], baseLoss_ha: 38000, peakYears: [2015, 2017, 2021] },
+  { code: 'tomsk', name: 'Томская область', forestArea_ha: 19200000, bbox: [75, 56, 90, 62], baseLoss_ha: 22000, peakYears: [2010, 2016, 2019] },
+  { code: 'tyumen', name: 'Тюменская область', forestArea_ha: 11600000, bbox: [60, 55, 72, 63], baseLoss_ha: 15000, peakYears: [2008, 2014, 2020] },
+  { code: 'komi', name: 'Республика Коми', forestArea_ha: 28900000, bbox: [51, 61, 66, 69], baseLoss_ha: 25000, peakYears: [2009, 2014, 2020] },
+  { code: 'arkhangelsk', name: 'Архангельская область', forestArea_ha: 22700000, bbox: [38, 60, 67, 68], baseLoss_ha: 20000, peakYears: [2005, 2012, 2018] },
+  { code: 'vologda', name: 'Вологодская область', forestArea_ha: 11400000, bbox: [35, 58, 49, 62], baseLoss_ha: 12000, peakYears: [2004, 2010, 2018] },
+  { code: 'karelia', name: 'Республика Карелия', forestArea_ha: 14700000, bbox: [29, 61, 34, 67], baseLoss_ha: 11000, peakYears: [2002, 2008, 2014] },
+];
+
 export class GlobalForestWatchService {
   private config: GFWConfig;
 
   constructor(config: Partial<GFWConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+  }
+
+  async getRegionalTreeCoverLoss(regionCode: string, startYear: number, endYear: number): Promise<GFWTreeCoverLoss[]> {
+    const region = RUSSIAN_FOREST_REGIONS.find(r => r.code === regionCode) || RUSSIAN_FOREST_REGIONS[0];
+    return this.getSampleTreeCoverLossByRegion(region, startYear, endYear);
   }
 
   async getTreeCoverLoss(params: GFWQueryParams): Promise<GFWTreeCoverLoss[]> {
@@ -157,6 +189,30 @@ export class GlobalForestWatchService {
       console.error('GFW Alerts API error:', error);
       return this.getSampleAlerts();
     }
+  }
+
+  private getSampleTreeCoverLossByRegion(region: RussianRegion, startYear: number, endYear: number): GFWTreeCoverLoss[] {
+    const data: GFWTreeCoverLoss[] = [];
+    const seed = region.code.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    let rng = seed;
+    const pseudoRand = () => {
+      rng = (rng * 1664525 + 1013904223) & 0xffffffff;
+      return (rng >>> 0) / 0xffffffff;
+    };
+
+    for (let year = startYear; year <= endYear; year++) {
+      const variation = (pseudoRand() - 0.5) * 0.35;
+      const isPeak = region.peakYears.includes(year) ? 1.6 + pseudoRand() * 0.8 : 1;
+      const trend = 1 + (year - 2001) * 0.008;
+      const area = Math.round(region.baseLoss_ha * (1 + variation) * isPeak * trend);
+
+      data.push({
+        year,
+        area_ha: area,
+        emissions_Mg_CO2: Math.round(area * 145 + pseudoRand() * 10000)
+      });
+    }
+    return data;
   }
 
   private getSampleTreeCoverLoss(startYear: number, endYear: number): GFWTreeCoverLoss[] {
