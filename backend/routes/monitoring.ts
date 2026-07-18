@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database';
 import { SpectralIndexCalculator, spectralIndicesInfo } from '../services/spectralIndices';
 import { firmsService, getFIRMSInfo } from '../services/firmsService';
-import { gfwService, getGFWInfo, REGION_LOSS_FRACTIONS } from '../services/globalForestWatch';
+import { gfwService, getGFWInfo } from '../services/globalForestWatch';
 
 const router = Router();
 
@@ -420,25 +420,17 @@ router.get('/external-services/info', (req: Request, res: Response) => {
 router.get('/gfw/tree-cover-loss', async (req: Request, res: Response) => {
   try {
     const { start_year = 2001, end_year = 2023, region = 'all' } = req.query;
-    const data = await gfwService.getRegionalTreeCoverLoss(
+    const result = await gfwService.getRegionalTreeCoverLoss(
       String(region),
       Number(start_year),
       Number(end_year)
     );
-    
-    const isNational = String(region) === 'all';
-    const hasRegionFraction = !isNational && REGION_LOSS_FRACTIONS[String(region)] !== undefined;
-
     res.json({
       success: true,
-      data_source: isNational
-        ? 'Hansen/UMD/Google/USGS/NASA via Global Forest Watch — national totals (tcd≥30%)'
-        : hasRegionFraction
-          ? 'Рослесинфорг — региональные доли от национального итога Hansen/GFW'
-          : 'Hansen/UMD/Google/USGS/NASA via Global Forest Watch (approximation)',
-      data_type: isNational ? 'published' : 'estimated',
+      data_source: result.data_source,
+      data_type: result.data_type,
       region,
-      data
+      data: result.data,
     });
   } catch (error) {
     console.error('Error fetching GFW data:', error);
@@ -453,7 +445,9 @@ router.get('/gfw/regions', (_req: Request, res: Response) => {
     data: RUSSIAN_FOREST_REGIONS.map((r: any) => ({
       code: r.code,
       name: r.name,
-      forestArea_ha: r.forestArea_ha
+      forestArea_ha: r.forestArea_ha,
+      gadmCode: r.gadmCode ?? null,
+      adm1: r.adm1 ?? null,
     }))
   });
 });

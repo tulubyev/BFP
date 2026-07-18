@@ -27,6 +27,13 @@ export interface GFWConfig {
   baseUrl: string;
 }
 
+export interface RegionalLossResult {
+  data: GFWTreeCoverLoss[];
+  /** 'live' = retrieved from GFW Data API; 'published' = embedded published national totals; 'estimated' = fraction-scaled fallback */
+  data_type: 'live' | 'published' | 'estimated';
+  data_source: string;
+}
+
 const DEFAULT_CONFIG: GFWConfig = {
   baseUrl: 'https://data-api.globalforestwatch.org'
 };
@@ -49,24 +56,33 @@ export interface RussianRegion {
   bbox: [number, number, number, number];
   baseLoss_ha: number;
   peakYears: number[];
+  /** GADM 3.6 numeric admin1 ID used by GFW Data API (adm1 column). null for 'all'. */
+  adm1: number | null;
+  /** GFW-compatible GADM identifier in RUS.{adm1}_1 format. null for 'all'. */
+  gadmCode: string | null;
 }
 
+/**
+ * Russian forest regions with GADM 3.6 admin1 identifiers used by the GFW Data API.
+ * adm1 values correspond to GADM 3.6 numeric IDs (iso='RUS', adm1=N).
+ * Reference: https://gadm.org / https://data-api.globalforestwatch.org
+ */
 export const RUSSIAN_FOREST_REGIONS: RussianRegion[] = [
-  { code: 'all', name: 'Вся Россия', forestArea_ha: 809090000, bbox: [27, 41, 190, 78], baseLoss_ha: 650000, peakYears: [2003, 2012, 2019, 2021] },
-  { code: 'irkutsk', name: 'Иркутская область', forestArea_ha: 69420000, bbox: [95, 51, 119, 65], baseLoss_ha: 85000, peakYears: [2003, 2015, 2019] },
-  { code: 'buryatia', name: 'Республика Бурятия', forestArea_ha: 27550000, bbox: [98, 49, 116, 57], baseLoss_ha: 32000, peakYears: [2015, 2019, 2021] },
-  { code: 'krasnoyarsk', name: 'Красноярский край', forestArea_ha: 158800000, bbox: [72, 51, 109, 82], baseLoss_ha: 130000, peakYears: [2012, 2019, 2022] },
-  { code: 'yakutia', name: 'Республика Саха (Якутия)', forestArea_ha: 254700000, bbox: [105, 55, 163, 73], baseLoss_ha: 95000, peakYears: [2019, 2020, 2021] },
-  { code: 'khabarovsk', name: 'Хабаровский край', forestArea_ha: 52300000, bbox: [128, 46, 141, 61], baseLoss_ha: 48000, peakYears: [2013, 2018, 2021] },
-  { code: 'primorye', name: 'Приморский край', forestArea_ha: 12500000, bbox: [130, 42, 138, 49], baseLoss_ha: 18000, peakYears: [2005, 2012, 2018] },
-  { code: 'amur', name: 'Амурская область', forestArea_ha: 22400000, bbox: [119, 49, 135, 57], baseLoss_ha: 28000, peakYears: [2014, 2018, 2020] },
-  { code: 'zabaikalye', name: 'Забайкальский край', forestArea_ha: 32500000, bbox: [108, 49, 120, 55], baseLoss_ha: 38000, peakYears: [2015, 2017, 2021] },
-  { code: 'tomsk', name: 'Томская область', forestArea_ha: 19200000, bbox: [75, 56, 90, 62], baseLoss_ha: 22000, peakYears: [2010, 2016, 2019] },
-  { code: 'tyumen', name: 'Тюменская область', forestArea_ha: 11600000, bbox: [60, 55, 72, 63], baseLoss_ha: 15000, peakYears: [2008, 2014, 2020] },
-  { code: 'komi', name: 'Республика Коми', forestArea_ha: 28900000, bbox: [51, 61, 66, 69], baseLoss_ha: 25000, peakYears: [2009, 2014, 2020] },
-  { code: 'arkhangelsk', name: 'Архангельская область', forestArea_ha: 22700000, bbox: [38, 60, 67, 68], baseLoss_ha: 20000, peakYears: [2005, 2012, 2018] },
-  { code: 'vologda', name: 'Вологодская область', forestArea_ha: 11400000, bbox: [35, 58, 49, 62], baseLoss_ha: 12000, peakYears: [2004, 2010, 2018] },
-  { code: 'karelia', name: 'Республика Карелия', forestArea_ha: 14700000, bbox: [29, 61, 34, 67], baseLoss_ha: 11000, peakYears: [2002, 2008, 2014] },
+  { code: 'all',         name: 'Вся Россия',                 forestArea_ha: 809090000, bbox: [27, 41, 190, 78], baseLoss_ha: 650000,  peakYears: [2003,2012,2019,2021], adm1: null, gadmCode: null },
+  { code: 'irkutsk',     name: 'Иркутская область',           forestArea_ha:  69420000, bbox: [95, 51, 119, 65], baseLoss_ha:  85000,  peakYears: [2003,2015,2019],      adm1: 27,   gadmCode: 'RUS.27_1' },
+  { code: 'buryatia',   name: 'Республика Бурятия',          forestArea_ha:  27550000, bbox: [98, 49, 116, 57], baseLoss_ha:  32000,  peakYears: [2015,2019,2021],      adm1: 9,    gadmCode: 'RUS.9_1'  },
+  { code: 'krasnoyarsk',name: 'Красноярский край',            forestArea_ha: 158800000, bbox: [72, 51, 109, 82], baseLoss_ha: 130000,  peakYears: [2012,2019,2022],      adm1: 37,   gadmCode: 'RUS.37_1' },
+  { code: 'yakutia',    name: 'Республика Саха (Якутия)',     forestArea_ha: 254700000, bbox: [105,55, 163, 73], baseLoss_ha:  95000,  peakYears: [2019,2020,2021],      adm1: 52,   gadmCode: 'RUS.52_1' },
+  { code: 'khabarovsk', name: 'Хабаровский край',             forestArea_ha:  52300000, bbox: [128,46, 141, 61], baseLoss_ha:  48000,  peakYears: [2013,2018,2021],      adm1: 33,   gadmCode: 'RUS.33_1' },
+  { code: 'primorye',   name: 'Приморский край',              forestArea_ha:  12500000, bbox: [130,42, 138, 49], baseLoss_ha:  18000,  peakYears: [2005,2012,2018],      adm1: 47,   gadmCode: 'RUS.47_1' },
+  { code: 'amur',       name: 'Амурская область',             forestArea_ha:  22400000, bbox: [119,49, 135, 57], baseLoss_ha:  28000,  peakYears: [2014,2018,2020],      adm1: 3,    gadmCode: 'RUS.3_1'  },
+  { code: 'zabaikalye', name: 'Забайкальский край',           forestArea_ha:  32500000, bbox: [108,49, 120, 55], baseLoss_ha:  38000,  peakYears: [2015,2017,2021],      adm1: 78,   gadmCode: 'RUS.78_1' },
+  { code: 'tomsk',      name: 'Томская область',              forestArea_ha:  19200000, bbox: [75, 56,  90, 62], baseLoss_ha:  22000,  peakYears: [2010,2016,2019],      adm1: 65,   gadmCode: 'RUS.65_1' },
+  { code: 'tyumen',     name: 'Тюменская область',            forestArea_ha:  11600000, bbox: [60, 55,  72, 63], baseLoss_ha:  15000,  peakYears: [2008,2014,2020],      adm1: 67,   gadmCode: 'RUS.67_1' },
+  { code: 'komi',       name: 'Республика Коми',              forestArea_ha:  28900000, bbox: [51, 61,  66, 69], baseLoss_ha:  25000,  peakYears: [2009,2014,2020],      adm1: 36,   gadmCode: 'RUS.36_1' },
+  { code: 'arkhangelsk',name: 'Архангельская область',        forestArea_ha:  22700000, bbox: [38, 60,  67, 68], baseLoss_ha:  20000,  peakYears: [2005,2012,2018],      adm1: 4,    gadmCode: 'RUS.4_1'  },
+  { code: 'vologda',    name: 'Вологодская область',          forestArea_ha:  11400000, bbox: [35, 58,  49, 62], baseLoss_ha:  12000,  peakYears: [2004,2010,2018],      adm1: 73,   gadmCode: 'RUS.73_1' },
+  { code: 'karelia',    name: 'Республика Карелия',           forestArea_ha:  14700000, bbox: [29, 61,  34, 67], baseLoss_ha:  11000,  peakYears: [2002,2008,2014],      adm1: 31,   gadmCode: 'RUS.31_1' },
 ];
 
 /**
@@ -115,32 +131,115 @@ export class GlobalForestWatchService {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  async getRegionalTreeCoverLoss(regionCode: string, startYear: number, endYear: number): Promise<GFWTreeCoverLoss[]> {
+  /**
+   * Fetch tree cover loss for a Russian region.
+   *
+   * Priority order:
+   *  1. GFW Data API (live) — used when GFW_API_KEY is set and the region has a GADM adm1 code.
+   *     SQL: WHERE iso='RUS' AND adm1={code} AND umd_tree_cover_density_2000__threshold=30
+   *  2. Published national totals (RUSSIA_NATIONAL_LOSS_HA) scaled by Roslesinforg regional
+   *     fractions — used as fallback when no API key or live call fails.
+   *
+   * Returns data together with metadata about which source was used.
+   */
+  async getRegionalTreeCoverLoss(
+    regionCode: string,
+    startYear: number,
+    endYear: number
+  ): Promise<RegionalLossResult> {
+    const region = RUSSIAN_FOREST_REGIONS.find(r => r.code === regionCode);
+
+    if (regionCode === 'all') {
+      return this.nationalLossFromPublished(startYear, endYear);
+    }
+
+    if (this.config.apiKey && region?.adm1 != null) {
+      try {
+        const live = await this.fetchAdm1LossFromGFW(region.adm1, startYear, endYear);
+        if (live.length > 0) {
+          return {
+            data: live,
+            data_type: 'live',
+            data_source: `GFW Data API — Hansen/UMD (iso=RUS, adm1=${region.adm1}, gadm=${region.gadmCode}, tcd≥30%)`,
+          };
+        }
+      } catch (err) {
+        console.warn(`GFW ADM1 query failed for ${regionCode} (adm1=${region.adm1}):`, err);
+      }
+    }
+
+    return this.regionalLossFromFractions(regionCode, startYear, endYear);
+  }
+
+  private nationalLossFromPublished(startYear: number, endYear: number): RegionalLossResult {
     const data: GFWTreeCoverLoss[] = [];
-    const fraction = regionCode === 'all' ? 1.0 : (REGION_LOSS_FRACTIONS[regionCode] ?? null);
+    for (let year = startYear; year <= endYear; year++) {
+      const area_ha = RUSSIA_NATIONAL_LOSS_HA[year];
+      if (!area_ha) continue;
+      data.push({ year, area_ha, emissions_Mg_CO2: Math.round(area_ha * 148) });
+    }
+    return {
+      data,
+      data_type: 'published',
+      data_source: 'Hansen/UMD/Google/USGS/NASA via Global Forest Watch — national totals (tcd≥30%), globalforestwatch.org/country/RUS',
+    };
+  }
+
+  private regionalLossFromFractions(regionCode: string, startYear: number, endYear: number): RegionalLossResult {
+    const fraction = REGION_LOSS_FRACTIONS[regionCode] ?? null;
+    const data: GFWTreeCoverLoss[] = [];
 
     for (let year = startYear; year <= endYear; year++) {
       const nationalLoss = RUSSIA_NATIONAL_LOSS_HA[year];
       if (!nationalLoss) continue;
-
-      let area_ha: number;
-      if (regionCode === 'all') {
-        area_ha = nationalLoss;
-      } else if (fraction !== null) {
-        area_ha = Math.round(nationalLoss * fraction);
-      } else {
-        const region = RUSSIAN_FOREST_REGIONS.find(r => r.code === regionCode);
-        if (!region) continue;
-        area_ha = this.getSampleTreeCoverLossByRegion(region, year, year)[0]?.area_ha ?? 0;
-      }
-
-      data.push({
-        year,
-        area_ha,
-        emissions_Mg_CO2: Math.round(area_ha * 148)
-      });
+      const area_ha = fraction != null
+        ? Math.round(nationalLoss * fraction)
+        : this.getSampleTreeCoverLossByRegion(
+            RUSSIAN_FOREST_REGIONS.find(r => r.code === regionCode)!,
+            year, year
+          )[0]?.area_ha ?? 0;
+      data.push({ year, area_ha, emissions_Mg_CO2: Math.round(area_ha * 148) });
     }
-    return data;
+
+    const region = RUSSIAN_FOREST_REGIONS.find(r => r.code === regionCode);
+    return {
+      data,
+      data_type: 'estimated',
+      data_source: region?.gadmCode
+        ? `Рослесинфорг — доля региона ${region.gadmCode} от национального итога Hansen/GFW (среднее 2015–2022)`
+        : 'Рослесинфорг — региональная оценка от национального итога Hansen/GFW',
+    };
+  }
+
+  private async fetchAdm1LossFromGFW(adm1: number, startYear: number, endYear: number): Promise<GFWTreeCoverLoss[]> {
+    const sql = [
+      'SELECT umd_tree_cover_loss__year AS year,',
+      '       SUM(area__ha) AS area_ha,',
+      '       SUM(whrc_aboveground_co2_emissions__Mg) AS emissions_Mg_CO2',
+      'FROM data',
+      `WHERE iso = 'RUS'`,
+      `  AND adm1 = ${adm1}`,
+      '  AND umd_tree_cover_density_2000__threshold = 30',
+      `  AND umd_tree_cover_loss__year >= ${startYear}`,
+      `  AND umd_tree_cover_loss__year <= ${endYear}`,
+      'GROUP BY year',
+      'ORDER BY year',
+    ].join(' ');
+
+    const response = await axios.post(
+      `${this.config.baseUrl}/dataset/umd_tree_cover_loss/v1.9/query`,
+      { sql },
+      {
+        headers: { 'x-api-key': this.config.apiKey!, 'Content-Type': 'application/json' },
+        timeout: 30000,
+      }
+    );
+
+    return (response.data.data ?? []).map((row: any) => ({
+      year: Number(row.year),
+      area_ha: Number(row.area_ha),
+      emissions_Mg_CO2: Number(row.emissions_Mg_CO2 ?? 0),
+    }));
   }
 
   async getTreeCoverLoss(params: GFWQueryParams): Promise<GFWTreeCoverLoss[]> {
