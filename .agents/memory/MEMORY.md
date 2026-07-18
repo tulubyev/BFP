@@ -1,0 +1,1 @@
+- [GFW API auth and Russia data](gfw-russia-data.md) — GFW Data API always requires key; embed published national totals + Roslesinforg fractions for regional estimates.

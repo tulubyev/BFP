@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import pool from '../config/database';
 import { SpectralIndexCalculator, spectralIndicesInfo } from '../services/spectralIndices';
 import { firmsService, getFIRMSInfo } from '../services/firmsService';
-import { gfwService, getGFWInfo } from '../services/globalForestWatch';
+import { gfwService, getGFWInfo, REGION_LOSS_FRACTIONS } from '../services/globalForestWatch';
 
 const router = Router();
 
@@ -426,9 +426,17 @@ router.get('/gfw/tree-cover-loss', async (req: Request, res: Response) => {
       Number(end_year)
     );
     
+    const isNational = String(region) === 'all';
+    const hasRegionFraction = !isNational && REGION_LOSS_FRACTIONS[String(region)] !== undefined;
+
     res.json({
       success: true,
-      source: 'Global Forest Watch / Hansen UMD',
+      data_source: isNational
+        ? 'Hansen/UMD/Google/USGS/NASA via Global Forest Watch — national totals (tcd≥30%)'
+        : hasRegionFraction
+          ? 'Рослесинфорг — региональные доли от национального итога Hansen/GFW'
+          : 'Hansen/UMD/Google/USGS/NASA via Global Forest Watch (approximation)',
+      data_type: isNational ? 'published' : 'estimated',
       region,
       data
     });

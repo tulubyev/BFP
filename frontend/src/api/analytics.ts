@@ -18,17 +18,29 @@ export interface FireStat {
   avg_frp: string;
 }
 
+export interface DeforestationResponse {
+  data: TreeCoverLossYear[];
+  data_source: string;
+  data_type: 'published' | 'estimated';
+  region: string;
+}
+
 export async function fetchDeforestationByRegion(
   region: string,
   startYear = 2001,
   endYear = 2023
-): Promise<TreeCoverLossYear[]> {
+): Promise<DeforestationResponse> {
   const res = await fetch(
     `/api/monitoring/gfw/tree-cover-loss?region=${region}&start_year=${startYear}&end_year=${endYear}`
   );
   if (!res.ok) throw new Error('GFW API error');
   const json = await res.json();
-  return json.data as TreeCoverLossYear[];
+  return {
+    data: json.data as TreeCoverLossYear[],
+    data_source: json.data_source as string,
+    data_type: (json.data_type ?? 'estimated') as 'published' | 'estimated',
+    region: String(json.region),
+  };
 }
 
 export async function fetchRegions(): Promise<RegionInfo[]> {

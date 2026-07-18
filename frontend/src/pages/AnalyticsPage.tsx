@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, Area, AreaChart, Cell
+  Tooltip, ResponsiveContainer, Area, AreaChart, Cell
 } from 'recharts';
 import {
   fetchDeforestationByRegion,
@@ -10,7 +10,7 @@ import {
   fetchForestChanges,
   type TreeCoverLossYear,
   type RegionInfo,
-  type FireStat
+  type FireStat,
 } from '../api/analytics';
 
 const MONTH_NAMES = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
@@ -43,7 +43,7 @@ function formatHa(ha: number): string {
 
 function KpiCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color: string }) {
   return (
-    <div className={`card p-6 border-l-4`} style={{ borderLeftColor: color }}>
+    <div className="card p-6 border-l-4" style={{ borderLeftColor: color }}>
       <p className="text-gray-400 text-sm mb-1">{label}</p>
       <p className="text-2xl font-bold text-white">{value}</p>
       {sub && <p className="text-gray-500 text-xs mt-1">{sub}</p>}
@@ -57,7 +57,6 @@ const CustomTooltipLoss = ({ active, payload, label }: any) => {
     <div className="bg-slate-800 border border-slate-600 rounded-lg p-3 text-sm">
       <p className="font-bold text-white mb-1">{label} год</p>
       <p className="text-red-400">Потери: {formatHa(payload[0]?.value)}</p>
-      {payload[1] && <p className="text-orange-400">CO₂: {(payload[1]?.value / 1000).toFixed(0)} тыс. т</p>}
     </div>
   );
 };
@@ -72,10 +71,35 @@ const CustomTooltipFire = ({ active, payload, label }: any) => {
   );
 };
 
+function DataBadge({ type, source }: { type: 'published' | 'estimated'; source: string }) {
+  if (type === 'published') {
+    return (
+      <span
+        title={source}
+        className="inline-flex items-center gap-1 text-xs bg-green-900/50 text-green-400 border border-green-700 rounded px-2 py-0.5"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+        Опубликованные данные
+      </span>
+    );
+  }
+  return (
+    <span
+      title={source}
+      className="inline-flex items-center gap-1 text-xs bg-yellow-900/40 text-yellow-400 border border-yellow-700 rounded px-2 py-0.5"
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 inline-block" />
+      Региональная оценка
+    </span>
+  );
+}
+
 function AnalyticsPage() {
   const [regions, setRegions] = useState<RegionInfo[]>([]);
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [lossData, setLossData] = useState<TreeCoverLossYear[]>([]);
+  const [dataType, setDataType] = useState<'published' | 'estimated'>('published');
+  const [dataSource, setDataSource] = useState('Hansen/UMD/Google/USGS/NASA via Global Forest Watch — national totals (tcd≥30%)');
   const [fireStats, setFireStats] = useState<FireStat[]>([]);
   const [changes, setChanges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +120,11 @@ function AnalyticsPage() {
   const loadLoss = useCallback((region: string) => {
     setLossLoading(true);
     fetchDeforestationByRegion(region, 2001, 2023)
-      .then(setLossData)
+      .then(res => {
+        setLossData(res.data);
+        setDataType(res.data_type);
+        setDataSource(res.data_source);
+      })
       .catch(e => setError(e.message))
       .finally(() => setLossLoading(false));
   }, []);
@@ -157,7 +185,7 @@ function AnalyticsPage() {
           <div>
             <h2 className="text-3xl font-bold">Аналитика лесного покрова</h2>
             <p className="text-gray-400 text-sm mt-1">
-              Данные: Global Forest Watch / Hansen UMD · Спутники Landsat · 2001–2023
+              Hansen/UMD/Google/USGS/NASA · Спутники Landsat · 2001–2023
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -202,16 +230,19 @@ function AnalyticsPage() {
         </div>
 
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-start justify-between mb-6 gap-3 flex-wrap">
             <div>
               <h3 className="text-xl font-bold">Потери лесного покрова по годам</h3>
               <p className="text-gray-500 text-sm mt-1">
-                {selectedRegionInfo?.name} · данные Hansen/UMD/Google
+                {selectedRegionInfo?.name ?? 'Вся Россия'} · валовые потери полога (tcd≥30%)
               </p>
             </div>
-            {lossLoading && (
-              <div className="w-5 h-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <DataBadge type={dataType} source={dataSource} />
+              {lossLoading && (
+                <div className="w-5 h-5 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
           </div>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={lossData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -225,7 +256,7 @@ function AnalyticsPage() {
               <XAxis dataKey="year" tick={{ fill: '#94a3b8', fontSize: 12 }} />
               <YAxis
                 tick={{ fill: '#94a3b8', fontSize: 11 }}
-                tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}т` : String(v)}
+                tickFormatter={v => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}М` : v >= 1000 ? `${(v / 1000).toFixed(0)}т` : String(v)}
                 width={55}
               />
               <Tooltip content={<CustomTooltipLoss />} />
@@ -241,13 +272,11 @@ function AnalyticsPage() {
               />
             </AreaChart>
           </ResponsiveContainer>
-          <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-              Годовые потери лесного покрова (га)
-            </span>
-            <span>Источник: Global Forest Watch, Hansen/UMD/Google/USGS/NASA</span>
-          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            {dataType === 'published'
+              ? 'Национальные итоги: Hansen/UMD/Google/USGS/NASA, опубликованные данные GFW (tcd≥30%), Россия 2001–2023.'
+              : 'Региональная оценка рассчитана пропорционально национальным итогам Hansen/GFW по данным Рослесинфорга о доле каждого региона в общем объёме потерь (среднее 2015–2022).'}
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
@@ -307,7 +336,7 @@ function AnalyticsPage() {
         <div className="card p-6">
           <h3 className="text-xl font-bold mb-1">Выбросы CO₂ от потерь лесов</h3>
           <p className="text-gray-500 text-sm mb-6">
-            {selectedRegionInfo?.name} · оценка по методологии IPCC / GFW Carbon
+            {selectedRegionInfo?.name ?? 'Вся Россия'} · оценка по методологии GFW Carbon (148 т CO₂/га)
           </p>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={lossData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
@@ -343,7 +372,9 @@ function AnalyticsPage() {
             <div className="space-y-1">
               <p className="font-semibold text-green-400">Global Forest Watch</p>
               <p className="text-gray-400">Hansen/UMD/Google/USGS/NASA</p>
-              <p className="text-gray-500 text-xs">Потери лесного покрова, 30м Landsat, 2001–2023</p>
+              <p className="text-gray-500 text-xs">
+                Опубликованные годовые итоги потерь лесного покрова России (tcd≥30%), Landsat 30м, 2001–2023.
+              </p>
             </div>
             <div className="space-y-1">
               <p className="font-semibold text-orange-400">NASA FIRMS</p>
@@ -351,14 +382,16 @@ function AnalyticsPage() {
               <p className="text-gray-500 text-xs">Термоточки, обновление каждые 3 ч</p>
             </div>
             <div className="space-y-1">
-              <p className="font-semibold text-blue-400">Мониторинговая БД</p>
-              <p className="text-gray-400">PostgreSQL / forest_db</p>
-              <p className="text-gray-500 text-xs">Изменения, зоны, заповедники Байкала</p>
+              <p className="font-semibold text-blue-400">Рослесинфорг</p>
+              <p className="text-gray-400">Лесной реестр России</p>
+              <p className="text-gray-500 text-xs">
+                Доли регионов в национальном объёме потерь (среднее 2015–2022), используются для региональных оценок.
+              </p>
             </div>
           </div>
           <p className="text-gray-600 text-xs mt-4">
-            * Данные по регионам сгенерированы на основе реалистичных базовых показателей.
-            Для получения точных данных подключите API-ключ Global Forest Watch.
+            Национальные данные — опубликованные итоги Hansen/GFW. Региональные данные — пропорциональные оценки
+            на основе официальной статистики Рослесинфорга; для точных региональных данных требуется API-ключ GFW.
           </p>
         </div>
 
