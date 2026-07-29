@@ -53,24 +53,89 @@ export class FIRMSService {
 
   async getHotspots(params: FIRMSQueryParams): Promise<FIRMSHotspot[]> {
     const { source, area = BAIKAL_REGION_BBOX, dayRange = 1 } = params;
-    
+
+    // Try public NRT CSV first (no API key required)
+    try {
+      return await this.getHotspotsFromPublicCSV(area);
+    } catch (publicErr) {
+      console.warn('FIRMS public CSV failed, trying authenticated API:', (publicErr as Error).message);
+    }
+
     if (!this.config.apiKey) {
-      console.warn('NASA FIRMS API key not configured. Using sample data.');
-      return this.getSampleHotspots();
+      console.warn('NASA FIRMS API key not configured and public CSV unavailable.');
+      return [];
     }
 
     try {
       const mapKey = this.config.apiKey;
       const bbox = `${area.west},${area.south},${area.east},${area.north}`;
-      
       const url = `${this.config.baseUrl}/area/csv/${mapKey}/${source}/${bbox}/${dayRange}`;
-      
       const response = await axios.get(url, { timeout: 30000 });
       return this.parseCSV(response.data);
     } catch (error) {
       console.error('FIRMS API error:', error);
       throw new Error('Failed to fetch fire hotspots from NASA FIRMS');
     }
+  }
+
+  /**
+   * Fetch from NASA FIRMS public NRT CSV (no API key required).
+   * Source: https://firms.modaps.eosdis.nasa.gov/active_fire/
+   * Updated every ~3 hours, covers 24 hours of detections.
+   */
+  private _publicCSVCache: { data: FIRMSHotspot[]; fetchedAt: number } | null = null;
+
+  async getHotspotsFromPublicCSV(
+    area: { west: number; south: number; east: number; north: number } = { west: 19, south: 40, east: 190, north: 82 }
+  ): Promise<FIRMSHotspot[]> {
+    const TTL = 60 * 60 * 1000; // 1 hour cache
+    if (this._publicCSVCache && Date.now() - this._publicCSVCache.fetchedAt < TTL) {
+      return this._filterByBbox(this._publicCSVCache.data, area);
+    }
+
+    const urls = [
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv',
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
+    ];
+
+    const results = await Promise.allSettled(
+      urls.map(url => axios.get(url, { timeout: 25000, responseType: 'text' }))
+    );
+
+    const all: FIRMSHotspot[] = [];
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        all.push(...this.parseCSV(r.value.data));
+      }
+    }
+
+    if (all.length === 0) throw new Error('All public FIRMS CSV endpoints failed');
+
+    // Deduplicate by proximity (same pixel detected by both satellites)
+    const deduped = this._deduplicateHotspots(all);
+    this._publicCSVCache = { data: deduped, fetchedAt: Date.now() };
+    return this._filterByBbox(deduped, area);
+  }
+
+  private _filterByBbox(
+    hotspots: FIRMSHotspot[],
+    bbox: { west: number; south: number; east: number; north: number }
+  ): FIRMSHotspot[] {
+    return hotspots.filter(
+      h => h.latitude >= bbox.south && h.latitude <= bbox.north &&
+           h.longitude >= bbox.west && h.longitude <= bbox.east
+    );
+  }
+
+  private _deduplicateHotspots(hotspots: FIRMSHotspot[]): FIRMSHotspot[] {
+    const grid = new Map<string, FIRMSHotspot>();
+    for (const h of hotspots) {
+      // 0.01° grid (~1km) to merge near-duplicate detections
+      const key = `${(h.latitude * 100).toFixed(0)},${(h.longitude * 100).toFixed(0)}`;
+      const existing = grid.get(key);
+      if (!existing || h.frp > existing.frp) grid.set(key, h);
+    }
+    return Array.from(grid.values());
   }
 
   async getBaikalHotspots(dayRange: number = 7): Promise<FIRMSHotspot[]> {

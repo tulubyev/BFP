@@ -33,8 +33,8 @@ class Server {
           scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
           fontSrc: ["'self'", "fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru"],
-          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru"]
+          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru"],
+          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru", "firms.modaps.eosdis.nasa.gov"]
         }
       }
     }));

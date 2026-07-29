@@ -231,19 +231,29 @@ router.get('/fire-hotspots/geojson', async (req: Request, res: Response) => {
 
 router.get('/fire-hotspots/firms', async (req: Request, res: Response) => {
   try {
-    const { days = 7 } = req.query;
-    const hotspots = await firmsService.getBaikalHotspots(Number(days));
+    // bbox param: "west,south,east,north" — defaults to all of Russia
+    const { bbox } = req.query;
+    let area: { west: number; south: number; east: number; north: number } | undefined;
+    if (bbox && typeof bbox === 'string') {
+      const parts = bbox.split(',').map(Number);
+      if (parts.length === 4 && parts.every(n => !isNaN(n))) {
+        area = { west: parts[0], south: parts[1], east: parts[2], north: parts[3] };
+      }
+    }
+    // Fetch from public NRT CSV (covers all of Russia by default)
+    const hotspots = await firmsService.getHotspotsFromPublicCSV(area);
     const geojson = firmsService.toGeoJSON(hotspots);
-    
+
     res.json({
       success: true,
       count: hotspots.length,
-      source: 'NASA FIRMS',
-      geojson
+      source: 'NASA FIRMS VIIRS NRT (public CSV, no API key required)',
+      license: 'NASA Open Data',
+      geojson,
     });
   } catch (error) {
     console.error('Error fetching FIRMS data:', error);
-    res.status(500).json({ success: false, error: 'FIRMS API error' });
+    res.status(502).json({ success: false, error: 'NASA FIRMS CSV unavailable' });
   }
 });
 

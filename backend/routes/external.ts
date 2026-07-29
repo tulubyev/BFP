@@ -14,6 +14,7 @@ import {
   getSanitationActivities,
   DATASETS,
 } from '../services/rosleskhozService';
+import { getOOPT, ooptToGeoJSON } from '../services/overpassService';
 
 const router = Router();
 
@@ -136,6 +137,32 @@ router.get('/rosleshoz/sanitation', async (_req: Request, res: Response) => {
 });
 
 // ─── Data Sources Registry ───────────────────────────────────────────────────
+
+// ─── ООПТ (Protected Areas) from OpenStreetMap / Overpass ───────────────────
+
+/**
+ * GET /api/external/oopt — Russian protected areas (заповедники + нацпарки)
+ * Source: OpenStreetMap via Overpass API © contributors, ODbL
+ * Cached 12h server-side.
+ */
+router.get('/oopt', async (_req: Request, res: Response) => {
+  try {
+    const { features, source, fetchedAt } = await getOOPT();
+    const geojson = ooptToGeoJSON(features);
+    res.json({
+      success: true,
+      count: features.length,
+      source: 'OpenStreetMap via Overpass API',
+      license: 'ODbL (openstreetmap.org/copyright)',
+      overpass_endpoint: source,
+      fetched_at: fetchedAt,
+      geojson,
+    });
+  } catch (err: any) {
+    console.error('OOPT fetch error:', err.message);
+    res.status(502).json({ success: false, error: 'Не удалось получить данные ООПТ из OSM', detail: err.message });
+  }
+});
 
 /** GET /api/external/sources — list of all integrated data sources */
 router.get('/sources', (_req: Request, res: Response) => {
