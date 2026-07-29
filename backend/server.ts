@@ -10,6 +10,7 @@ import titilerRoutes from './routes/titiler';
 import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
+import externalRoutes from './routes/external';
 
 class Server {
   private app: Application;
@@ -32,8 +33,8 @@ class Server {
           scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
           fontSrc: ["'self'", "fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org"],
-          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org"]
+          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru"],
+          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru"]
         }
       }
     }));
@@ -47,6 +48,7 @@ class Server {
     this.app.use('/api/stac', stacRoutes);
     this.app.use('/api/analytics', analyticsRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
+    this.app.use('/api/external', externalRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'));
