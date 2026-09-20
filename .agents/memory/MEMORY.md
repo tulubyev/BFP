@@ -1,3 +1,4 @@
 - [GFW API auth and Russia data](gfw-russia-data.md) — GFW Data API always requires key; embed published national totals + Roslesinforg fractions for regional estimates.
 - [FIRMS public NRT CSV](firms-public-csv.md) — NASA FIRMS VIIRS data available without API key via public CSV; ~3500–5500 hotspots/24h for Russia.
 - [ООПТ Overpass query](oopt-overpass.md) — Use area[ISO3166-1=RU] query (not bbox) to properly filter Russian protected areas; bbox includes Balkans/Baltic.
+- [Post-merge dependency restore](post-merge-dependencies.md) — Replit may block vulnerable locked transitives; update the dependency instead of bypassing the firewall.
