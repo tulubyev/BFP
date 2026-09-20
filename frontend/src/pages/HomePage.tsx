@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { Link, useSearchParams } from 'react-router-dom';
+import { getIncidents, type Incident } from '../api/incidents';
+import IncidentCard from '../components/IncidentCard';
+import { parseIncidentId } from '../utils/incidents';
 
 interface RosleskhozSummary {
   total_wood_volume_thousand_m3: number;
@@ -73,6 +77,7 @@ function addMapLegend(map: L.Map): L.Control {
 }
 
 function HomePage() {
+  const [searchParams] = useSearchParams();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -80,6 +85,7 @@ function HomePage() {
   const [hotspotStats, setHotspotStats] = useState<HotspotStats | null>(null);
   const [ooptCount, setOoptCount] = useState<number | null>(null);
   const [apiStatus, setApiStatus] = useState<'loading' | 'online' | 'offline'>('loading');
+  const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
 
   // ── Fetch statistics ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,13 +98,19 @@ function HomePage() {
       .then(r => r.json())
       .then(res => { if (res.success) setRosleshoz(res.data); })
       .catch(console.error);
+    getIncidents({ limit: 3 }).then(result => {
+      if (result.success) setRecentIncidents(result.data);
+    }).catch(console.error);
   }, []);
 
   // ── Map initialisation ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([53.5, 108.0], 5);
+    const queryLat = Number(searchParams.get('lat'));
+    const queryLng = Number(searchParams.get('lng'));
+    const hasTarget = Number.isFinite(queryLat) && Number.isFinite(queryLng) && searchParams.has('lat') && searchParams.has('lng');
+    const map = L.map(mapRef.current).setView(hasTarget ? [queryLat, queryLng] : [53.5, 108.0], hasTarget ? 12 : 5);
     mapInstanceRef.current = map;
     let alive = true;
 
@@ -179,6 +191,16 @@ function HomePage() {
     layerControl.addOverlay(ooptGroup, 'ООПТ — заповедники и нацпарки (OSM)');
     layerControl.addOverlay(firmsGroup, 'Термоточки FIRMS 24ч (NASA VIIRS)');
     addMapLegend(map);
+    if (hasTarget) {
+      const incidentId = parseIncidentId(searchParams.get('incident'));
+      const popup = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = incidentId ? `Инцидент #${incidentId}` : 'Точка мониторинга';
+      const coordinates = document.createElement('p');
+      coordinates.textContent = `Координаты: ${queryLat.toFixed(5)}, ${queryLng.toFixed(5)}`;
+      popup.append(title, coordinates);
+      L.marker([queryLat, queryLng]).addTo(map).bindPopup(popup).openPopup();
+    }
 
     // ── ООПТ: заповедники и нацпарки из OSM / Overpass API ───────────────────
     // Данные © OpenStreetMap contributors, ODbL
@@ -276,7 +298,7 @@ function HomePage() {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [searchParams]);
 
   const fmt = (n: number, d = 0) => n.toLocaleString('ru-RU', { maximumFractionDigits: d });
 
@@ -339,6 +361,12 @@ function HomePage() {
           </div>
         </div>
 
+
+        {/* Recent incidents */}
+        {recentIncidents.length > 0 && <section className="mb-8">
+          <div className="mb-4 flex items-end justify-between gap-4"><div><h2 className="text-2xl font-bold">Последние события</h2><p className="mt-1 text-sm text-slate-400">Свежие изменения из системы мониторинга</p></div><Link to="/incidents" className="text-sm text-green-400 hover:text-green-300">Все инциденты →</Link></div>
+          <div className="grid gap-5 md:grid-cols-3">{recentIncidents.map(item => <IncidentCard key={item.id} incident={item} onClick={() => { window.location.href = `/incidents?id=${item.id}`; }} />)}</div>
+        </section>}
 
         {/* Map */}
         <div className="card overflow-hidden">

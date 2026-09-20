@@ -24,6 +24,7 @@ function Header() {
         <nav className="flex items-center gap-6 text-sm">
           <Link to="/" className={`transition ${isActive('/')}`}>Карта</Link>
           <Link to="/analytics" className={`transition ${isActive('/analytics')}`}>Аналитика</Link>
+          <Link to="/incidents" className={`transition ${isActive('/incidents')}`}>Инциденты</Link>
           <Link to="/wiki" className={`transition ${isActive('/wiki')}`}>Wiki</Link>
         </nav>
       </div>
