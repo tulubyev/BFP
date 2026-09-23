@@ -146,6 +146,7 @@ See `docs/` folder for detailed documentation:
 - `docs/README.md` - Project overview
 - `docs/DEVELOPMENT.md` - Development guidelines
 - `docs/ARCHITECTURE.md` - System architecture
+- `docs/DATA_SOURCES.md` - FIRMS, GFW, ООПТ/Overpass: особенности API и принятые решения
 
 ## Completed Features
 - [x] Database schema with 10 tables
