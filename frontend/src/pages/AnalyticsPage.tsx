@@ -348,7 +348,7 @@ function AnalyticsPage() {
                 width={50}
               />
               <Tooltip
-                formatter={(v: number) => [`${(v / 1_000_000).toFixed(2)} млн т CO₂`, 'Выбросы']}
+                formatter={v => [`${(Number(v) / 1_000_000).toFixed(2)} млн т CO₂`, 'Выбросы']}
                 contentStyle={{ background: '#1e293b', border: '1px solid #475569', borderRadius: 8 }}
                 labelStyle={{ color: '#fff' }}
                 labelFormatter={l => `${l} год`}

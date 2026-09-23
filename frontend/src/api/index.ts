@@ -7,6 +7,5 @@ export * from './incidents';
 
 export { default as apiClient } from './client';
 export { default as healthApi } from './health';
-export { default as analyticsApi } from './analytics';
 export { default as stacApi } from './stac';
 export { default as titilerApi } from './titiler';

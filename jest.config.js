@@ -1,23 +1,27 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/backend', '<rootDir>/tests'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
+  transform: {
+    // tests import frontend modules, which need DOM types (fetch Response etc.)
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { lib: ['ES2020', 'DOM', 'DOM.Iterable'] } }],
+  },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/server.ts'
+    'backend/**/*.ts',
+    '!backend/**/*.d.ts',
+    '!backend/server.ts'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@services/(.*)$': '<rootDir>/src/services/$1',
-    '^@routes/(.*)$': '<rootDir>/src/routes/$1',
-    '^@models/(.*)$': '<rootDir>/src/models/$1',
-    '^@config/(.*)$': '<rootDir>/src/config/$1',
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1'
+    '^@/(.*)$': '<rootDir>/backend/$1',
+    '^@services/(.*)$': '<rootDir>/backend/services/$1',
+    '^@routes/(.*)$': '<rootDir>/backend/routes/$1',
+    '^@models/(.*)$': '<rootDir>/backend/models/$1',
+    '^@config/(.*)$': '<rootDir>/backend/config/$1',
+    '^@utils/(.*)$': '<rootDir>/backend/utils/$1'
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   verbose: true

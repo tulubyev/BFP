@@ -82,8 +82,8 @@ function HomePage() {
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   const [rosleshoz, setRosleshoz] = useState<RosleskhozSummary | null>(null);
-  const [hotspotStats, setHotspotStats] = useState<HotspotStats | null>(null);
-  const [ooptCount, setOoptCount] = useState<number | null>(null);
+  const [, setHotspotStats] = useState<HotspotStats | null>(null);
+  const [, setOoptCount] = useState<number | null>(null);
   const [apiStatus, setApiStatus] = useState<'loading' | 'online' | 'offline'>('loading');
   const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
 

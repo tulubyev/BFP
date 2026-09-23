@@ -1,4 +1,4 @@
-import { buildIncidentQuery } from '../frontend/src/api/incidents';
+import { buildIncidentQuery, type Incident } from '../frontend/src/api/incidents';
 import { parseIncidentId, serializeIncident } from '../frontend/src/utils/incidents';
 
 describe('incident query construction', () => {
@@ -29,7 +29,7 @@ describe('incident map URL handling', () => {
 
 describe('incident download', () => {
   it('serializes the complete incident as readable JSON', () => {
-    const incident = { id: 7, change_type: 'fire', detected_date: '2026-09-20' };
+    const incident: Incident = { id: 7, forest_area_id: null, change_type: 'fire', detected_date: '2026-09-20' };
     expect(JSON.parse(serializeIncident(incident))).toEqual(incident);
     expect(serializeIncident(incident)).toContain('\n  "id": 7');
   });

@@ -9,7 +9,7 @@ describe('Stub Functions', () => {
   });
 
   it('should have stub implementations marked for TODO', async () => {
-    const stubs = await import('../../src/utils/stubs');
+    const stubs = await import('../../backend/utils/stubs');
     
     const ndviResult = stubs.satelliteImageProcessing.analyzeNDVI();
     expect(ndviResult.isStub).toBe(true);
@@ -25,7 +25,7 @@ describe('Stub Functions', () => {
   });
 
   it('should have createStub utility function', async () => {
-    const { createStub } = await import('../../src/utils/stubs');
+    const { createStub } = await import('../../backend/utils/stubs');
     
     const myStub = createStub<string>('testFunction', 'default');
     const result = myStub();
@@ -39,7 +39,7 @@ describe('Stub Functions', () => {
 
 describe('DevAlerts', () => {
   it('should have alert utility functions', async () => {
-    const devAlerts = await import('../../src/utils/devAlerts');
+    const devAlerts = await import('../../backend/utils/devAlerts');
     
     expect(typeof devAlerts.devAlert).toBe('function');
     expect(typeof devAlerts.todo).toBe('function');
@@ -49,7 +49,7 @@ describe('DevAlerts', () => {
   });
 
   it('should have alert levels enum', async () => {
-    const { AlertLevel } = await import('../../src/utils/devAlerts');
+    const { AlertLevel } = await import('../../backend/utils/devAlerts');
     
     expect(AlertLevel.INFO).toBe('INFO');
     expect(AlertLevel.WARNING).toBe('WARNING');

@@ -14,9 +14,19 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
-      - "traefik.http.routers.forestwatch.rule=Host(`forestwatch.ru`) || Host(`www.forestwatch.ru`)"
+      - "traefik.http.routers.forestwatch.rule=Host(`forestwatch.ru`)"
       - "traefik.http.routers.forestwatch.entrypoints=websecure"
       - "traefik.http.routers.forestwatch.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.forestwatch.service=forestwatch"
+      # www.forestwatch.ru → 301 → forestwatch.ru
+      - "traefik.http.routers.forestwatch-www.rule=Host(`www.forestwatch.ru`)"
+      - "traefik.http.routers.forestwatch-www.entrypoints=websecure"
+      - "traefik.http.routers.forestwatch-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.forestwatch-www.service=forestwatch"
+      - "traefik.http.routers.forestwatch-www.middlewares=forestwatch-www-redirect"
+      - "traefik.http.middlewares.forestwatch-www-redirect.redirectregex.regex=^https://www\\.forestwatch\\.ru/(.*)"
+      - "traefik.http.middlewares.forestwatch-www-redirect.redirectregex.replacement=https://forestwatch.ru/$${1}"
+      - "traefik.http.middlewares.forestwatch-www-redirect.redirectregex.permanent=true"
       - "traefik.http.services.forestwatch.loadbalancer.server.port=3000"
 
 networks:

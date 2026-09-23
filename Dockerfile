@@ -3,10 +3,14 @@ FROM node:20-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY tsconfig.json ./
+COPY tsconfig.json jest.config.js ./
 COPY backend ./backend
 COPY frontend ./frontend
-RUN npx tsc && cd frontend && npx vite build
+COPY tests ./tests
+# Build fails (and deploy stops) on type errors or failing tests
+RUN npx tsc \
+ && (cd frontend && npx tsc --noEmit -p . && npx vite build) \
+ && npx jest --ci --silent
 
 # ── Runtime ──
 FROM node:20-slim

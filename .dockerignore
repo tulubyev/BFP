@@ -10,7 +10,6 @@ public
 attached_assets
 screenshots
 docs
-tests
 *.md
 *.html
 !frontend/index.html
