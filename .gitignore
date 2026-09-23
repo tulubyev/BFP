@@ -7,7 +7,6 @@ dist/
 npm-debug.log*
 .DS_Store
 *.pem
-.replit
 .config/
 .cache/
 .local/

@@ -5,7 +5,6 @@ public
 .git
 .env
 .env.*
-.replit
 .config
 .agents
 attached_assets

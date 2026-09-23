@@ -122,19 +122,24 @@ Implemented in `src/services/spectralIndices.ts`:
 - **STAC API** - Satellite catalog (pending external service)
 
 ## Environment Variables
-- `EXTERNAL_DATABASE_URL` - PostgreSQL connection (62.217.178.173, forest_db)
-- `DATABASE_URL` - PostgreSQL fallback (Replit)
+- `DATABASE_URL` - PostgreSQL connection (VPS: `postgresql://tulubyev:PASSWORD@172.28.0.1:5432/forest_db`)
+- `EXTERNAL_DATABASE_URL` - optional remote PostgreSQL (takes precedence, enables SSL)
 - `NASA_FIRMS_API_KEY` - NASA FIRMS API key (optional)
 - `GFW_API_KEY` - Global Forest Watch API key (optional)
 - `STAC_API_URL` - STAC API endpoint
 - `TITILER_URL` - TiTiler service endpoint
+
+## Deployment
+Production: https://forestwatch.ru — Docker container behind Traefik on VPS 90.156.168.149 (`/var/www/forestwatch`).
+- `cp .env.example .env` and fill in `DATABASE_URL` and API keys
+- `bash deploy.sh` — git pull, `docker compose -f docker-compose.prod.yml up -d --build`, waits for `/health`
 
 ## Tech Stack
 - **Backend**: Node.js, Express, TypeScript, PostgreSQL
 - **Frontend**: React, Vite, TypeScript, Tailwind CSS, Leaflet, React Router
 - **Maps**: Leaflet with OSM, ESRI, OpenTopoMap, CartoDB base layers
 - **Testing**: Jest, ts-jest
-- **Database**: PostgreSQL on beget.com
+- **Database**: PostgreSQL 16 on VPS (forest_db)
 
 ## Documentation
 See `docs/` folder for detailed documentation:
