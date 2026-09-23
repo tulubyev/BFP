@@ -1,0 +1,25 @@
+# forestwatch.ru — Baikal Forest Monitoring
+# Запуск: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  app:
+    build: .
+    container_name: forestwatch-app
+    restart: always
+    expose:
+      - "3000"
+    env_file: .env
+    networks:
+      - traefik-public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.forestwatch.rule=Host(`forestwatch.ru`) || Host(`www.forestwatch.ru`)"
+      - "traefik.http.routers.forestwatch.entrypoints=websecure"
+      - "traefik.http.routers.forestwatch.tls.certresolver=letsencrypt"
+      - "traefik.http.services.forestwatch.loadbalancer.server.port=3000"
+
+networks:
+  traefik-public:
+    name: traefik-public
+    external: true

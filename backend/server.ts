@@ -57,6 +57,11 @@ class Server {
     this.app.get('/health', (req: Request, res: Response) => {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
+
+    // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html
+    this.app.get(/^\/(?!api\/).*/, (req: Request, res: Response) => {
+      res.sendFile(path.join(__dirname, '../public/index.html'));
+    });
   }
 
   public listen(): void {

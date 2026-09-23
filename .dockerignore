@@ -1,0 +1,17 @@
+node_modules
+frontend/node_modules
+dist
+public
+.git
+.env
+.env.*
+.replit
+.config
+.agents
+attached_assets
+screenshots
+docs
+tests
+*.md
+*.html
+!frontend/index.html
