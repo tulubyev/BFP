@@ -28,18 +28,104 @@ The GFW Data API (data-api.globalforestwatch.org) requires an API key for ALL qu
 
 ## ООПТ — запрос к Overpass API
 
-Use area-based query (not bbox):
+Use area-based query (not bbox), requesting full geometry via `out geom` (v2, 2026-09-24 — see
+below for the earlier points-only version):
 ```
-[out:json][timeout:60];
+[out:json][timeout:180];
 area["ISO3166-1"="RU"][admin_level="2"]->.russia;
 (
   relation(area.russia)["boundary"="national_park"]["name"];
   relation(area.russia)["boundary"="protected_area"]["protect_class"="1"]["name"];
 );
-out tags center qt;
+out geom qt;
 ```
 Returns ~150 Russian ООПТ. Bbox [41,19,82,180] returns ~445 but includes Balkans, Baltic states (they have Russian name translations in OSM).
 
 POST format: URLSearchParams body (not encodeURIComponent), lon must be ≤ 180.
 **Why:** bbox includes countries with Russian-language Wikipedia names in OSM. Area filter uses Russia's administrative boundary.
 Note: Crimea/occupied territories appear because OSM area includes them.
+
+**Polygons, not points (2026-09-24):** `out geom` embeds each way member's coordinates directly
+in the relation's `members` array — no separate `(._;>;)` recursion query needed. Ring assembly
+(stitching way segments sharing endpoints into closed rings, matching inner rings/holes to their
+outer ring) is hand-rolled in `backend/utils/osmRings.ts` rather than pulling in `osmtogeojson`,
+since it's the only thing needed for these two relation types. Polygons are simplified server-side
+(`backend/utils/geoSimplify.ts`) to keep the ~150-feature response under ~1.5 MB gzipped: adaptive
+Douglas-Peucker (`@turf/simplify`) doubling the tolerance until a per-ring vertex cap is met, a
+hard decimation fallback if that still isn't enough, and 5-decimal coordinate truncation. A
+relation whose members don't have enough geometry to form a ring at all (degraded OSM data) falls
+back to a centroid Point instead of being dropped. Redis key bumped `oopt:ru` → `oopt:ru:v2` so an
+old points-shaped cache entry is never served as if it were polygons.
+
+Use `@turf/simplify`/`@turf/truncate`/`@turf/area`/`@turf/point-on-feature` directly, not the
+`@turf/turf` bundle — the bundle re-exports `@turf/convex`, which requires the ESM-only
+`concaveman` package and crashes Node's CJS `require` (and ts-jest) the moment anything imports
+`@turf/turf`. Nothing in this codebase had imported the bundle before, so this had never surfaced.
+
+**Not verified live:** outbound network to `overpass-api.de` is blocked in the sandbox this was
+written in, so the `out geom` query and ring-assembly logic were only exercised against a small
+hand-built fixture matching the documented response shape, not a real Overpass response. Check
+`GET /api/external/oopt` after deploy — `geojson.features[].geometry.type` should be
+`Polygon`/`MultiPolygon` for ordinary reserves, not just `Point`.
+
+## GFW tile layers (потери леса, DIST-ALERT, лесной покров) — итоговый набор (задача #2)
+
+Separate from the national/regional loss numbers above: `/tiles/gfw/{loss,dist,cover}/{z}/{x}/{y}.png`
+proxies GFW's raster tiles through the backend (`backend/services/gfwTiles.ts`).
+
+- **Потери леса (Hansen/UMD), v1.13 (2001–2025):** tiles are data-encoded, not colored —
+  `B = year − 2000`, `R` = loss intensity within the pixel. GFW's own web app colors them in
+  WebGL; here `backend/utils/gfwDecode.ts` decodes and colors them server-side with `sharp`
+  (amber for older loss → red for the most recent year) before caching the rendered PNG in Redis.
+  512 px source tiles, so the Leaflet layer uses `tileSize: 512, zoomOffset: -1`.
+  License: CC BY 4.0 (Hansen/UMD/Google/USGS/NASA).
+- **DIST-ALERT (UMD GLAD):** replaced the old GLAD Landsat alerts layer, which returned 422 and
+  didn't cover Russia. Data-encoded the same way (`R·255+G` = days since 2020-12-31, `B` =
+  confidence·100 + intensity), decoded server-side the same way as loss tiles. **Retention: only
+  the last ~2 years** — this is GFW's own rolling window for the dataset, not a limitation we
+  impose; older disturbances are only visible through the Hansen/UMD loss layer once GFW folds
+  them into a future annual `v1.x` release. License: CC BY 4.0 via GFW/UMD.
+- **Лесной покров (Hansen/UMD, `umd_tree_cover_density_2000`):** static baseline, ≥30% canopy
+  cover as of 2000. License: CC BY 4.0.
+- Rendered tiles are cached in Redis with a per-layer `Cache-Control`/TTL (loss: 30 days,
+  DIST-ALERT: 1 day, matching how often each dataset actually changes upstream); once `CDN_URL` is
+  enabled the CDN caches them again at the edge.
+
+## Basemaps
+
+- **Default: Esri World Dark Gray** (`server.arcgisonline.com/.../World_Dark_Gray_Base`). CARTO's
+  free dark basemap (`{s}.basemaps.cartocdn.com/dark_all/...`), used previously, now requires a
+  registered API key and returns "API KEY REQUIRED" tiles without one — switched the default away
+  from it rather than embed a key.
+- Alternates in the layer switcher: OpenStreetMap standard tiles, Esri World Imagery (satellite).
+- None of the three basemaps are proxied through the CDN — their terms of use prohibit a caching
+  proxy in front of them, and they're already fast from within Russia.
+
+## ФГИС ЛК — статус (проверено 2026-09-24)
+
+The old public WMS endpoint documented for this project,
+`https://pub.fgislk.gov.ru/plk/geoservermaster/geoserver/ows`, no longer behaves as a WMS: a
+`GetCapabilities` request now returns the FGIS LK web application (HTML) instead of WMS XML, and
+the server presents a certificate issued by a Russian Trusted CA (Минцифры) that mainstream
+browsers (Chrome, Firefox, Safari) don't trust by default — so even a correct WMS response
+wouldn't render as an `<img>`/`WMSTileLayer` in a typical visitor's browser. The layer is not
+wired into the map for this reason (matches `future.md` §8's "if the source is unstable, the
+layer must be off by default").
+
+**Search for a replacement public endpoint:** direct verification wasn't possible — outbound
+network to `*.gov.ru` and to `gis-lab.info` (a GIS community forum with relevant discussion) is
+blocked in the sandbox this was researched from, so only web-search result snippets were
+available, not the pages themselves. Those snippets point at:
+- `pub.fgislk.gov.ru/map/` — a "Публичная лесная карта" (public forest map) module;
+- `pub.fgislk.gov.ru/map/geo/geoserver/{wms,wfs}` — a GeoServer WMS/WFS path different from the
+  one above;
+- `pub5.fgislk.gov.ru/plk/gwc/geow` — vector tiles via GeoWebCache;
+- a GIS-Lab.info forum thread literally titled "Как открыть WMS ФГИС ЛК?" ("How do I get the FGIS
+  LK WMS open?"), whose existence suggests getting a working public WMS response out of this
+  system is a known point of friction for third-party clients, not just for us.
+
+None of this is confirmed working — it needs checking from a machine with normal access to
+Russian sites (e.g. the production VPS) before deciding whether to wire up a new layer. Until
+then, ФГИС ЛК stays undocumented as a working layer and OpenTopoMap (also removed per the
+2026-09-24 map design, see `docs/superpowers/specs/2026-09-24-cdn-redis-map-design.md`) is not
+brought back either.
