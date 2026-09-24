@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { cached } from '../utils/cache';
 
 export interface FIRMSHotspot {
   latitude: number;
@@ -15,6 +16,8 @@ export interface FIRMSHotspot {
   version: string;
   daynight: string;
 }
+
+const FIRMS_RUSSIA_BBOX = { west: 19, south: 40, east: 190, north: 82 };
 
 export interface FIRMSQueryParams {
   source: 'VIIRS_SNPP_NRT' | 'VIIRS_NOAA20_NRT' | 'MODIS_NRT';
@@ -82,17 +85,18 @@ export class FIRMSService {
    * Fetch from NASA FIRMS public NRT CSV (no API key required).
    * Source: https://firms.modaps.eosdis.nasa.gov/active_fire/
    * Updated every ~3 hours, covers 24 hours of detections.
+   * The Russia-wide subset is cached in Redis for 1 hour; `area` filters within it.
    */
-  private _publicCSVCache: { data: FIRMSHotspot[]; fetchedAt: number } | null = null;
-
   async getHotspotsFromPublicCSV(
-    area: { west: number; south: number; east: number; north: number } = { west: 19, south: 40, east: 190, north: 82 }
+    area: { west: number; south: number; east: number; north: number } = FIRMS_RUSSIA_BBOX
   ): Promise<FIRMSHotspot[]> {
-    const TTL = 60 * 60 * 1000; // 1 hour cache
-    if (this._publicCSVCache && Date.now() - this._publicCSVCache.fetchedAt < TTL) {
-      return this._filterByBbox(this._publicCSVCache.data, area);
-    }
+    const russia = await cached('firms:viirs:ru', 60 * 60, () => this._fetchRussiaHotspots(), {
+      isValid: hotspots => hotspots.length > 0,
+    });
+    return this._filterByBbox(russia, area);
+  }
 
+  private async _fetchRussiaHotspots(): Promise<FIRMSHotspot[]> {
     const urls = [
       'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv',
       'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
@@ -112,9 +116,7 @@ export class FIRMSService {
     if (all.length === 0) throw new Error('All public FIRMS CSV endpoints failed');
 
     // Deduplicate by proximity (same pixel detected by both satellites)
-    const deduped = this._deduplicateHotspots(all);
-    this._publicCSVCache = { data: deduped, fetchedAt: Date.now() };
-    return this._filterByBbox(deduped, area);
+    return this._filterByBbox(this._deduplicateHotspots(all), FIRMS_RUSSIA_BBOX);
   }
 
   private _filterByBbox(

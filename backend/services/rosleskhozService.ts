@@ -4,6 +4,7 @@
  * Data is published under the Russian Open Data license (CC0-compatible).
  */
 import axios from 'axios';
+import { cached } from '../utils/cache';
 
 const BASE = 'https://rosleshoz.gov.ru';
 
@@ -24,13 +25,7 @@ export const DATASETS = {
   mineralizedStrips: '/opendata/7705598840-MineralizedStrips/data-20240508T0000structure-20240508T0000.csv',
 };
 
-interface CacheEntry<T> {
-  data: T;
-  fetchedAt: number;
-}
-
-const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
-const cache: Map<string, CacheEntry<any>> = new Map();
+const TTL_SEC = 12 * 60 * 60; // 12 hours in Redis
 
 function parseCSV(raw: string): Record<string, string>[] {
   const lines = raw.trim().split('\n').filter(l => l.trim());
@@ -64,19 +59,13 @@ function parseCSVLine(line: string): string[] {
 }
 
 async function fetchDataset<T>(key: keyof typeof DATASETS, transform: (rows: Record<string, string>[]) => T): Promise<T> {
-  const cached = cache.get(key);
-  if (cached && Date.now() - cached.fetchedAt < TTL_MS) {
-    return cached.data;
-  }
-  const url = BASE + DATASETS[key];
-  const response = await axios.get(url, {
-    timeout: 15000,
-    headers: { 'User-Agent': 'Mozilla/5.0 ForestMonitor/1.0' },
-  });
-  const rows = parseCSV(response.data);
-  const data = transform(rows);
-  cache.set(key, { data, fetchedAt: Date.now() });
-  return data;
+  return cached(`rosleshoz:${key}`, TTL_SEC, async () => {
+    const response = await axios.get(BASE + DATASETS[key], {
+      timeout: 15000,
+      headers: { 'User-Agent': 'Mozilla/5.0 ForestMonitor/1.0' },
+    });
+    return transform(parseCSV(response.data));
+  }, { isValid: data => data != null && (!Array.isArray(data) || data.length > 0) });
 }
 
 // ─── Typed fetch methods ────────────────────────────────────────────────────

@@ -7,6 +7,9 @@ COPY tsconfig.json jest.config.js ./
 COPY backend ./backend
 COPY frontend ./frontend
 COPY tests ./tests
+# Optional: serve built assets from a CDN (see docker-compose.prod.yml)
+ARG CDN_URL=""
+ENV CDN_URL=$CDN_URL
 # Build fails (and deploy stops) on type errors or failing tests
 RUN npx tsc \
  && (cd frontend && npx tsc --noEmit -p . && npx vite build) \

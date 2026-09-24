@@ -4,6 +4,7 @@
  * https://www.openstreetmap.org/copyright
  */
 import axios from 'axios';
+import { cached } from '../utils/cache';
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
@@ -41,14 +42,11 @@ export interface OOPTFeature {
   osm_url: string;
 }
 
-interface CacheEntry {
-  data: OOPTFeature[];
-  fetchedAt: number;
+interface OOPTResult {
+  features: OOPTFeature[];
   source: string;
+  fetchedAt: string;
 }
-
-const TTL = 12 * 60 * 60 * 1000; // 12 hours
-let _cache: CacheEntry | null = null;
 
 /**
  * Filter to Russian territory.
@@ -102,11 +100,12 @@ function parseFeatures(elements: any[]): OOPTFeature[] {
     });
 }
 
-export async function getOOPT(): Promise<{ features: OOPTFeature[]; source: string; fetchedAt: string }> {
-  if (_cache && Date.now() - _cache.fetchedAt < TTL) {
-    return { features: _cache.data, source: _cache.source, fetchedAt: new Date(_cache.fetchedAt).toISOString() };
-  }
+export async function getOOPT(): Promise<OOPTResult> {
+  // 24h in Redis; an empty answer (Overpass overload) never replaces the last good list
+  return cached('oopt:ru', 24 * 60 * 60, fetchOOPT, { isValid: r => r.features.length > 0 });
+}
 
+async function fetchOOPT(): Promise<OOPTResult> {
   const postOverpass = async (endpoint: string, query: string) => {
     const body = new URLSearchParams();
     body.set('data', query);
@@ -114,7 +113,7 @@ export async function getOOPT(): Promise<{ features: OOPTFeature[]; source: stri
       timeout: 65000,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'ForestGIS/1.0 (forest monitoring; contact@forestgis.ru)',
+        'User-Agent': 'forestwatch.ru/1.0 (+https://forestwatch.ru)',
       },
     });
     if (typeof res.data === 'string' || res.data?.elements === undefined) {
@@ -129,21 +128,14 @@ export async function getOOPT(): Promise<{ features: OOPTFeature[]; source: stri
   for (const query of [QUERY_AREA, QUERY_BBOX]) {
     for (const endpoint of OVERPASS_ENDPOINTS) {
       try {
-        const elements = await postOverpass(endpoint, query);
-        const features = parseFeatures(elements);
-        _cache = { data: features, fetchedAt: Date.now(), source: endpoint };
-        return { features, source: endpoint, fetchedAt: new Date(_cache.fetchedAt).toISOString() };
+        const features = parseFeatures(await postOverpass(endpoint, query));
+        if (features.length === 0) throw new Error('empty result');
+        return { features, source: endpoint, fetchedAt: new Date().toISOString() };
       } catch (err: any) {
         lastErr = err;
         console.warn(`Overpass ${endpoint} failed:`, err.message?.slice(0, 80));
       }
     }
-  }
-
-  // Return stale cache if available
-  if (_cache) {
-    console.warn('All Overpass endpoints failed, returning stale cache');
-    return { features: _cache.data, source: _cache.source + ' (stale)', fetchedAt: new Date(_cache.fetchedAt).toISOString() };
   }
 
   throw lastErr;

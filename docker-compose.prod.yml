@@ -3,14 +3,23 @@
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        CDN_URL: ${CDN_URL:-}
     container_name: forestwatch-app
     restart: always
     expose:
       - "3000"
     env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - traefik-public
+      - internal
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik-public"
@@ -29,7 +38,28 @@ services:
       - "traefik.http.middlewares.forestwatch-www-redirect.redirectregex.permanent=true"
       - "traefik.http.services.forestwatch.loadbalancer.server.port=3000"
 
+  redis:
+    image: redis:7-alpine
+    container_name: forestwatch-redis
+    restart: always
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru", "--save", "300", "10", "--appendonly", "no"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redis-data:
+    name: forestwatch-redis-data
+
 networks:
   traefik-public:
     name: traefik-public
     external: true
+  internal:
+    driver: bridge

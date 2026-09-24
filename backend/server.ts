@@ -1,5 +1,6 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -11,6 +12,17 @@ import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
+
+/** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
+function cdnOrigin(url: string | undefined): string[] {
+  if (!url) return [];
+  try {
+    return [new URL(url).origin];
+  } catch {
+    console.warn(`Ignoring invalid CDN_URL: ${url}`);
+    return [];
+  }
+}
 
 class Server {
   private app: Application;
@@ -26,21 +38,33 @@ class Server {
   }
 
   private initializeMiddlewares(): void {
+    // Optional CDN origin for built assets (e.g. https://cdn.forestwatch.ru); empty = same origin
+    const cdn = cdnOrigin(process.env.CDN_URL);
+    this.app.use(compression());
     this.app.use(helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
-          styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com"],
-          fontSrc: ["'self'", "fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "blob:", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru"],
-          connectSrc: ["'self'", "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru", "firms.modaps.eosdis.nasa.gov"]
+          scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", ...cdn],
+          styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com", ...cdn],
+          fontSrc: ["'self'", "fonts.gstatic.com", ...cdn],
+          imgSrc: ["'self'", "data:", "blob:", ...cdn, "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru"],
+          connectSrc: ["'self'", ...cdn, "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru", "firms.modaps.eosdis.nasa.gov"]
         }
       }
     }));
     this.app.use(cors());
     this.app.use(express.json());
-    this.app.use(express.static(path.join(__dirname, '../public')));
+    this.app.use(express.static(path.join(__dirname, '../public'), {
+      setHeaders: (res, filePath) => {
+        // Vite assets carry a content hash in the name — safe to cache forever (browser + CDN)
+        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }));
   }
 
   private initializeRoutes(): void {
@@ -51,7 +75,7 @@ class Server {
     this.app.use('/api/external', externalRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {
-      res.sendFile(path.join(__dirname, '../public/index.html'));
+      res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
     
     this.app.get('/health', (req: Request, res: Response) => {
@@ -60,7 +84,7 @@ class Server {
 
     // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html
     this.app.get(/^\/(?!api\/).*/, (req: Request, res: Response) => {
-      res.sendFile(path.join(__dirname, '../public/index.html'));
+      res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
   }
 

@@ -1,8 +1,17 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Built JS/CSS are served from the CDN when CDN_URL is set at build time (e.g. https://cdn.forestwatch.ru)
+const cdnUrl = process.env.CDN_URL?.replace(/\/+$/, '');
+
 export default defineConfig({
   plugins: [react()],
+  experimental: {
+    renderBuiltUrl(filename, { hostType }) {
+      if (cdnUrl && ['html', 'js', 'css'].includes(hostType)) return `${cdnUrl}/${filename}`;
+      return undefined;
+    },
+  },
   root: '.',
   publicDir: 'public',
   build: {
