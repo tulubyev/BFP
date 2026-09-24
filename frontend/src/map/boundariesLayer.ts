@@ -10,6 +10,7 @@ import {
   type BoundaryProps,
 } from './boundaries';
 import { BOUNDARIES_VERSION } from './boundariesVersion';
+import { popupElement } from './popup';
 
 const ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors (ODbL)';
 
@@ -29,34 +30,9 @@ function ensurePanes(map: L.Map): void {
   map.getPane(PANES.labels.name)!.style.pointerEvents = 'none';
 }
 
-function popupElement(p: BoundaryProps): HTMLElement {
+function boundaryPopup(p: BoundaryProps): HTMLElement {
   const { title, rows, osmUrl } = describeBoundary(p);
-  const root = document.createElement('div');
-  root.style.minWidth = '200px';
-  const h = document.createElement('h3');
-  h.style.cssText = 'font-weight:bold;margin-bottom:6px;font-size:14px';
-  h.textContent = title;
-  root.append(h);
-  for (const [label, value] of rows) {
-    const row = document.createElement('p');
-    const strong = document.createElement('strong');
-    strong.textContent = `${label}: `;
-    row.append(strong, value);
-    root.append(row);
-  }
-  if (osmUrl) {
-    const link = document.createElement('a');
-    link.href = osmUrl;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    link.style.cssText = 'color:#60a5fa;font-size:11px';
-    link.textContent = 'Открыть в OpenStreetMap →';
-    const p2 = document.createElement('p');
-    p2.style.marginTop = '6px';
-    p2.append(link);
-    root.append(p2);
-  }
-  return root;
+  return popupElement(title, rows, { link: osmUrl ? { href: osmUrl, text: 'Открыть в OpenStreetMap →' } : null });
 }
 
 function labelMarker(p: BoundaryProps): L.Marker {
@@ -88,7 +64,7 @@ function boundaryOverlay(map: L.Map, kind: BoundaryKind, file: BoundaryFile): L.
       const path = layer as L.Path;
       path.on('mouseover', () => path.setStyle(boundaryStyle(kind, true)));
       path.on('mouseout', () => shapes.resetStyle(path));
-      path.bindPopup(() => popupElement(props));
+      path.bindPopup(() => boundaryPopup(props));
       labels.addLayer(labelMarker(props));
     },
   });

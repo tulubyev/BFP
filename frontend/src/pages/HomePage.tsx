@@ -6,17 +6,13 @@ import { getIncidents, type Incident } from '../api/incidents';
 import IncidentCard from '../components/IncidentCard';
 import { parseIncidentId } from '../utils/incidents';
 import { addBoundaryLayers } from '../map/boundariesLayer';
+import { addFirmsLayers } from '../map/firmsLayer';
 
 interface RosleskhozSummary {
   total_wood_volume_thousand_m3: number;
   total_forestland_area_thousand_ha: number;
   reforestation_latest: { year: number; area_thousand_ha: number } | null;
   fires_area_thousand_ha: number;
-}
-
-interface HotspotStats {
-  count: number;
-  high: number;
 }
 
 const TRANSPARENT_TILE =
@@ -49,7 +45,7 @@ function addMapLegend(map: L.Map): L.Control {
             <span>Потери леса 2001 → 2025 (Hansen/UMD)</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:6px;background:#f97316;border-radius:2px;display:inline-block"></span>
+            <span style="width:16px;height:6px;background:#ec4899;border-radius:2px;display:inline-block"></span>
             <span>Нарушения леса DIST-ALERT, 2 года (GFW)</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
@@ -91,7 +87,6 @@ function HomePage() {
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   const [rosleshoz, setRosleshoz] = useState<RosleskhozSummary | null>(null);
-  const [, setHotspotStats] = useState<HotspotStats | null>(null);
   const [, setOoptCount] = useState<number | null>(null);
   const [apiStatus, setApiStatus] = useState<'loading' | 'online' | 'offline'>('loading');
   const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
@@ -163,8 +158,6 @@ function HomePage() {
 
     // ООПТ layer group (filled after async fetch)
     const ooptGroup = L.layerGroup();
-    // FIRMS layer group (filled after async fetch)
-    const firmsGroup = L.layerGroup();
 
     // Layer control — static tile overlays only; async layers added below after fetch
     const overlayLayers: Record<string, L.Layer> = {
@@ -176,13 +169,12 @@ function HomePage() {
     gfwLossTiles.addTo(map);
     distAlertsTiles.addTo(map);
     ooptGroup.addTo(map);
-    firmsGroup.addTo(map);
 
     const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
     addBoundaryLayers(map, layerControl);
     // Add async-filled group layers once — they'll be populated after fetch
     layerControl.addOverlay(ooptGroup, 'ООПТ — заповедники и нацпарки (OSM)');
-    layerControl.addOverlay(firmsGroup, 'Термоточки FIRMS 24ч (NASA VIIRS)');
+    addFirmsLayers(map, layerControl);
     addMapLegend(map);
     if (hasTarget) {
       const incidentId = parseIncidentId(searchParams.get('incident'));
@@ -246,51 +238,6 @@ function HomePage() {
         }).addTo(ooptGroup);
       })
       .catch(err => console.warn('ООПТ fetch failed:', err));
-
-    // ── FIRMS: термоточки NASA VIIRS NRT (публичный CSV, ключ не нужен) ───────
-    // Источник: https://firms.modaps.eosdis.nasa.gov/active_fire/
-    // Обновляется каждые ~3 часа, покрывает 24 часа детекций
-    fetch('/api/monitoring/fire-hotspots/firms')
-      .then(r => r.json())
-      .then(res => {
-        if (!alive || !res.success || !res.geojson?.features?.length) return;
-
-        const features: any[] = res.geojson.features;
-        const high = features.filter(f => f.properties?.confidence === 'high').length;
-        setHotspotStats({ count: features.length, high });
-
-        const fireIconNormal = L.divIcon({
-          className: '',
-          html: '<div style="width:8px;height:8px;background:#ef4444;border-radius:50%;border:1.5px solid #fbbf24;box-shadow:0 0 5px rgba(239,68,68,0.7);"></div>',
-          iconSize: [8, 8], iconAnchor: [4, 4],
-        });
-        const fireIconHigh = L.divIcon({
-          className: '',
-          html: '<div style="width:12px;height:12px;background:#ef4444;border-radius:50%;border:2px solid #fbbf24;box-shadow:0 0 8px rgba(239,68,68,0.9);"></div>',
-          iconSize: [12, 12], iconAnchor: [6, 6],
-        });
-
-        L.geoJSON(res.geojson, {
-          pointToLayer: (feature, latlng) =>
-            L.marker(latlng, { icon: feature.properties?.confidence === 'high' ? fireIconHigh : fireIconNormal }),
-          onEachFeature: (feature, layer) => {
-            const p = feature.properties;
-            const confLabel = p.confidence === 'high' ? '🔴 Высокая' : p.confidence === 'nominal' ? '🟡 Средняя' : '🟢 Низкая';
-            layer.bindPopup(`
-              <div style="min-width:190px">
-                <h3 style="font-weight:bold;color:#ef4444;margin-bottom:6px">🔥 Термоточка FIRMS</h3>
-                <p><strong>Источник:</strong> NASA VIIRS NRT</p>
-                <p><strong>Спутник:</strong> ${({ N: 'Suomi NPP VIIRS', N20: 'NOAA-20 VIIRS', N21: 'NOAA-21 VIIRS' } as Record<string, string>)[p.satellite] ?? p.satellite}</p>
-                <p><strong>Дата:</strong> ${p.acq_date} ${p.acq_time ? p.acq_time.slice(0,2)+':'+p.acq_time.slice(2) : ''} UTC</p>
-                <p><strong>FRP:</strong> ${Number(p.frp).toFixed(1)} МВт</p>
-                <p><strong>Яркость:</strong> ${Number(p.brightness).toFixed(0)} K</p>
-                <p><strong>Достоверность:</strong> ${confLabel}</p>
-              </div>
-            `);
-          },
-        }).addTo(firmsGroup);
-      })
-      .catch(err => console.warn('FIRMS fetch failed:', err));
 
     return () => {
       alive = false;

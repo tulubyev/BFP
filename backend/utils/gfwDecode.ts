@@ -40,10 +40,12 @@ export function decodeDistPixels(rgba: Buffer): Buffer {
     const days = rgba[i] * 255 + rgba[i + 1];
     if (rgba[i + 3] === 0 || days === 0) continue;
     const high = Math.floor(rgba[i + 2] / 100) >= 2;
-    out[i] = high ? 249 : 253;
-    out[i + 1] = high ? 115 : 186;
-    out[i + 2] = high ? 22 : 116;
-    out[i + 3] = high ? 235 : 150;
+    // Pink (as on GFW maps) so alerts stand apart from the amber→red loss layer
+    out[i] = high ? 236 : 249;
+    out[i + 1] = high ? 72 : 168;
+    out[i + 2] = high ? 153 : 212;
+    // Low-confidence alerts are ~60% of pixels; keep them faint so they don't blanket the map
+    out[i + 3] = high ? 235 : 70;
   }
   return out;
 }
