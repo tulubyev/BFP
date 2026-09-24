@@ -6,6 +6,9 @@ const cdnUrl = process.env.CDN_URL?.replace(/\/+$/, '');
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __CDN_URL__: JSON.stringify(cdnUrl ?? ''),
+  },
   experimental: {
     renderBuiltUrl(filename, { hostType }) {
       if (cdnUrl && ['html', 'js', 'css'].includes(hostType)) return `${cdnUrl}/${filename}`;

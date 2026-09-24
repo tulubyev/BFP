@@ -36,3 +36,24 @@
   transform: translateY(-5px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
+
+/* Administrative boundary labels (frontend/src/map/boundariesLayer.ts) */
+.boundary-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  pointer-events: none;
+  color: #e2e8f0;
+  text-shadow: 0 0 3px #0f172a, 0 0 3px #0f172a, 0 0 6px #0f172a;
+}
+
+.boundary-label--region {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.boundary-label--district {
+  font-size: 10px;
+  color: #cbd5e1;
+}

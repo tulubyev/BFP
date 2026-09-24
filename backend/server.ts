@@ -57,8 +57,8 @@ class Server {
     this.app.use(express.json());
     this.app.use(express.static(path.join(__dirname, '../public'), {
       setHeaders: (res, filePath) => {
-        // Vite assets carry a content hash in the name — safe to cache forever (browser + CDN)
-        if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        // Vite assets carry a content hash, boundary files a version — safe to cache forever (browser + CDN)
+        if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes(`${path.sep}boundaries${path.sep}`)) {
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         } else if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'no-cache');

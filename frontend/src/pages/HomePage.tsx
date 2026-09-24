@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { getIncidents, type Incident } from '../api/incidents';
 import IncidentCard from '../components/IncidentCard';
 import { parseIncidentId } from '../utils/incidents';
+import { addBoundaryLayers } from '../map/boundariesLayer';
 
 interface RosleskhozSummary {
   total_wood_volume_thousand_m3: number;
@@ -63,6 +64,14 @@ function addMapLegend(map: L.Map): L.Control {
             <span style="width:10px;height:10px;background:#ef4444;border:2px solid #fbbf24;border-radius:50%;display:inline-block"></span>
             <span>Термоточка FIRMS 24ч (NASA VIIRS)</span>
           </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:16px;height:0;border-top:2px solid #e2e8f0;display:inline-block"></span>
+            <span>Граница субъекта РФ (OSM)</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:16px;height:0;border-top:2px dashed #94a3b8;display:inline-block"></span>
+            <span>Муниципальный район (OSM)</span>
+          </div>
           <hr style="border:none;border-top:1px solid #334155;margin:4px 0"/>
           <p style="font-size:10px;color:#64748b;margin:0">
             Hansen/UMD · GFW · NASA FIRMS · OSM © contributors (ODbL) · Рослесхоз
@@ -116,9 +125,11 @@ function HomePage() {
 
     // Base layers
     const baseLayers: Record<string, L.TileLayer> = {
-      'CartoDB Dark': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© CartoDB', maxZoom: 19,
-      }),
+      // CARTO basemaps now return "API KEY REQUIRED" tiles without a key — Esri Dark Gray instead
+      'Тёмная (Esri)': L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        { attribution: 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors', maxZoom: 16 }
+      ),
       'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors', maxZoom: 19,
       }),
@@ -130,7 +141,7 @@ function HomePage() {
         attribution: '© OpenTopoMap', maxZoom: 17,
       }),
     };
-    baseLayers['CartoDB Dark'].addTo(map);
+    baseLayers['Тёмная (Esri)'].addTo(map);
 
     // ── GFW: потери леса Hansen/UMD 30m 2001-2023 ───────────────────────────
     const gfwLossTiles = L.tileLayer(
@@ -161,12 +172,6 @@ function HomePage() {
       errorTileUrl: TRANSPARENT_TILE,
     });
 
-    // ── Esri административные границы ────────────────────────────────────────
-    const adminBoundaries = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-      { attribution: '© Esri' }
-    );
-
     // ООПТ layer group (filled after async fetch)
     const ooptGroup = L.layerGroup();
     // FIRMS layer group (filled after async fetch)
@@ -178,7 +183,6 @@ function HomePage() {
       'GLAD-алерты вырубок (GFW)': gladAlertsTiles,
       'Лесной покров (GFW)': gfwDensityTiles,
       'ФГИС ЛК — лесопользование (Рослесхоз)': fgisLkWMS,
-      'Административные границы': adminBoundaries,
     };
 
     gfwLossTiles.addTo(map);
@@ -187,6 +191,7 @@ function HomePage() {
     firmsGroup.addTo(map);
 
     const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
+    addBoundaryLayers(map, layerControl);
     // Add async-filled group layers once — they'll be populated after fetch
     layerControl.addOverlay(ooptGroup, 'ООПТ — заповедники и нацпарки (OSM)');
     layerControl.addOverlay(firmsGroup, 'Термоточки FIRMS 24ч (NASA VIIRS)');
@@ -199,7 +204,13 @@ function HomePage() {
       const coordinates = document.createElement('p');
       coordinates.textContent = `Координаты: ${queryLat.toFixed(5)}, ${queryLng.toFixed(5)}`;
       popup.append(title, coordinates);
-      L.marker([queryLat, queryLng]).addTo(map).bindPopup(popup).openPopup();
+      // Default Leaflet icon has no image here (iconUrl cleared above) — L.marker without an icon throws
+      const targetIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #0f172a;border-radius:50%;box-shadow:0 0 0 3px rgba(250,204,21,0.45);"></div>',
+        iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10],
+      });
+      L.marker([queryLat, queryLng], { icon: targetIcon }).addTo(map).bindPopup(popup).openPopup();
     }
 
     // ── ООПТ: заповедники и нацпарки из OSM / Overpass API ───────────────────

@@ -6,6 +6,9 @@ interface ImportMetaEnv {
   readonly MODE: string;
 }
 
+/** CDN origin for static data files, injected by vite.config.ts ('' = same origin). */
+declare const __CDN_URL__: string;
+
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
