@@ -106,5 +106,13 @@ export function createWarm(getClient: ClientGetter) {
   };
 }
 
+export function createLastGoodReader(getClient: ClientGetter) {
+  /** Reads the `key:last-good` value directly, without touching the fresh key or the fetcher. */
+  return function readLastGood<T>(key: string): Promise<T | null> {
+    return readJson<T>(getClient, `${key}:last-good`);
+  };
+}
+
 export const cached = createCache(getRedis);
 export const warm = createWarm(getRedis);
+export const readLastGood = createLastGoodReader(getRedis);

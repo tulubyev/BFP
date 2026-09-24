@@ -12,6 +12,7 @@ import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
+import sourcesRoutes from './routes/sources';
 import tileRoutes from './routes/tiles';
 import { startRefreshJobs } from './jobs/refresh';
 
@@ -80,6 +81,7 @@ class Server {
     this.app.use('/api/analytics', analyticsRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/external', externalRoutes);
+    this.app.use('/api/sources', sourcesRoutes);
     this.app.use('/tiles', tileRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {

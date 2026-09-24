@@ -1,9 +1,11 @@
 /**
  * Background refresh of external data in Redis, so API requests never wait for a slow source.
  */
-import { firmsService } from '../services/firmsService';
-import { refreshOOPT } from '../services/overpassService';
+import { FIRMS_KEY, firmsService } from '../services/firmsService';
+import { OOPT_KEY, refreshOOPT, type OOPTResult } from '../services/overpassService';
 import { refreshRosleshoz } from '../services/rosleskhozService';
+import { readLastGood } from '../utils/cache';
+import { recordRun, type JournalOutcome } from '../utils/journal';
 
 export interface RefreshJob {
   name: string;
@@ -11,14 +13,28 @@ export interface RefreshJob {
   everyMs: number;
   /** Resolves false when the source failed and the cached value was kept. */
   run: () => Promise<boolean>;
+  /** Cheap item count for the load journal, read after a run (e.g. cached list length). */
+  count?: () => Promise<number | undefined>;
 }
 
 const MIN = 60 * 1000;
 
 export const DEFAULT_JOBS: RefreshJob[] = [
-  { name: 'firms', firstDelayMs: 5 * 1000, everyMs: 30 * MIN, run: () => firmsService.refreshRussia() },
+  {
+    name: 'firms',
+    firstDelayMs: 5 * 1000,
+    everyMs: 30 * MIN,
+    run: () => firmsService.refreshRussia(),
+    count: () => readLastGood<unknown[]>(FIRMS_KEY).then(v => v?.length),
+  },
   { name: 'rosleshoz', firstDelayMs: 20 * 1000, everyMs: 12 * 60 * MIN, run: refreshRosleshoz },
-  { name: 'oopt', firstDelayMs: 60 * 1000, everyMs: 24 * 60 * MIN, run: refreshOOPT },
+  {
+    name: 'oopt',
+    firstDelayMs: 60 * 1000,
+    everyMs: 24 * 60 * MIN,
+    run: refreshOOPT,
+    count: () => readLastGood<OOPTResult>(OOPT_KEY).then(v => v?.features?.length),
+  },
 ];
 
 /** Starts the jobs; returns a function that stops them. A run is skipped while the previous one is busy. */
@@ -30,11 +46,27 @@ export function startRefreshJobs(jobs: RefreshJob[] = DEFAULT_JOBS): () => void 
     const tick = async () => {
       if (busy) return;
       busy = true;
-      const started = Date.now();
+      const startedAt = new Date();
       try {
         const ok = await job.run();
-        console.log(`[refresh] ${job.name}: ${ok ? 'updated' : 'source failed, kept cached'} (${Date.now() - started} ms)`);
+        const items = await job.count?.().catch(() => undefined);
+        const outcome: JournalOutcome = ok ? 'updated' : 'kept-cached';
+        await recordRun(job.name, {
+          startedAt: startedAt.toISOString(),
+          finishedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt.getTime(),
+          outcome,
+          items,
+        });
+        console.log(`[refresh] ${job.name}: ${ok ? 'updated' : 'source failed, kept cached'} (${Date.now() - startedAt.getTime()} ms)`);
       } catch (err: any) {
+        await recordRun(job.name, {
+          startedAt: startedAt.toISOString(),
+          finishedAt: new Date().toISOString(),
+          durationMs: Date.now() - startedAt.getTime(),
+          outcome: 'failed',
+          error: String(err?.message ?? err).slice(0, 300),
+        });
         console.warn(`[refresh] ${job.name} failed:`, err.message);
       } finally {
         busy = false;

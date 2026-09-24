@@ -7,6 +7,7 @@ import IncidentCard from '../components/IncidentCard';
 import { parseIncidentId, recentStartDate } from '../utils/incidents';
 import { addBoundaryLayers } from '../map/boundariesLayer';
 import { addFirmsLayers } from '../map/firmsLayer';
+import { addSourcesControl } from '../map/sourcesControl';
 
 interface RosleskhozSummary {
   total_wood_volume_thousand_m3: number;
@@ -177,6 +178,7 @@ function HomePage() {
     layerControl.addOverlay(ooptGroup, 'ООПТ — заповедники и нацпарки (OSM)');
     addFirmsLayers(map, layerControl);
     addMapLegend(map);
+    addSourcesControl(map);
     if (hasTarget) {
       const incidentId = parseIncidentId(searchParams.get('incident'));
       const popup = document.createElement('div');

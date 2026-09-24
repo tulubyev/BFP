@@ -22,9 +22,27 @@ const FIRMS_RUSSIA_BBOX = { west: 19, south: 40, east: 190, north: 82 };
 
 type Bbox = { west: number; south: number; east: number; north: number };
 
-const FIRMS_KEY = 'firms:viirs:ru';
+export const FIRMS_KEY = 'firms:viirs:ru';
 const FIRMS_TTL_SEC = 2 * 60 * 60;
 const nonEmpty = (hotspots: unknown[]) => hotspots.length > 0;
+
+/** Parses FIRMS' `acq_date` (YYYY-MM-DD) + `acq_time` (HHMM, UTC) into a Date; null if malformed. */
+export function parseAcquisition(acqDate: string, acqTime: string): Date | null {
+  if (!acqDate) return null;
+  const time = (acqTime || '0000').padStart(4, '0');
+  const d = new Date(`${acqDate}T${time.slice(0, 2)}:${time.slice(2, 4)}:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Newest acquisition timestamp among the hotspots, or null for an empty/unparseable list. */
+export function newestAcquisition(hotspots: Pick<FIRMSHotspot, 'acq_date' | 'acq_time'>[]): Date | null {
+  let latest: Date | null = null;
+  for (const h of hotspots) {
+    const d = parseAcquisition(h.acq_date, h.acq_time);
+    if (d && (!latest || d > latest)) latest = d;
+  }
+  return latest;
+}
 
 export function inBbox(lat: number, lon: number, bbox: Bbox): boolean {
   if (lat < bbox.south || lat > bbox.north) return false;
