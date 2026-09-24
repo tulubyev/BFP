@@ -3,6 +3,7 @@ jest.mock('../../backend/config/redis', () => ({ getRedis: jest.fn() }));
 import { getRedis } from '../../backend/config/redis';
 import { getSourceStatus } from '../../backend/services/sourceStatus';
 import { getSourceDefinition } from '../../backend/services/sourceRegistry';
+import { OOPT_KEY } from '../../backend/services/overpassService';
 
 class FakeRedis {
   store = new Map<string, string>();
@@ -48,7 +49,7 @@ describe('getSourceStatus', () => {
 
   it('oopt: stale between the two thresholds', async () => {
     const fetchedAt = new Date(NOW.getTime() - 48 * 60 * 60 * 1000).toISOString(); // 48h old (36h..4d = stale)
-    redis.store.set('oopt:ru:last-good', JSON.stringify({ features: [1, 2, 3], source: 'x', fetchedAt }));
+    redis.store.set(`${OOPT_KEY}:last-good`, JSON.stringify({ features: [1, 2, 3], source: 'x', fetchedAt }));
     const status = await getSourceStatus(getSourceDefinition('oopt')!, NOW);
     expect(status.state).toBe('stale');
   });
