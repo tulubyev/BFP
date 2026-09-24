@@ -65,6 +65,8 @@ class Server {
         // Vite assets carry a content hash, boundary files a version — safe to cache forever (browser + CDN)
         if (filePath.includes(`${path.sep}assets${path.sep}`) || filePath.includes(`${path.sep}boundaries${path.sep}`)) {
           res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          // Beget CDN gzips application/json but not application/geo+json (303 KB vs 103 KB)
+          if (filePath.endsWith('.geojson')) res.setHeader('Content-Type', 'application/json; charset=utf-8');
         } else if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'no-cache');
         }
