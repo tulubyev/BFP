@@ -1,0 +1,33 @@
+name: Source health
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # daily 01:00 UTC (09:00 Irkutsk)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check site, API, tiles, CDN, certificates and upstream sources
+        id: check
+        run: |
+          set -o pipefail
+          bash scripts/health/check.sh | tee report.txt
+      - name: Open or update an issue on failure
+        if: failure() && steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(printf 'Run: %s/%s/actions/runs/%s\n\n```\n%s\n```' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$(cat report.txt)")"
+          existing=$(gh issue list --state open --search 'in:title "Source health check failed"' --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "Source health check failed" --body "$body"
+          fi

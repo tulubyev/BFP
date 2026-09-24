@@ -1,0 +1,56 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Type-check backend
+        run: npx tsc --noEmit -p .
+      - name: Type-check frontend
+        run: npx tsc --noEmit -p frontend
+      - name: Tests
+        run: npx jest --ci
+
+  deploy:
+    # Only tested commits on main reach the VPS; one deploy at a time
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://forestwatch.ru
+    steps:
+      - name: Deploy to VPS
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key is restricted on the server to `cd /var/www/forestwatch && bash deploy.sh`
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes tulubyev@90.156.168.149
+      - name: Smoke test
+        run: |
+          for path in /health /; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 3 --retry-all-errors "https://forestwatch.ru$path")
+            echo "$path -> $code"; [ "$code" = 200 ] || exit 1
+          done
