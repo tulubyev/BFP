@@ -280,7 +280,7 @@ function HomePage() {
               <div style="min-width:190px">
                 <h3 style="font-weight:bold;color:#ef4444;margin-bottom:6px">🔥 Термоточка FIRMS</h3>
                 <p><strong>Источник:</strong> NASA VIIRS NRT</p>
-                <p><strong>Спутник:</strong> ${({ N: 'NOAA-20 VIIRS', N21: 'NOAA-21 VIIRS', S: 'Suomi NPP VIIRS' } as Record<string, string>)[p.satellite] ?? p.satellite}</p>
+                <p><strong>Спутник:</strong> ${({ N: 'Suomi NPP VIIRS', N20: 'NOAA-20 VIIRS', N21: 'NOAA-21 VIIRS' } as Record<string, string>)[p.satellite] ?? p.satellite}</p>
                 <p><strong>Дата:</strong> ${p.acq_date} ${p.acq_time ? p.acq_time.slice(0,2)+':'+p.acq_time.slice(2) : ''} UTC</p>
                 <p><strong>FRP:</strong> ${Number(p.frp).toFixed(1)} МВт</p>
                 <p><strong>Яркость:</strong> ${Number(p.brightness).toFixed(0)} K</p>

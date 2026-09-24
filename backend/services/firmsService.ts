@@ -301,7 +301,7 @@ export const getFIRMSInfo = () => ({
     },
     {
       name: 'VIIRS',
-      satellites: ['Suomi NPP', 'NOAA-20'],
+      satellites: ['Suomi NPP', 'NOAA-20', 'NOAA-21'],
       resolution: '375m',
       revisit: '12 hours'
     }
