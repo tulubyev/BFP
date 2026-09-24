@@ -7,6 +7,7 @@ import IncidentCard from '../components/IncidentCard';
 import { parseIncidentId, recentStartDate } from '../utils/incidents';
 import { addBoundaryLayers } from '../map/boundariesLayer';
 import { addFirmsLayers } from '../map/firmsLayer';
+import { addOoptLayer } from '../map/ooptLayer';
 import { addSourcesControl } from '../map/sourcesControl';
 
 interface RosleskhozSummary {
@@ -118,7 +119,6 @@ function HomePage() {
     const hasTarget = Number.isFinite(queryLat) && Number.isFinite(queryLng) && searchParams.has('lat') && searchParams.has('lng');
     const map = L.map(mapRef.current).setView(hasTarget ? [queryLat, queryLng] : [53.5, 108.0], hasTarget ? 12 : 5);
     mapInstanceRef.current = map;
-    let alive = true;
 
     // Base layers
     const baseLayers: Record<string, L.TileLayer> = {
@@ -158,10 +158,7 @@ function HomePage() {
       attribution: GFW_ATTRIBUTION, opacity: 0.5, minZoom: 3, maxNativeZoom: 12, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
     });
 
-    // ООПТ layer group (filled after async fetch)
-    const ooptGroup = L.layerGroup();
-
-    // Layer control — static tile overlays only; async layers added below after fetch
+    // Layer control — static tile overlays only; async layers register themselves below
     const overlayLayers: Record<string, L.Layer> = {
       'Потери леса 2001–2025 (Hansen/UMD)': gfwLossTiles,
       'Нарушения леса DIST-ALERT, 2 года (GFW)': distAlertsTiles,
@@ -170,12 +167,10 @@ function HomePage() {
 
     gfwLossTiles.addTo(map);
     distAlertsTiles.addTo(map);
-    ooptGroup.addTo(map);
 
     const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
     addBoundaryLayers(map, layerControl);
-    // Add async-filled group layers once — they'll be populated after fetch
-    layerControl.addOverlay(ooptGroup, 'ООПТ — заповедники и нацпарки (OSM)');
+    addOoptLayer(map, layerControl, setOoptCount);
     addFirmsLayers(map, layerControl);
     addMapLegend(map);
     addSourcesControl(map);
@@ -196,54 +191,7 @@ function HomePage() {
       L.marker([queryLat, queryLng], { icon: targetIcon }).addTo(map).bindPopup(popup).openPopup();
     }
 
-    // ── ООПТ: заповедники и нацпарки из OSM / Overpass API ───────────────────
-    // Данные © OpenStreetMap contributors, ODbL
-    fetch('/api/external/oopt')
-      .then(r => r.json())
-      .then(res => {
-        if (!alive || !res.success || !res.geojson?.features?.length) return;
-
-        setOoptCount(res.count);
-
-        const zapovednikIcon = L.divIcon({
-          className: '',
-          html: '<div style="width:14px;height:14px;background:rgba(16,185,129,0.35);border:2px solid #10b981;border-radius:50%;box-shadow:0 0 6px rgba(16,185,129,0.5);"></div>',
-          iconSize: [14, 14], iconAnchor: [7, 7],
-        });
-        const natsionalparkIcon = L.divIcon({
-          className: '',
-          html: '<div style="width:14px;height:14px;background:rgba(139,92,246,0.35);border:2px solid #8b5cf6;border-radius:50%;box-shadow:0 0 6px rgba(139,92,246,0.5);"></div>',
-          iconSize: [14, 14], iconAnchor: [7, 7],
-        });
-
-        L.geoJSON(res.geojson, {
-          pointToLayer: (feature, latlng) => {
-            const isNP = feature.properties?.boundary === 'national_park';
-            return L.marker(latlng, { icon: isNP ? natsionalparkIcon : zapovednikIcon });
-          },
-          onEachFeature: (feature, layer) => {
-            const p = feature.properties;
-            const typeLabel = p.boundary === 'national_park' ? '🌿 Национальный парк' : '🏔 Заповедник';
-            const classLabel = p.protect_class === '1' ? 'Ia/Ib (строго охраняемый)' : p.protect_class === '2' ? 'II (нацпарк)' : (p.protect_class || '—');
-            layer.bindPopup(`
-              <div style="min-width:210px">
-                <h3 style="font-weight:bold;margin-bottom:6px;font-size:14px">${p.name}</h3>
-                <p><strong>Тип:</strong> ${typeLabel}</p>
-                <p><strong>Категория МСОП:</strong> ${classLabel}</p>
-                ${p.area_ha ? `<p><strong>Площадь:</strong> ${Number(p.area_ha).toLocaleString('ru-RU')} га</p>` : ''}
-                ${p.website ? `<p><a href="${p.website}" target="_blank" rel="noopener" style="color:#60a5fa">Официальный сайт →</a></p>` : ''}
-                <p style="font-size:10px;color:#888;margin-top:6px">
-                  Источник: <a href="${p.osm_url}" target="_blank" rel="noopener" style="color:#60a5fa">OpenStreetMap</a> (данные Минприроды России)
-                </p>
-              </div>
-            `);
-          },
-        }).addTo(ooptGroup);
-      })
-      .catch(err => console.warn('ООПТ fetch failed:', err));
-
     return () => {
-      alive = false;
       map.remove();
       mapInstanceRef.current = null;
     };
