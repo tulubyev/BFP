@@ -48,7 +48,15 @@ class Server {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", ...cdn],
+          // The built bundle has no inline <script> — Vite emits only external
+          // <script type="module" src="...">, and the modulepreload polyfill (when present)
+          // ships inside that file, not as an inline tag. Checked in both plain and CDN_URL builds.
+          scriptSrc: ["'self'", ...cdn],
+          // Kept: L.divIcon()/popup HTML and the map legend are inserted via innerHTML and
+          // contain inline style="..." attributes with per-feature/runtime colors (marker dots,
+          // legend swatches) — a nonce or hash isn't practical for that. This is our own markup,
+          // not Leaflet's internals: Leaflet itself sets styles via element.style.prop = value
+          // and SVG presentation attributes (stroke=/fill=), neither of which style-src restricts.
           styleSrc: ["'self'", "'unsafe-inline'", ...cdn],
           fontSrc: ["'self'", ...cdn],
           // Basemaps load directly; GFW tiles go through /tiles (same origin or CDN)
