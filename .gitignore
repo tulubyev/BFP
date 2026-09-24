@@ -10,3 +10,6 @@ npm-debug.log*
 .config/
 .cache/
 .local/
+
+# Claude Code personal settings
+.claude/settings.local.json
