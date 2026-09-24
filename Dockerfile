@@ -24,7 +24,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+# start-interval: Traefik routes only to healthy containers, so probe often while starting
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=30s --start-interval=2s \
   CMD node -e "require('http').get('http://localhost:3000/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 USER node
 CMD ["node", "dist/server.js"]
