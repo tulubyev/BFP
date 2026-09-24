@@ -3,6 +3,8 @@ import pool from '../config/database';
 import { SpectralIndexCalculator, spectralIndicesInfo } from '../services/spectralIndices';
 import { firmsService, getFIRMSInfo } from '../services/firmsService';
 import { gfwService, getGFWInfo } from '../services/globalForestWatch';
+import { createForestChangesHandler } from '../services/incidentsService';
+import { incidentsCache } from '../utils/incidentsCache';
 
 const router = Router();
 
@@ -75,72 +77,7 @@ router.get('/forest-areas/geojson', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/forest-changes', async (req: Request, res: Response) => {
-  try {
-    const {
-      change_type, severity, region, start_date, end_date,
-      limit = '100', offset = '0', sort = 'date_desc'
-    } = req.query;
-    const safeLimit = Math.min(Math.max(Number(limit) || 12, 1), 100);
-    const safeOffset = Math.max(Number(offset) || 0, 0);
-    const sortColumns: Record<string, string> = {
-      date_desc: 'fc.detected_date DESC',
-      date_asc: 'fc.detected_date ASC',
-      area_desc: 'fc.area_ha DESC NULLS LAST',
-      area_asc: 'fc.area_ha ASC NULLS LAST',
-    };
-    const orderBy = sortColumns[String(sort)] || sortColumns.date_desc;
-    
-    let where = ' WHERE 1=1';
-    const params: any[] = [];
-    let paramIndex = 1;
-
-    if (change_type) {
-      where += ` AND fc.change_type = $${paramIndex++}`;
-      params.push(change_type);
-    }
-    if (severity) {
-      where += ` AND fc.severity = $${paramIndex++}`;
-      params.push(severity);
-    }
-    if (region) {
-      where += ` AND fa.region = $${paramIndex++}`;
-      params.push(region);
-    }
-    if (start_date) {
-      where += ` AND fc.detected_date >= $${paramIndex++}`;
-      params.push(start_date);
-    }
-    if (end_date) {
-      where += ` AND fc.detected_date <= $${paramIndex++}`;
-      params.push(end_date);
-    }
-
-    const from = ` FROM gis.forest_changes fc
-      LEFT JOIN gis.forest_areas fa ON fa.id = fc.forest_area_id`;
-    const query = `SELECT fc.*, fa.region, fa.name AS forest_area_name${from}${where}
-      ORDER BY ${orderBy} LIMIT $${paramIndex++} OFFSET $${paramIndex}`;
-    const dataParams = [...params, safeLimit, safeOffset];
-
-    const [result, totalResult, regionsResult] = await Promise.all([
-      pool.query(query, dataParams),
-      pool.query(`SELECT COUNT(*)::int AS count${from}${where}`, params),
-      pool.query(`SELECT DISTINCT region FROM gis.forest_areas WHERE region IS NOT NULL ORDER BY region`),
-    ]);
-    res.json({
-      success: true,
-      count: result.rows.length,
-      total: totalResult.rows[0]?.count || 0,
-      limit: safeLimit,
-      offset: safeOffset,
-      regions: regionsResult.rows.map(row => row.region),
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching forest changes:', error);
-    res.status(500).json({ success: false, error: 'Database error' });
-  }
-});
+router.get('/forest-changes', createForestChangesHandler(pool, incidentsCache));
 
 router.get('/forest-changes/geojson', async (req: Request, res: Response) => {
   try {

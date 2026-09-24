@@ -38,6 +38,20 @@ export interface IncidentsResponse {
   regions: string[];
   data: Incident[];
   error?: string;
+  /** 'live' = fresh from the database, 'cache' = last known-good result served while the DB is down. */
+  mode?: 'live' | 'cache';
+  /** ISO timestamp of when a 'cache' result was originally fetched. */
+  fetched_at?: string;
+}
+
+/** Thrown by getIncidents() for a non-2xx response; `status` lets callers tell a 503 (DB down, no cache) apart from other errors. */
+export class IncidentsApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'IncidentsApiError';
+    this.status = status;
+  }
 }
 
 export function buildIncidentQuery(filters: IncidentFilters = {}): URLSearchParams {
@@ -56,6 +70,9 @@ export function buildIncidentQuery(filters: IncidentFilters = {}): URLSearchPara
 export async function getIncidents(filters: IncidentFilters = {}): Promise<IncidentsResponse> {
   const params = buildIncidentQuery(filters);
   const response = await fetch(`/api/monitoring/forest-changes?${params}`);
-  if (!response.ok) throw new Error('Не удалось загрузить события');
-  return response.json();
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new IncidentsApiError(body?.error || 'Не удалось загрузить события', response.status);
+  }
+  return body as IncidentsResponse;
 }
