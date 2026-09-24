@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getIncidents, type Incident } from '../api/incidents';
 import IncidentCard from '../components/IncidentCard';
-import { parseIncidentId } from '../utils/incidents';
+import { parseIncidentId, recentStartDate } from '../utils/incidents';
 import { addBoundaryLayers } from '../map/boundariesLayer';
 import { addFirmsLayers } from '../map/firmsLayer';
 
@@ -102,7 +102,8 @@ function HomePage() {
       .then(r => r.json())
       .then(res => { if (res.success) setRosleshoz(res.data); })
       .catch(console.error);
-    getIncidents({ limit: 3 }).then(result => {
+    // Only the last 90 days: seed incidents from 2023–2024 must not pose as current events
+    getIncidents({ limit: 3, startDate: recentStartDate() }).then(result => {
       if (result.success) setRecentIncidents(result.data);
     }).catch(console.error);
   }, []);

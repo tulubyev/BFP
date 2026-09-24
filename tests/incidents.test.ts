@@ -1,5 +1,5 @@
 import { buildIncidentQuery, type Incident } from '../frontend/src/api/incidents';
-import { parseIncidentId, serializeIncident } from '../frontend/src/utils/incidents';
+import { parseIncidentId, recentStartDate, serializeIncident } from '../frontend/src/utils/incidents';
 
 describe('incident query construction', () => {
   it('builds filters and page offset without changing the API defaults for other clients', () => {
@@ -32,5 +32,14 @@ describe('incident download', () => {
     const incident: Incident = { id: 7, forest_area_id: null, change_type: 'fire', detected_date: '2026-09-20' };
     expect(JSON.parse(serializeIncident(incident))).toEqual(incident);
     expect(serializeIncident(incident)).toContain('\n  "id": 7');
+  });
+});
+describe('recent incidents window for the home page', () => {
+  it('starts the window the given number of days back, as a UTC date', () => {
+    expect(recentStartDate(new Date('2026-09-24T21:40:00+08:00'), 90)).toBe('2026-06-26');
+  });
+
+  it('defaults to 90 days so old seed records never look recent', () => {
+    expect(recentStartDate(new Date('2026-09-24T00:00:00Z'))).toBe('2026-06-26');
   });
 });
