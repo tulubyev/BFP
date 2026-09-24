@@ -69,17 +69,47 @@ export function latestDataPath(metaCsv: string): string | null {
   return paths.length ? paths[paths.length - 1] : null;
 }
 
+/** Path actually used for each dataset on its last resolution (falls back to the known file). */
+const resolvedPaths = new Map<keyof typeof DATASETS, string>();
+
 /** Datasets are republished under new file names; meta.csv points at the current one. */
 async function resolveDatasetPath(key: keyof typeof DATASETS): Promise<string> {
   const fallback = DATASETS[key];
+  let path = fallback;
   try {
     const dir = fallback.slice(0, fallback.lastIndexOf('/'));
     const meta = await axios.get<string>(`${BASE}${dir}/meta.csv`, { timeout: 15000, headers: HTTP_HEADERS, responseType: 'text' });
-    return latestDataPath(meta.data) ?? fallback;
+    path = latestDataPath(meta.data) ?? fallback;
   } catch (err: any) {
     console.warn(`Rosleshoz meta.csv for ${key} failed, using known file:`, err.message);
-    return fallback;
   }
+  resolvedPaths.set(key, path);
+  return path;
+}
+
+const DATA_DATE_RE = /\/data-(\d{4})(\d{2})(\d{2})T/;
+
+/** Modified date encoded in a dataset path's `data-YYYYMMDDT...` segment, or null if absent. */
+export function datasetDateFromPath(path: string): Date | null {
+  const m = DATA_DATE_RE.exec(path);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  const date = new Date(`${y}-${mo}-${d}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * Newest modified date among all datasets, from the path each last resolved to (or the known
+ * fallback file before any resolution happened). Represents the freshest Rosleshoz data we have,
+ * since individual datasets (e.g. the frozen fire ones) update at very different rates.
+ */
+export function latestDatasetModified(): Date | null {
+  let latest: Date | null = null;
+  for (const key of Object.keys(DATASETS) as (keyof typeof DATASETS)[]) {
+    const date = datasetDateFromPath(resolvedPaths.get(key) ?? DATASETS[key]);
+    if (date && (!latest || date > latest)) latest = date;
+  }
+  return latest;
 }
 
 const isNonEmpty = (data: unknown) => data != null && (!Array.isArray(data) || data.length > 0);

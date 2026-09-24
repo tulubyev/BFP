@@ -8,7 +8,7 @@ import { cached, warm } from '../utils/cache';
 
 // overpass.openstreetmap.fr answers 403 or empty results; the bbox query pulled in non-Russian parks
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
-const OOPT_KEY = 'oopt:ru';
+export const OOPT_KEY = 'oopt:ru';
 const OOPT_TTL_SEC = 3 * 24 * 60 * 60; // refreshed daily in the background
 
 // OSM area filter for Russia (precise, no false positives).
@@ -34,7 +34,7 @@ export interface OOPTFeature {
   osm_url: string;
 }
 
-interface OOPTResult {
+export interface OOPTResult {
   features: OOPTFeature[];
   source: string;
   fetchedAt: string;
