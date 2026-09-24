@@ -4,27 +4,19 @@
  * https://www.openstreetmap.org/copyright
  */
 import axios from 'axios';
-import { cached } from '../utils/cache';
+import { cached, warm } from '../utils/cache';
 
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.openstreetmap.fr/api/interpreter',
-];
+// overpass.openstreetmap.fr answers 403 or empty results; the bbox query pulled in non-Russian parks
+const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
+const OOPT_KEY = 'oopt:ru';
+const OOPT_TTL_SEC = 3 * 24 * 60 * 60; // refreshed daily in the background
 
-// Primary query: use OSM area filter for Russia (precise, no false positives).
-// Fallback: bbox query with geographic post-filtering.
+// OSM area filter for Russia (precise, no false positives).
 const QUERY_AREA = `[out:json][timeout:60];
 area["ISO3166-1"="RU"][admin_level="2"]->.russia;
 (
   relation(area.russia)["boundary"="national_park"]["name"];
   relation(area.russia)["boundary"="protected_area"]["protect_class"="1"]["name"];
-);
-out tags center qt;`;
-
-const QUERY_BBOX = `[out:json][timeout:55][bbox:41,19,82,180];
-(
-  relation["boundary"="protected_area"]["protect_class"="1"]["name"];
-  relation["boundary"="national_park"]["name"];
 );
 out tags center qt;`;
 
@@ -101,43 +93,40 @@ function parseFeatures(elements: any[]): OOPTFeature[] {
 }
 
 export async function getOOPT(): Promise<OOPTResult> {
-  // 24h in Redis; an empty answer (Overpass overload) never replaces the last good list
-  return cached('oopt:ru', 24 * 60 * 60, fetchOOPT, { isValid: r => r.features.length > 0 });
+  // An empty answer (Overpass overload) never replaces the last good list
+  return cached(OOPT_KEY, OOPT_TTL_SEC, () => fetchOOPT(1), { isValid: hasFeatures });
 }
 
-async function fetchOOPT(): Promise<OOPTResult> {
-  const postOverpass = async (endpoint: string, query: string) => {
-    const body = new URLSearchParams();
-    body.set('data', query);
-    const res = await axios.post(endpoint, body.toString(), {
-      timeout: 65000,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'forestwatch.ru/1.0 (+https://forestwatch.ru)',
-      },
-    });
-    if (typeof res.data === 'string' || res.data?.elements === undefined) {
-      throw new Error('Unexpected response format');
-    }
-    return res.data.elements as any[];
-  };
+/** Background refresh: Overpass often answers 504 under load, so retry a few times. */
+export function refreshOOPT(): Promise<boolean> {
+  return warm(OOPT_KEY, OOPT_TTL_SEC, () => fetchOOPT(3), { isValid: hasFeatures });
+}
 
-  let lastErr: Error = new Error('No endpoints tried');
+const hasFeatures = (r: OOPTResult) => r.features.length > 0;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  // Try area-filtered query first (precise, Russia-only), then bbox fallback
-  for (const query of [QUERY_AREA, QUERY_BBOX]) {
-    for (const endpoint of OVERPASS_ENDPOINTS) {
-      try {
-        const features = parseFeatures(await postOverpass(endpoint, query));
-        if (features.length === 0) throw new Error('empty result');
-        return { features, source: endpoint, fetchedAt: new Date().toISOString() };
-      } catch (err: any) {
-        lastErr = err;
-        console.warn(`Overpass ${endpoint} failed:`, err.message?.slice(0, 80));
-      }
+async function fetchOOPT(attempts: number): Promise<OOPTResult> {
+  let lastErr: Error = new Error('No attempts made');
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const body = new URLSearchParams({ data: QUERY_AREA });
+      const res = await axios.post(OVERPASS_ENDPOINT, body.toString(), {
+        timeout: 65000,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'forestwatch.ru/1.0 (+https://forestwatch.ru)',
+        },
+      });
+      if (typeof res.data === 'string' || res.data?.elements === undefined) throw new Error('Unexpected response format');
+      const features = parseFeatures(res.data.elements);
+      if (features.length === 0) throw new Error('empty result');
+      return { features, source: OVERPASS_ENDPOINT, fetchedAt: new Date().toISOString() };
+    } catch (err: any) {
+      lastErr = err;
+      console.warn(`Overpass attempt ${attempt}/${attempts} failed:`, err.message?.slice(0, 80));
+      if (attempt < attempts) await sleep(20000);
     }
   }
-
   throw lastErr;
 }
 

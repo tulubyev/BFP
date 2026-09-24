@@ -1,4 +1,4 @@
-import { createCache, type CacheClient } from '../../backend/utils/cache';
+import { createCache, createWarm, type CacheClient } from '../../backend/utils/cache';
 
 class FakeRedis implements CacheClient {
   store = new Map<string, string>();
@@ -81,5 +81,29 @@ describe('cached()', () => {
     release('once');
     await expect(Promise.all([a, b])).resolves.toEqual(['once', 'once']);
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('warm()', () => {
+  let redis: FakeRedis;
+  let warm: ReturnType<typeof createWarm>;
+
+  beforeEach(() => {
+    redis = new FakeRedis();
+    warm = createWarm(() => redis);
+  });
+
+  it('overwrites a fresh value with new data', async () => {
+    redis.store.set('k', JSON.stringify('old'));
+    await expect(warm('k', 60, async () => 'new')).resolves.toBe(true);
+    expect(redis.store.get('k')).toBe(JSON.stringify('new'));
+    expect(redis.store.get('k:last-good')).toBe(JSON.stringify('new'));
+  });
+
+  it('keeps existing values when the source fails or returns invalid data', async () => {
+    redis.store.set('k', JSON.stringify(['old']));
+    await expect(warm('k', 60, async () => { throw new Error('down'); })).resolves.toBe(false);
+    await expect(warm('k', 60, async () => [] as string[], { isValid: v => v.length > 0 })).resolves.toBe(false);
+    expect(redis.store.get('k')).toBe(JSON.stringify(['old']));
   });
 });

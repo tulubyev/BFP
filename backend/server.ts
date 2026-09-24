@@ -12,6 +12,8 @@ import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
+import tileRoutes from './routes/tiles';
+import { startRefreshJobs } from './jobs/refresh';
 
 /** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
 function cdnOrigin(url: string | undefined): string[] {
@@ -45,13 +47,16 @@ class Server {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", ...cdn],
-          styleSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "fonts.googleapis.com", ...cdn],
-          fontSrc: ["'self'", "fonts.gstatic.com", ...cdn],
-          imgSrc: ["'self'", "data:", "blob:", ...cdn, "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru"],
-          connectSrc: ["'self'", ...cdn, "*.tile.openstreetmap.org", "*.basemaps.cartocdn.com", "server.arcgisonline.com", "*.tile.opentopomap.org", "tiles.globalforestwatch.org", "pub.fgislk.gov.ru", "rosleshoz.gov.ru", "oopt.aari.ru", "http://oopt.aari.ru", "firms.modaps.eosdis.nasa.gov"]
+          scriptSrc: ["'self'", "'unsafe-inline'", ...cdn],
+          styleSrc: ["'self'", "'unsafe-inline'", ...cdn],
+          fontSrc: ["'self'", ...cdn],
+          // Basemaps load directly; GFW tiles go through /tiles (same origin or CDN)
+          imgSrc: ["'self'", "data:", "blob:", ...cdn, "tile.openstreetmap.org", "server.arcgisonline.com"],
+          connectSrc: ["'self'", ...cdn],
         }
-      }
+      },
+      // Assets, boundary files and tiles are also requested from the CDN origin
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     }));
     this.app.use(cors());
     this.app.use(express.json());
@@ -73,6 +78,7 @@ class Server {
     this.app.use('/api/analytics', analyticsRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/external', externalRoutes);
+    this.app.use('/tiles', tileRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
@@ -83,7 +89,7 @@ class Server {
     });
 
     // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html
-    this.app.get(/^\/(?!api\/).*/, (req: Request, res: Response) => {
+    this.app.get(/^\/(?!api\/|tiles\/).*/, (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
   }
@@ -92,6 +98,8 @@ class Server {
     this.app.listen(this.port, this.host, () => {
       console.log(`Server running on http://${this.host}:${this.port}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      // Background refresh only makes sense with a shared cache to fill
+      if (process.env.REDIS_URL) startRefreshJobs();
     });
   }
 }

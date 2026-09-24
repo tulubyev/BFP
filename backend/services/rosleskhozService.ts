@@ -4,7 +4,7 @@
  * Data is published under the Russian Open Data license (CC0-compatible).
  */
 import axios from 'axios';
-import { cached } from '../utils/cache';
+import { cached, warm } from '../utils/cache';
 
 const BASE = 'https://rosleshoz.gov.ru';
 
@@ -25,7 +25,8 @@ export const DATASETS = {
   mineralizedStrips: '/opendata/7705598840-MineralizedStrips/data-20240508T0000structure-20240508T0000.csv',
 };
 
-const TTL_SEC = 12 * 60 * 60; // 12 hours in Redis
+// Refreshed in the background every 12h (jobs/refresh.ts); TTL outlives several missed runs
+const TTL_SEC = 3 * 24 * 60 * 60;
 
 function parseCSV(raw: string): Record<string, string>[] {
   const lines = raw.trim().split('\n').filter(l => l.trim());
@@ -58,14 +59,52 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
+const HTTP_HEADERS = { 'User-Agent': 'Mozilla/5.0 ForestMonitor/1.0' };
+
+/** Newest `data-…csv` path listed in a dataset's meta.csv (only rosleshoz.gov.ru links). */
+export function latestDataPath(metaCsv: string): string | null {
+  const paths = [...metaCsv.matchAll(/^data-[^,]+,https?:\/\/rosleshoz\.gov\.ru(\/opendata\/[^\s,]+\.csv)\s*$/gm)]
+    .map(m => m[1])
+    .sort();
+  return paths.length ? paths[paths.length - 1] : null;
+}
+
+/** Datasets are republished under new file names; meta.csv points at the current one. */
+async function resolveDatasetPath(key: keyof typeof DATASETS): Promise<string> {
+  const fallback = DATASETS[key];
+  try {
+    const dir = fallback.slice(0, fallback.lastIndexOf('/'));
+    const meta = await axios.get<string>(`${BASE}${dir}/meta.csv`, { timeout: 15000, headers: HTTP_HEADERS, responseType: 'text' });
+    return latestDataPath(meta.data) ?? fallback;
+  } catch (err: any) {
+    console.warn(`Rosleshoz meta.csv for ${key} failed, using known file:`, err.message);
+    return fallback;
+  }
+}
+
+const isNonEmpty = (data: unknown) => data != null && (!Array.isArray(data) || data.length > 0);
+
+async function loadDataset<T>(key: keyof typeof DATASETS, transform: (rows: Record<string, string>[]) => T): Promise<T> {
+  const response = await axios.get(BASE + (await resolveDatasetPath(key)), { timeout: 15000, headers: HTTP_HEADERS });
+  return transform(parseCSV(response.data));
+}
+
+type Transform = (rows: Record<string, string>[]) => unknown;
+/** Datasets requested so far and how they are parsed — the background refresh re-runs these. */
+const loaded = new Map<keyof typeof DATASETS, Transform>();
+
 async function fetchDataset<T>(key: keyof typeof DATASETS, transform: (rows: Record<string, string>[]) => T): Promise<T> {
-  return cached(`rosleshoz:${key}`, TTL_SEC, async () => {
-    const response = await axios.get(BASE + DATASETS[key], {
-      timeout: 15000,
-      headers: { 'User-Agent': 'Mozilla/5.0 ForestMonitor/1.0' },
-    });
-    return transform(parseCSV(response.data));
-  }, { isValid: data => data != null && (!Array.isArray(data) || data.length > 0) });
+  loaded.set(key, transform);
+  return cached(`rosleshoz:${key}`, TTL_SEC, () => loadDataset(key, transform), { isValid: isNonEmpty });
+}
+
+/** Re-downloads every dataset used by the API (the summary covers the home page). */
+export async function refreshRosleshoz(): Promise<boolean> {
+  await getAggregatedSummary();
+  const results = await Promise.all(
+    [...loaded].map(([key, transform]) => warm(`rosleshoz:${key}`, TTL_SEC, () => loadDataset(key, transform), { isValid: isNonEmpty })),
+  );
+  return results.every(Boolean);
 }
 
 // ─── Typed fetch methods ────────────────────────────────────────────────────

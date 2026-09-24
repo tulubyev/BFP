@@ -45,12 +45,12 @@ function addMapLegend(map: L.Map): L.Control {
         <p style="font-weight:700;color:#fff;margin:0 0 8px 0;font-size:13px">Легенда</p>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:4px;background:#ef4444;border-radius:2px;display:inline-block"></span>
-            <span>Потери леса 2001–2023 (Hansen/UMD)</span>
+            <span style="width:16px;height:6px;background:linear-gradient(90deg,#fbbf24,#dc2626);border-radius:2px;display:inline-block"></span>
+            <span>Потери леса 2001 → 2025 (Hansen/UMD)</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:4px;background:#f97316;border-radius:2px;display:inline-block"></span>
-            <span>GLAD-алерты вырубок (GFW)</span>
+            <span style="width:16px;height:6px;background:#f97316;border-radius:2px;display:inline-block"></span>
+            <span>Нарушения леса DIST-ALERT, 2 года (GFW)</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span style="width:14px;height:14px;background:rgba(16,185,129,0.3);border:2px solid #10b981;border-radius:50%;display:inline-block"></span>
@@ -74,7 +74,7 @@ function addMapLegend(map: L.Map): L.Control {
           </div>
           <hr style="border:none;border-top:1px solid #334155;margin:4px 0"/>
           <p style="font-size:10px;color:#64748b;margin:0">
-            Hansen/UMD · GFW · NASA FIRMS · OSM © contributors (ODbL) · Рослесхоз
+            Hansen/UMD · GFW (CC BY 4.0) · NASA FIRMS · OSM © contributors (ODbL) · Esri · Рослесхоз
           </p>
         </div>`;
       return div;
@@ -130,46 +130,35 @@ function HomePage() {
         'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
         { attribution: 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors', maxZoom: 16 }
       ),
-      'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors', maxZoom: 19,
       }),
       'ESRI Спутник': L.tileLayer(
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         { attribution: '© Esri', maxZoom: 19 }
       ),
-      'OpenTopoMap': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenTopoMap', maxZoom: 17,
-      }),
     };
     baseLayers['Тёмная (Esri)'].addTo(map);
 
-    // ── GFW: потери леса Hansen/UMD 30m 2001-2023 ───────────────────────────
-    const gfwLossTiles = L.tileLayer(
-      'https://tiles.globalforestwatch.org/umd_tree_cover_loss/v1.9/tcd_30/{z}/{x}/{y}.png',
-      { attribution: '© Hansen/UMD/Google/USGS/NASA via GFW', opacity: 0.85, maxZoom: 16, minZoom: 3, errorTileUrl: TRANSPARENT_TILE }
-    );
+    // ── GFW через /tiles/gfw: сервер раскрашивает закодированные плитки GFW и кэширует их ──
+    // (с CDN_URL плитки идут через CDN). © Hansen/UMD/Google/USGS/NASA, GLAD/UMD via GFW, CC BY 4.0
+    const tileBase = __CDN_URL__;
+    const GFW_ATTRIBUTION = '© Hansen/UMD/Google/USGS/NASA, GLAD/UMD via GFW (CC BY 4.0)';
 
-    // ── GFW: GLAD Landsat Deforestation Alerts ───────────────────────────────
-    const gladAlertsTiles = L.tileLayer(
-      'https://tiles.globalforestwatch.org/umd_glad_landsat_alerts/v20230224/dynamic/{z}/{x}/{y}.png?implementation=default',
-      { attribution: '© GLAD/UMD via GFW', opacity: 0.9, maxZoom: 16, minZoom: 3, errorTileUrl: TRANSPARENT_TILE }
-    );
+    // Потери леса 2001–2025 (v1.13): плитки 512 px, поэтому zoomOffset -1 — вчетверо меньше запросов
+    const gfwLossTiles = L.tileLayer(`${tileBase}/tiles/gfw/loss/{z}/{x}/{y}.png`, {
+      attribution: GFW_ATTRIBUTION, tileSize: 512, zoomOffset: -1,
+      minZoom: 3, maxNativeZoom: 14, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
+    });
 
-    // ── GFW: лесной покров (опционально) ─────────────────────────────────────
-    const gfwDensityTiles = L.tileLayer(
-      'https://tiles.globalforestwatch.org/umd_tree_cover/v1.9/tcd_30/{z}/{x}/{y}.png',
-      { attribution: '© Hansen/UMD via GFW', opacity: 0.6, maxZoom: 16, minZoom: 3, errorTileUrl: TRANSPARENT_TILE }
-    );
+    // Нарушения лесного покрова DIST-ALERT (глобальные, обновляются еженедельно, последние 2 года)
+    const distAlertsTiles = L.tileLayer(`${tileBase}/tiles/gfw/dist/{z}/{x}/{y}.png`, {
+      attribution: GFW_ATTRIBUTION, minZoom: 3, maxNativeZoom: 14, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
+    });
 
-    // ── ФГИС ЛК WMS ──────────────────────────────────────────────────────────
-    const fgisLkWMS = (L.tileLayer as any).wms('https://pub.fgislk.gov.ru/plk/geoservermaster/geoserver/ows', {
-      layers: 'plk:plk_les_use',
-      format: 'image/png',
-      transparent: true,
-      version: '1.1.1',
-      attribution: '© ФГИС ЛК / Рослесхоз',
-      opacity: 0.55,
-      errorTileUrl: TRANSPARENT_TILE,
+    // Лесной покров 2000 г. (сомкнутость ≥ 30%)
+    const gfwDensityTiles = L.tileLayer(`${tileBase}/tiles/gfw/cover/{z}/{x}/{y}.png`, {
+      attribution: GFW_ATTRIBUTION, opacity: 0.5, minZoom: 3, maxNativeZoom: 12, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
     });
 
     // ООПТ layer group (filled after async fetch)
@@ -179,14 +168,13 @@ function HomePage() {
 
     // Layer control — static tile overlays only; async layers added below after fetch
     const overlayLayers: Record<string, L.Layer> = {
-      'Потери леса GFW 2001–2023': gfwLossTiles,
-      'GLAD-алерты вырубок (GFW)': gladAlertsTiles,
-      'Лесной покров (GFW)': gfwDensityTiles,
-      'ФГИС ЛК — лесопользование (Рослесхоз)': fgisLkWMS,
+      'Потери леса 2001–2025 (Hansen/UMD)': gfwLossTiles,
+      'Нарушения леса DIST-ALERT, 2 года (GFW)': distAlertsTiles,
+      'Лесной покров 2000 (Hansen/UMD)': gfwDensityTiles,
     };
 
     gfwLossTiles.addTo(map);
-    gladAlertsTiles.addTo(map);
+    distAlertsTiles.addTo(map);
     ooptGroup.addTo(map);
     firmsGroup.addTo(map);
 
@@ -292,7 +280,7 @@ function HomePage() {
               <div style="min-width:190px">
                 <h3 style="font-weight:bold;color:#ef4444;margin-bottom:6px">🔥 Термоточка FIRMS</h3>
                 <p><strong>Источник:</strong> NASA VIIRS NRT</p>
-                <p><strong>Спутник:</strong> ${p.satellite === 'N' ? 'NOAA-20 VIIRS' : p.satellite === 'S' ? 'Suomi NPP VIIRS' : p.satellite}</p>
+                <p><strong>Спутник:</strong> ${({ N: 'NOAA-20 VIIRS', N21: 'NOAA-21 VIIRS', S: 'Suomi NPP VIIRS' } as Record<string, string>)[p.satellite] ?? p.satellite}</p>
                 <p><strong>Дата:</strong> ${p.acq_date} ${p.acq_time ? p.acq_time.slice(0,2)+':'+p.acq_time.slice(2) : ''} UTC</p>
                 <p><strong>FRP:</strong> ${Number(p.frp).toFixed(1)} МВт</p>
                 <p><strong>Яркость:</strong> ${Number(p.brightness).toFixed(0)} K</p>

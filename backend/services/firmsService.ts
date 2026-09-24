@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { cached } from '../utils/cache';
+import { cached, warm } from '../utils/cache';
 
 export interface FIRMSHotspot {
   latitude: number;
@@ -17,7 +17,20 @@ export interface FIRMSHotspot {
   daynight: string;
 }
 
+// east > 180 wraps past the antimeridian (Chukotka reports longitudes near -170)
 const FIRMS_RUSSIA_BBOX = { west: 19, south: 40, east: 190, north: 82 };
+
+type Bbox = { west: number; south: number; east: number; north: number };
+
+const FIRMS_KEY = 'firms:viirs:ru';
+const FIRMS_TTL_SEC = 2 * 60 * 60;
+const nonEmpty = (hotspots: unknown[]) => hotspots.length > 0;
+
+export function inBbox(lat: number, lon: number, bbox: Bbox): boolean {
+  if (lat < bbox.south || lat > bbox.north) return false;
+  const wrapped = bbox.east > 180 && lon < 0 ? lon + 360 : lon;
+  return wrapped >= bbox.west && wrapped <= bbox.east;
+}
 
 export interface FIRMSQueryParams {
   source: 'VIIRS_SNPP_NRT' | 'VIIRS_NOAA20_NRT' | 'MODIS_NRT';
@@ -85,21 +98,25 @@ export class FIRMSService {
    * Fetch from NASA FIRMS public NRT CSV (no API key required).
    * Source: https://firms.modaps.eosdis.nasa.gov/active_fire/
    * Updated every ~3 hours, covers 24 hours of detections.
-   * The Russia-wide subset is cached in Redis for 1 hour; `area` filters within it.
+   * The Russia-wide subset lives in Redis (refreshed every 30 min by jobs/refresh.ts);
+   * `area` filters within it.
    */
   async getHotspotsFromPublicCSV(
     area: { west: number; south: number; east: number; north: number } = FIRMS_RUSSIA_BBOX
   ): Promise<FIRMSHotspot[]> {
-    const russia = await cached('firms:viirs:ru', 60 * 60, () => this._fetchRussiaHotspots(), {
-      isValid: hotspots => hotspots.length > 0,
-    });
+    const russia = await cached(FIRMS_KEY, FIRMS_TTL_SEC, () => this._fetchRussiaHotspots(), { isValid: nonEmpty });
     return this._filterByBbox(russia, area);
+  }
+
+  refreshRussia(): Promise<boolean> {
+    return warm(FIRMS_KEY, FIRMS_TTL_SEC, () => this._fetchRussiaHotspots(), { isValid: nonEmpty });
   }
 
   private async _fetchRussiaHotspots(): Promise<FIRMSHotspot[]> {
     const urls = [
       'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_24h.csv',
       'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv',
+      'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_24h.csv',
     ];
 
     const results = await Promise.allSettled(
@@ -123,10 +140,7 @@ export class FIRMSService {
     hotspots: FIRMSHotspot[],
     bbox: { west: number; south: number; east: number; north: number }
   ): FIRMSHotspot[] {
-    return hotspots.filter(
-      h => h.latitude >= bbox.south && h.latitude <= bbox.north &&
-           h.longitude >= bbox.west && h.longitude <= bbox.east
-    );
+    return hotspots.filter(h => inBbox(h.latitude, h.longitude, bbox));
   }
 
   private _deduplicateHotspots(hotspots: FIRMSHotspot[]): FIRMSHotspot[] {
