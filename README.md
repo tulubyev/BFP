@@ -133,6 +133,12 @@ Implemented in `src/services/spectralIndices.ts`:
 Production: https://forestwatch.ru — Docker container behind Traefik on VPS 90.156.168.149 (`/var/www/forestwatch`).
 - `cp .env.example .env` and fill in `DATABASE_URL` and API keys
 - `bash deploy.sh` — git pull, `docker compose -f docker-compose.prod.yml up -d --build`, waits for `/health`
+- Push to `main` deploys automatically: `.github/workflows/ci.yml` runs type-checks and tests, then
+  connects to the VPS with a key that the server restricts to `cd /var/www/forestwatch && bash deploy.sh`
+  (secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`) and smoke-tests the site
+- Static assets, boundary files and GFW tiles are served through Beget CDN (`CDN_URL=https://cdn.forestwatch.ru`)
+- `.github/workflows/health.yml` checks the site and data sources daily and opens an issue on failure;
+  `.github/workflows/boundaries.yml` rebuilds boundaries quarterly and opens a pull request
 
 ## Tech Stack
 - **Backend**: Node.js, Express, TypeScript, PostgreSQL
