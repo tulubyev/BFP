@@ -9,7 +9,7 @@ function Header() {
 
   return (
     <header className="glass sticky top-0 z-50 px-4 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-500/20 text-green-400 rounded-lg flex items-center justify-center">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -18,10 +18,11 @@ function Header() {
           </div>
           <div>
             <h1 className="text-lg font-bold">ForestGIS</h1>
-            <p className="text-xs text-gray-400">Спутниковый мониторинг</p>
+            <p className="hidden sm:block text-xs text-gray-400">Спутниковый мониторинг</p>
           </div>
         </Link>
-        <nav className="flex items-center gap-6 text-sm">
+        {/* Wraps under the logo on narrow screens instead of being clipped */}
+        <nav className="flex items-center gap-4 sm:gap-6 text-sm">
           <Link to="/" className={`transition ${isActive('/')}`}>Карта</Link>
           <Link to="/analytics" className={`transition ${isActive('/analytics')}`}>Аналитика</Link>
           <Link to="/incidents" className={`transition ${isActive('/incidents')}`}>Инциденты</Link>
