@@ -1,5 +1,5 @@
 import L from 'leaflet';
-import { formatRelativeAge, monitoredSources, STATE_COLOR, type SourceStatusEntry, type SourcesStatusResponse } from './sourcesStatus';
+import { formatFreshnessLabel, monitoredSources, STATE_COLOR, type SourceStatusEntry, type SourcesStatusResponse } from './sourcesStatus';
 
 function sourceRow(entry: SourceStatusEntry): HTMLElement {
   const row = document.createElement('div');
@@ -9,7 +9,7 @@ function sourceRow(entry: SourceStatusEntry): HTMLElement {
   dot.style.cssText = `width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:${STATE_COLOR[entry.state]}`;
 
   const label = document.createElement('span');
-  label.textContent = `${entry.name} — ${entry.freshness ? formatRelativeAge(entry.freshness.ageMs) : 'нет данных'}`;
+  label.textContent = `${entry.name} — ${formatFreshnessLabel(entry)}`;
 
   row.append(dot, label);
   return row;

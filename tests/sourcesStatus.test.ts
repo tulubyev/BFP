@@ -1,4 +1,4 @@
-import { formatRelativeAge, monitoredSources, type SourceStatusEntry } from '../frontend/src/map/sourcesStatus';
+import { formatFreshnessLabel, formatRelativeAge, monitoredSources, type SourceStatusEntry } from '../frontend/src/map/sourcesStatus';
 
 describe('formatRelativeAge', () => {
   it('reports under a minute as "меньше минуты назад"', () => {
@@ -25,6 +25,25 @@ describe('formatRelativeAge', () => {
 function source(overrides: Partial<SourceStatusEntry> = {}): SourceStatusEntry {
   return { id: 'x', name: 'X', state: 'unknown', freshness: null, ...overrides };
 }
+
+describe('formatFreshnessLabel', () => {
+  it('falls back to "нет данных" without a freshness timestamp', () => {
+    expect(formatFreshnessLabel(source())).toBe('нет данных');
+  });
+
+  it('uses a relative age for ordinary (non-annual) sources', () => {
+    const entry = source({ freshness: { timestamp: '2026-09-24T00:00:00Z', ageMs: 5 * 60_000 } });
+    expect(formatFreshnessLabel(entry)).toBe('5 мин назад');
+  });
+
+  it('shows a publication date instead of an alarming age for annual sources', () => {
+    const entry = source({
+      cadence: 'annual',
+      freshness: { timestamp: '2026-06-17T00:00:00Z', ageMs: 99 * 24 * 60 * 60_000 },
+    });
+    expect(formatFreshnessLabel(entry)).toBe('опубликовано 17.06.2026, годовые данные');
+  });
+});
 
 describe('monitoredSources', () => {
   it('keeps sources with a freshness timestamp', () => {

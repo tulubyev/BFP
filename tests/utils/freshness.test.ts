@@ -1,4 +1,4 @@
-import { computeState } from '../../backend/utils/freshness';
+import { computeState, worseState } from '../../backend/utils/freshness';
 
 const THRESHOLDS = { staleAfterMs: 60_000, failedAfterMs: 300_000 };
 
@@ -24,5 +24,27 @@ describe('computeState', () => {
 
   it('is failed beyond the failed threshold', () => {
     expect(computeState(300_001, THRESHOLDS)).toBe('failed');
+  });
+});
+
+describe('worseState', () => {
+  it('picks the more severe of two known states', () => {
+    expect(worseState('fresh', 'stale')).toBe('stale');
+    expect(worseState('stale', 'fresh')).toBe('stale');
+    expect(worseState('stale', 'failed')).toBe('failed');
+    expect(worseState('failed', 'fresh')).toBe('failed');
+  });
+
+  it('keeps the known state when the other is unknown, either order', () => {
+    expect(worseState('unknown', 'stale')).toBe('stale');
+    expect(worseState('stale', 'unknown')).toBe('stale');
+  });
+
+  it('is unknown only when both are unknown', () => {
+    expect(worseState('unknown', 'unknown')).toBe('unknown');
+  });
+
+  it('returns the shared state when both sides agree', () => {
+    expect(worseState('fresh', 'fresh')).toBe('fresh');
   });
 });

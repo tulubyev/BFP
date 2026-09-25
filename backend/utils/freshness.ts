@@ -20,3 +20,16 @@ export function computeState(ageMs: number | null, thresholds: FreshnessThreshol
   if (ageMs <= thresholds.failedAfterMs) return 'stale';
   return 'failed';
 }
+
+const SEVERITY: Record<FreshnessState, number> = { unknown: -1, fresh: 0, stale: 1, failed: 2 };
+
+/**
+ * Combines two independent freshness signals for the same source (e.g. "is the upstream
+ * publication current" and "are we ourselves still able to fetch it") into one state — the more
+ * concerning of the two. 'unknown' carries no information, so it never outweighs a known state.
+ */
+export function worseState(a: FreshnessState, b: FreshnessState): FreshnessState {
+  if (a === 'unknown') return b;
+  if (b === 'unknown') return a;
+  return SEVERITY[a] >= SEVERITY[b] ? a : b;
+}

@@ -30,6 +30,13 @@ export interface SourceDefinition {
   limitations: string[];
   /** Has a runtime freshness signal (sourceStatus.ts can compute an age); static sources don't. */
   monitored: boolean;
+  /**
+   * Publication cadence, when it's long enough that a plain "age since last publication" reads as
+   * alarming even though the data is current for its cycle (e.g. annual statistics 99 days after
+   * release). Drives both the freshness thresholds in sourceStatus.ts and how the map control
+   * labels the source (a publication date instead of a relative age).
+   */
+  cadence?: 'annual';
 }
 
 export const SOURCE_REGISTRY: SourceDefinition[] = [
@@ -78,6 +85,7 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
       'Наборы о пожарах (ForesFundFires, ForesFundFiresArea, RegisterForestFires, FireCover, MineralizedStrips) не обновлялись источником с 2024-05',
     ],
     monitored: true,
+    cadence: 'annual',
   },
   {
     id: 'gfw_loss',
