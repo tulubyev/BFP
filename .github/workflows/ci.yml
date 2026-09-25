@@ -25,6 +25,8 @@ jobs:
         run: npx tsc --noEmit -p frontend
       - name: Tests
         run: npx jest --ci
+      - name: Build (backend tsc + vite)
+        run: npm run build
 
   deploy:
     # Only tested commits on main reach the VPS; one deploy at a time

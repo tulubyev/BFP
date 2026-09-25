@@ -13,3 +13,6 @@ npm-debug.log*
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# Build output (vite outDir) — produced by the Docker build, never committed
+/public/
