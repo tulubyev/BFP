@@ -1,0 +1,47 @@
+{
+  "version": "2024",
+  "generatedAt": "2026-09-26T10:00:00Z",
+  "source": {
+    "name": "NASA FIRMS",
+    "urls": ["https://firms.modaps.eosdis.nasa.gov/data/country/viirs-snpp/2024/viirs-snpp_2024_Russian_Federation.csv"],
+    "license": "NASA open data, без ограничений"
+  },
+  "years": [2019, 2020, 2021, 2022, 2023, 2024],
+  "regions": {
+    "RU-IRK": {
+      "name": "Иркутская область",
+      "areaKm2": 775000,
+      "years": {
+        "2019": { "vegetation": 1000, "static": 50, "offshore": 0, "frpVegetation": 12000.5 },
+        "2020": { "vegetation": 2000, "static": 55, "offshore": 0, "frpVegetation": 20000 },
+        "2021": { "vegetation": 3000, "static": 60, "offshore": 0, "frpVegetation": 31000 },
+        "2022": { "vegetation": 4000, "static": 65, "offshore": 0, "frpVegetation": 40000 },
+        "2023": { "vegetation": 5000, "static": 70, "offshore": 0, "frpVegetation": 52000 },
+        "2024": { "vegetation": 1500, "static": 75, "offshore": 0, "frpVegetation": 15000 }
+      }
+    },
+    "RU-BU": {
+      "name": "Бурятия",
+      "areaKm2": 351000,
+      "years": {
+        "2020": { "vegetation": 800, "static": 0, "offshore": 0, "frpVegetation": 9000 },
+        "2021": { "vegetation": 900, "static": 0, "offshore": 0, "frpVegetation": 9500 },
+        "2022": { "vegetation": 700, "static": 0, "offshore": 0, "frpVegetation": 7000 },
+        "2023": { "vegetation": 600, "static": 0, "offshore": 0, "frpVegetation": 6000 },
+        "2024": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 }
+      }
+    },
+    "RU-ZAB": {
+      "name": "Забайкальский край",
+      "areaKm2": 432000,
+      "years": {
+        "2019": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 },
+        "2020": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 },
+        "2021": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 },
+        "2022": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 },
+        "2023": { "vegetation": 0, "static": 0, "offshore": 0, "frpVegetation": 0 },
+        "2024": { "vegetation": 10, "static": 0, "offshore": 0, "frpVegetation": 100 }
+      }
+    }
+  }
+}

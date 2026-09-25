@@ -12,6 +12,7 @@ import {
   type RegionInfo,
   type FireStat,
 } from '../api/analytics';
+import RegionsSection from '../components/regions/RegionsSection';
 
 const MONTH_NAMES = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
@@ -169,10 +170,16 @@ function AnalyticsPage() {
   }
 
   if (error) {
+    // The regional section has its own API, so it stays available when these charts fail
     return (
-      <div className="py-24 text-center">
-        <p className="text-red-400 mb-2">Ошибка загрузки данных</p>
-        <p className="text-gray-500 text-sm">{error}</p>
+      <div className="py-10 px-4">
+        <div className="max-w-7xl mx-auto space-y-10">
+          <div className="py-14 text-center">
+            <p className="text-red-400 mb-2">Ошибка загрузки данных</p>
+            <p className="text-gray-500 text-sm">{error}</p>
+          </div>
+          <RegionsSection />
+        </div>
       </div>
     );
   }
@@ -365,6 +372,8 @@ function AnalyticsPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        <RegionsSection />
 
         <div className="card p-6 bg-slate-800/40">
           <h3 className="text-lg font-bold mb-4">Источники данных</h3>

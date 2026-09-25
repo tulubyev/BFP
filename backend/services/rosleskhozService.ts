@@ -128,12 +128,32 @@ async function fetchDataset<T>(key: keyof typeof DATASETS, transform: (rows: Rec
   return cached(`rosleshoz:${key}`, TTL_SEC, () => loadDataset(key, transform), { isValid: isNonEmpty });
 }
 
+/** Raw datasets requested so far (regional analytics) — refreshed alongside the typed ones. */
+const loadedRaw = new Set<keyof typeof DATASETS>();
+const rawKey = (key: keyof typeof DATASETS) => `rosleshoz:rows:${key}`;
+const rawRows = (rows: Record<string, string>[]) => rows;
+
+/**
+ * Unparsed CSV rows of a dataset (column name → string). Used where a missing number must stay
+ * missing instead of becoming 0 (regional analytics); cached separately from the typed getters.
+ */
+export async function getDatasetRows(key: keyof typeof DATASETS): Promise<Record<string, string>[]> {
+  loadedRaw.add(key);
+  return cached(rawKey(key), TTL_SEC, () => loadDataset(key, rawRows), { isValid: isNonEmpty });
+}
+
+/** Modified date of the file a dataset last resolved to (or the known file), from its path. */
+export function datasetModified(key: keyof typeof DATASETS): Date | null {
+  return datasetDateFromPath(resolvedPaths.get(key) ?? DATASETS[key]);
+}
+
 /** Re-downloads every dataset used by the API (the summary covers the home page). */
 export async function refreshRosleshoz(): Promise<boolean> {
   await getAggregatedSummary();
-  const results = await Promise.all(
-    [...loaded].map(([key, transform]) => warm(`rosleshoz:${key}`, TTL_SEC, () => loadDataset(key, transform), { isValid: isNonEmpty })),
-  );
+  const results = await Promise.all([
+    ...[...loaded].map(([key, transform]) => warm(`rosleshoz:${key}`, TTL_SEC, () => loadDataset(key, transform), { isValid: isNonEmpty })),
+    ...[...loadedRaw].map(key => warm(rawKey(key), TTL_SEC, () => loadDataset(key, rawRows), { isValid: isNonEmpty })),
+  ]);
   return results.every(Boolean);
 }
 
