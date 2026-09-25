@@ -12,6 +12,20 @@ Filter Russia: lat 40-82, lon 19-190. ~3500-5500 hotspots/24h.
 Cache 1h server-side. Deduplicate by 0.01° grid.
 **Why:** NASA FIRMS free API registration is required for authenticated endpoints, but public CSVs require no key.
 
+## NASA FIRMS — история и инциденты-пожары (задача #11)
+
+- После каждого успешного обновления FIRMS (раз в 30 мин) весь снимок России пишется в
+  `gis.fire_hotspots` (source `firms_viirs_nrt`), без дублей: уникальный индекс наблюдения из
+  миграции `011_firms_history.sql`. Без миграции запись не выполняется, в журнале `firms_history`
+  (`/api/sources/status` → `firms.historyJournal`) — «migration 011 not applied».
+- Инциденты: только RU-IRK, RU-BU, RU-ZAB (point-in-polygon по `ru-regions.<версия>.geojson`),
+  окно 72 ч, кластер — цепочка точек ≤ 2 км; событие — ≥ 2 точек или 1 точка высокой достоверности.
+  `gis.forest_changes`: `source 'firms'`, `metadata.method 'firms-cluster-v1'`, статус «затих»
+  через 48 ч без новых точек.
+- **Площадь — оценка сверху**: число различных ячеек 375 м × 14,06 га. Пиксель VIIRS не означает,
+  что выгорел весь пиксель; термоточка — не обязательно лесной пожар (палы, факелы, промышленность).
+- Лицензия и атрибуция FIRMS — как у слоя термоточек (NASA, открытые данные).
+
 ## Global Forest Watch — авторизация и данные по России
 
 The GFW Data API (data-api.globalforestwatch.org) requires an API key for ALL query endpoints. No public unauthenticated path exists.

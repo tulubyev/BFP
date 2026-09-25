@@ -1,5 +1,7 @@
 import { buildIncidentQuery, getIncidents, IncidentsApiError, type Incident } from '../frontend/src/api/incidents';
-import { formatCacheBanner, parseIncidentId, parsePage, recentStartDate, serializeIncident } from '../frontend/src/utils/incidents';
+import {
+  firmsIncidentInfo, formatCacheBanner, formatDateTime, parseIncidentId, parsePage, pluralHotspots, recentStartDate, serializeIncident,
+} from '../frontend/src/utils/incidents';
 
 describe('incident query construction', () => {
   it('builds filters and page offset without changing the API defaults for other clients', () => {
@@ -125,5 +127,46 @@ describe('getIncidents', () => {
       expect(err).toBeInstanceOf(IncidentsApiError);
       expect((err as IncidentsApiError).message).toBe('Не удалось загрузить события');
     }
+  });
+});
+
+describe('firmsIncidentInfo', () => {
+  const base: Incident = { id: 1, forest_area_id: null, change_type: 'fire', detected_date: '2026-09-24' };
+
+  it('is null for seed/other incidents without the FIRMS clustering method', () => {
+    expect(firmsIncidentInfo(base)).toBeNull();
+    expect(firmsIncidentInfo({ ...base, metadata: { region: 'Бурятия' } })).toBeNull();
+  });
+
+  it('reads cluster size, status, first/last seen and FRP from metadata', () => {
+    const info = firmsIncidentInfo({
+      ...base,
+      metadata: {
+        method: 'firms-cluster-v1', hotspot_count: 3, status: 'active', frp_max: 40.5,
+        first_seen: '2026-09-24T05:00:00.000Z', last_seen: '2026-09-24T06:00:00.000Z',
+      },
+    });
+    expect(info).toEqual({
+      hotspotCount: 3, active: true, statusLabel: 'Активен', frpMax: 40.5,
+      firstSeen: '2026-09-24T05:00:00.000Z', lastSeen: '2026-09-24T06:00:00.000Z',
+      sourceLabel: 'NASA FIRMS, кластер 3 термоточки',
+    });
+  });
+
+  it('labels inactive incidents and tolerates missing fields', () => {
+    const info = firmsIncidentInfo({ ...base, metadata: { method: 'firms-cluster-v1', status: 'inactive' } })!;
+    expect(info.statusLabel).toBe('Затих');
+    expect(info.frpMax).toBeNull();
+    expect(info.firstSeen).toBeNull();
+    expect(formatDateTime(info.firstSeen)).toBe('—');
+  });
+});
+
+describe('pluralHotspots', () => {
+  it('uses Russian plural forms', () => {
+    expect([1, 2, 5, 11, 12, 21, 22, 25, 111].map(n => `${n} ${pluralHotspots(n)}`)).toEqual([
+      '1 термоточка', '2 термоточки', '5 термоточек', '11 термоточек', '12 термоточек',
+      '21 термоточка', '22 термоточки', '25 термоточек', '111 термоточек',
+    ]);
   });
 });

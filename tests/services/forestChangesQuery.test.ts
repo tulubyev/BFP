@@ -50,7 +50,7 @@ describe('buildForestChangesQuery', () => {
     expect(built.dataQuery).not.toContain(injection);
     expect(built.params).toEqual([injection, 'Иркутская область']);
     expect(built.dataQuery).toContain('fc.change_type = $1');
-    expect(built.dataQuery).toContain('fa.region = $2');
+    expect(built.dataQuery).toContain("COALESCE(fa.region, fc.metadata->>'region') = $2");
   });
 
   it('appends limit/offset placeholders after the filter params', () => {
@@ -105,5 +105,12 @@ describe('forestChangesCacheKey', () => {
     const a = forestChangesCacheKey({ change_type: 'fire' });
     const b = forestChangesCacheKey({ severity: 'fire' });
     expect(a).not.toBe(b);
+  });
+});
+
+describe('region of FIRMS incidents', () => {
+  it('falls back to metadata.region when the incident has no forest area', () => {
+    const built = buildForestChangesQuery({});
+    expect(built.dataQuery).toContain("COALESCE(fa.region, fc.metadata->>'region') AS region");
   });
 });

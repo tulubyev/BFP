@@ -20,6 +20,12 @@ export interface IncidentsCacheLike {
   set<T>(key: string, data: T, fetchedAt?: string): Promise<void>;
 }
 
+/** Regions for the filter: forest-area regions plus those stored on incidents (FIRMS). */
+export const REGIONS_QUERY = `SELECT DISTINCT region FROM (`
+  + `SELECT region FROM gis.forest_areas`
+  + ` UNION SELECT metadata->>'region' AS region FROM gis.forest_changes WHERE metadata ? 'region'`
+  + `) r WHERE region IS NOT NULL ORDER BY region`;
+
 /** Runs the three forest-changes queries (page, total count, region list) against `pool`. */
 export async function fetchForestChanges(pool: QueryablePool, rawQuery: ForestChangesRawQuery): Promise<ForestChangesResult> {
   const built = buildForestChangesQuery(rawQuery);
@@ -27,7 +33,7 @@ export async function fetchForestChanges(pool: QueryablePool, rawQuery: ForestCh
   const [result, totalResult, regionsResult] = await Promise.all([
     pool.query(built.dataQuery, built.dataParams),
     pool.query(built.countQuery, built.params),
-    pool.query(`SELECT DISTINCT region FROM gis.forest_areas WHERE region IS NOT NULL ORDER BY region`),
+    pool.query(REGIONS_QUERY),
   ]);
 
   return {

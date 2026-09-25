@@ -1,4 +1,4 @@
-import { startRefreshJobs } from '../../backend/jobs/refresh';
+import { refreshFirmsWithHistory, startRefreshJobs } from '../../backend/jobs/refresh';
 
 describe('startRefreshJobs', () => {
   beforeEach(() => jest.useFakeTimers());
@@ -35,5 +35,21 @@ describe('startRefreshJobs', () => {
     await jest.advanceTimersByTimeAsync(1000);
     expect(run).toHaveBeenCalledTimes(2);
     stop();
+  });
+});
+
+describe('refreshFirmsWithHistory', () => {
+  it('runs the history job only after a successful FIRMS refresh', async () => {
+    const history = jest.fn().mockResolvedValue(undefined);
+    await expect(refreshFirmsWithHistory(async () => true, history)).resolves.toBe(true);
+    expect(history).toHaveBeenCalledTimes(1);
+    await expect(refreshFirmsWithHistory(async () => false, history)).resolves.toBe(false);
+    expect(history).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the FIRMS refresh result when the history job throws', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await expect(refreshFirmsWithHistory(async () => true, async () => { throw new Error('db down'); })).resolves.toBe(true);
+    warn.mockRestore();
   });
 });

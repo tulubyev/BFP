@@ -13,6 +13,12 @@ export const FOREST_CHANGES_SORT_COLUMNS: Record<string, string> = {
   area_asc: 'fc.area_ha ASC NULLS LAST',
 };
 
+/**
+ * Region of an incident: its forest area's region, else the region stored by the job that created
+ * it (FIRMS incidents have no forest area — metadata.region comes from point-in-polygon).
+ */
+export const REGION_EXPR = `COALESCE(fa.region, fc.metadata->>'region')`;
+
 export const DEFAULT_SORT = 'date_desc';
 export const DEFAULT_LIMIT = 12;
 export const MAX_LIMIT = 100;
@@ -93,7 +99,7 @@ export function buildForestChangesQuery(query: ForestChangesRawQuery): BuiltFore
   if (region !== undefined) {
     filters.region = region;
     params.push(region);
-    where += ` AND fa.region = $${params.length}`;
+    where += ` AND ${REGION_EXPR} = $${params.length}`;
   }
   const startDate = firstString(query.start_date);
   if (startDate !== undefined) {
@@ -110,7 +116,7 @@ export function buildForestChangesQuery(query: ForestChangesRawQuery): BuiltFore
 
   const from = ` FROM gis.forest_changes fc LEFT JOIN gis.forest_areas fa ON fa.id = fc.forest_area_id`;
   const dataParams = [...params, limit, offset];
-  const dataQuery = `SELECT fc.*, fa.region, fa.name AS forest_area_name${from}${where}`
+  const dataQuery = `SELECT fc.*, ${REGION_EXPR} AS region, fa.name AS forest_area_name${from}${where}`
     + ` ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
   const countQuery = `SELECT COUNT(*)::int AS count${from}${where}`;
 
