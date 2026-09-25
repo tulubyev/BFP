@@ -124,8 +124,17 @@ available, not the pages themselves. Those snippets point at:
   LK WMS open?"), whose existence suggests getting a working public WMS response out of this
   system is a known point of friction for third-party clients, not just for us.
 
-None of this is confirmed working — it needs checking from a machine with normal access to
-Russian sites (e.g. the production VPS) before deciding whether to wire up a new layer. Until
+**Verified from the production VPS (Russia) on 2026-09-25** — none of these is a usable public
+endpoint:
+- `pub.fgislk.gov.ru/map/geo/geoserver/wms?…GetCapabilities` → **403 Forbidden**; `…/wfs` → 403;
+  `…/ows` → 404. The GeoServer exists but refuses anonymous clients; we do not spoof the FGIS
+  web app's headers to get around an access control.
+- `pub5.fgislk.gov.ru/plk/gwc/geow` → 404.
+- `pub.fgislk.gov.ru/map/` → 200, the public forest map web application (HTML), not a service.
+- The old `…/plk/geoservermaster/geoserver/ows` → 200 HTML (web app), not WMS.
+
+Conclusion: no public WMS/WMTS/vector-tile endpoint is available; a ФГИС ЛК layer would need an
+official data agreement or API access from Рослесхоз. Until
 then, ФГИС ЛК stays undocumented as a working layer and OpenTopoMap (also removed per the
 2026-09-24 map design, see `docs/superpowers/specs/2026-09-24-cdn-redis-map-design.md`) is not
 brought back either.
