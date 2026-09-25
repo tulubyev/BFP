@@ -31,7 +31,9 @@ for year in $(seq "$FIRST" "$LAST"); do
 done
 
 echo "== 2/2 aggregate by region (streamed) and validate"
-docker run --rm -v "$REPO":/repo:ro -v "$WORK":/work -w /work/deps node:20-slim sh -c "
+# Run as the calling user so the work dir stays removable without sudo
+docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$REPO":/repo:ro -v "$WORK":/work -w /work/deps node:20-slim sh -c "
   set -e
   [ -x node_modules/.bin/tsx ] || { npm init -y >/dev/null && npm install --silent --no-audit --no-fund tsx@4 @turf/area@6.5.0 >/dev/null; }
   NODE_PATH=/work/deps/node_modules node_modules/.bin/tsx /repo/scripts/regional/build-firms-archive.ts \
