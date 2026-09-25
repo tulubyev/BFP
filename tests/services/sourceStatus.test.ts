@@ -1,7 +1,7 @@
 jest.mock('../../backend/config/redis', () => ({ getRedis: jest.fn() }));
 
 import { getRedis } from '../../backend/config/redis';
-import { getSourceStatus } from '../../backend/services/sourceStatus';
+import { getAllSourcesStatus, getSourceStatus } from '../../backend/services/sourceStatus';
 import { getSourceDefinition } from '../../backend/services/sourceRegistry';
 import { OOPT_KEY } from '../../backend/services/overpassService';
 import * as rosleskhoz from '../../backend/services/rosleskhozService';
@@ -62,11 +62,54 @@ describe('getSourceStatus', () => {
     expect(status.freshness?.timestamp).toBe('2026-09-20T00:00:00.000Z');
   });
 
-  it('a static, unmonitored source (postgis) has no journal and an unknown state', async () => {
+  it('postgis without an injected pool stays unknown rather than guessing', async () => {
     const status = await getSourceStatus(getSourceDefinition('postgis')!, NOW);
     expect(status.state).toBe('unknown');
     expect(status.freshness).toBeNull();
     expect(status.journal).toBeNull();
+  });
+
+  describe('postgis: live check via a dependency-injected pool', () => {
+    const postgis = () => getSourceDefinition('postgis')!;
+
+    function fakePool(overrides: Partial<{ newest: string | null; fail: boolean }> = {}) {
+      const { newest = null, fail = false } = overrides;
+      return {
+        query: jest.fn(async () => {
+          if (fail) throw new Error('connection refused');
+          return { rows: [{ newest }] };
+        }),
+      };
+    }
+
+    it('is fresh, with the newest record date, when the DB responds', async () => {
+      const pool = fakePool({ newest: '2026-09-20T12:00:00.000Z' });
+      const status = await getSourceStatus(postgis(), NOW, pool);
+      expect(status.state).toBe('fresh');
+      expect(status.freshness?.timestamp).toBe('2026-09-20T12:00:00.000Z');
+      expect(status.journal).toBeNull();
+    });
+
+    it('is fresh with no freshness timestamp when the tables are empty', async () => {
+      const pool = fakePool({ newest: null });
+      const status = await getSourceStatus(postgis(), NOW, pool);
+      expect(status.state).toBe('fresh');
+      expect(status.freshness).toBeNull();
+    });
+
+    it('is failed when the DB is unreachable', async () => {
+      const pool = fakePool({ fail: true });
+      const status = await getSourceStatus(postgis(), NOW, pool);
+      expect(status.state).toBe('failed');
+      expect(status.freshness).toBeNull();
+    });
+
+    it('getAllSourcesStatus threads the injected pool through to postgis', async () => {
+      const pool = fakePool({ newest: '2026-09-20T12:00:00.000Z' });
+      const statuses = await getAllSourcesStatus(NOW, pool);
+      const status = statuses.find(s => s.id === 'postgis')!;
+      expect(status.state).toBe('fresh');
+    });
   });
 
   it('a monitored source with no data yet is unknown, not failed', async () => {

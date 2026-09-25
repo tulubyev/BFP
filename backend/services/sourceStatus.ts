@@ -6,7 +6,9 @@ import { readLastGood } from '../utils/cache';
 import { computeState, worseState, type FreshnessState, type FreshnessThresholds } from '../utils/freshness';
 import { lastAttempt, lastSuccess, readJournal, type JournalEntry } from '../utils/journal';
 import { FIRMS_KEY, newestAcquisition, type FIRMSHotspot } from './firmsService';
+import type { QueryablePool } from './incidentsService';
 import { OOPT_KEY, type OOPTResult } from './overpassService';
+import { checkPostgisStatus } from './postgisStatus';
 import { latestDatasetModified } from './rosleskhozService';
 import { SOURCE_REGISTRY, type SourceDefinition, type SourceId } from './sourceRegistry';
 
@@ -90,7 +92,21 @@ export interface SourceStatus {
   journal: SourceJournal | null;
 }
 
-export async function getSourceStatus(def: SourceDefinition, now: Date = new Date()): Promise<SourceStatus> {
+/**
+ * `postgisPool` is optional and only meaningful for the 'postgis' source: without it (e.g. an
+ * existing caller that hasn't been updated, or a test) postgis simply stays 'unknown' as before.
+ * Passed in rather than imported here so this module — and its tests — never need a real database
+ * connection; the route wires the real pool (see routes/sources.ts).
+ */
+export async function getSourceStatus(
+  def: SourceDefinition,
+  now: Date = new Date(),
+  postgisPool?: QueryablePool,
+): Promise<SourceStatus> {
+  if (def.id === 'postgis') {
+    return getPostgisStatus(def, now, postgisPool);
+  }
+
   const fetchFreshness = FRESHNESS_FETCHERS[def.id];
   const timestamp = fetchFreshness ? await fetchFreshness().catch(() => null) : null;
   const ageMs = timestamp ? now.getTime() - timestamp.getTime() : null;
@@ -127,6 +143,35 @@ export async function getSourceStatus(def: SourceDefinition, now: Date = new Dat
   };
 }
 
-export async function getAllSourcesStatus(now: Date = new Date()): Promise<SourceStatus[]> {
-  return Promise.all(SOURCE_REGISTRY.map(def => getSourceStatus(def, now)));
+async function getPostgisStatus(def: SourceDefinition, now: Date, postgisPool?: QueryablePool): Promise<SourceStatus> {
+  const common = {
+    id: def.id,
+    name: def.name,
+    owner: def.owner,
+    license: def.license,
+    homepage: def.homepage,
+    updateFrequency: def.updateFrequency,
+    spatialResolution: def.spatialResolution,
+    coverage: def.coverage,
+    limitations: def.limitations,
+    cadence: def.cadence ?? null,
+    journal: null,
+  };
+
+  if (!postgisPool) {
+    return { ...common, state: 'unknown', freshness: null };
+  }
+
+  const check = await checkPostgisStatus(postgisPool);
+  if (!check.reachable) {
+    return { ...common, state: 'failed', freshness: null };
+  }
+  const freshness = check.newestRecordAt
+    ? { timestamp: check.newestRecordAt.toISOString(), ageMs: now.getTime() - check.newestRecordAt.getTime() }
+    : null;
+  return { ...common, state: 'fresh', freshness };
+}
+
+export async function getAllSourcesStatus(now: Date = new Date(), postgisPool?: QueryablePool): Promise<SourceStatus[]> {
+  return Promise.all(SOURCE_REGISTRY.map(def => getSourceStatus(def, now, postgisPool)));
 }

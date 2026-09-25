@@ -153,8 +153,11 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     updateFrequency: 'По мере записи (сиды и операции мониторинга)',
     spatialResolution: 'Полигоны/точки как загружены в таблицы gis.*',
     coverage: 'forest_areas, forest_changes, fire_hotspots, monitoring_zones, alerts, reports и справочники',
-    limitations: ['Не внешний источник со своей свежестью — хранилище собственных данных и результатов расчётов'],
-    monitored: false,
+    limitations: [
+      'Не внешний источник со своей свежестью — хранилище собственных данных и результатов расчётов',
+      'Статус — доступность БД (SELECT 1) и дата последней записи в forest_changes/fire_hotspots, а не свежесть внешних данных',
+    ],
+    monitored: true,
   },
 ];
 
