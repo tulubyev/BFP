@@ -30,6 +30,13 @@ export interface SourceDefinition {
   limitations: string[];
   /** Has a runtime freshness signal (sourceStatus.ts can compute an age); static sources don't. */
   monitored: boolean;
+  /**
+   * Publication cadence, when it's long enough that a plain "age since last publication" reads as
+   * alarming even though the data is current for its cycle (e.g. annual statistics 99 days after
+   * release). Drives both the freshness thresholds in sourceStatus.ts and how the map control
+   * labels the source (a publication date instead of a relative age).
+   */
+  cadence?: 'annual';
 }
 
 export const SOURCE_REGISTRY: SourceDefinition[] = [
@@ -78,6 +85,7 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
       'Наборы о пожарах (ForesFundFires, ForesFundFiresArea, RegisterForestFires, FireCover, MineralizedStrips) не обновлялись источником с 2024-05',
     ],
     monitored: true,
+    cadence: 'annual',
   },
   {
     id: 'gfw_loss',
@@ -145,8 +153,11 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     updateFrequency: 'По мере записи (сиды и операции мониторинга)',
     spatialResolution: 'Полигоны/точки как загружены в таблицы gis.*',
     coverage: 'forest_areas, forest_changes, fire_hotspots, monitoring_zones, alerts, reports и справочники',
-    limitations: ['Не внешний источник со своей свежестью — хранилище собственных данных и результатов расчётов'],
-    monitored: false,
+    limitations: [
+      'Не внешний источник со своей свежестью — хранилище собственных данных и результатов расчётов',
+      'Статус — доступность БД (SELECT 1) и дата последней записи в forest_changes/fire_hotspots, а не свежесть внешних данных',
+    ],
+    monitored: true,
   },
 ];
 

@@ -231,54 +231,6 @@ export class FIRMSService {
     });
   }
 
-  private getSampleHotspots(): FIRMSHotspot[] {
-    const today = new Date().toISOString().split('T')[0];
-    return [
-      {
-        latitude: 54.32,
-        longitude: 109.25,
-        brightness: 320.5,
-        frp: 15.8,
-        scan: 0.39,
-        track: 0.36,
-        acq_date: today,
-        acq_time: '1430',
-        satellite: 'VIIRS',
-        confidence: 'high',
-        version: '2.0NRT',
-        daynight: 'D'
-      },
-      {
-        latitude: 55.12,
-        longitude: 109.45,
-        brightness: 340.1,
-        frp: 25.6,
-        scan: 0.42,
-        track: 0.38,
-        acq_date: today,
-        acq_time: '1015',
-        satellite: 'MODIS',
-        confidence: 'high',
-        version: '6.1NRT',
-        daynight: 'D'
-      },
-      {
-        latitude: 51.85,
-        longitude: 105.32,
-        brightness: 295.3,
-        frp: 8.2,
-        scan: 0.35,
-        track: 0.33,
-        acq_date: today,
-        acq_time: '1345',
-        satellite: 'VIIRS',
-        confidence: 'nominal',
-        version: '2.0NRT',
-        daynight: 'D'
-      }
-    ];
-  }
-
   toGeoJSON(hotspots: FIRMSHotspot[]): GeoJSON.FeatureCollection {
     return {
       type: 'FeatureCollection',

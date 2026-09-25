@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@turf/area": "^6.5.0",
+    "@turf/boolean-point-in-polygon": "^6.5.0",
     "@turf/point-on-feature": "^6.5.0",
     "@turf/simplify": "^6.5.0",
     "@turf/truncate": "^6.5.0",

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { cached, readLastGood } from '../utils/cache';
 
 export interface GFWTreeCoverLoss {
   year: number;
@@ -15,11 +16,19 @@ export interface GFWForestData {
   emissions_Mt_CO2: number;
 }
 
-export interface GFWQueryParams {
-  geostore?: string;
-  geometry?: GeoJSON.Geometry;
-  startYear?: number;
-  endYear?: number;
+export type GFWStatisticsStatus = 'ok' | 'no_api_key' | 'source_unavailable';
+
+export interface GFWStatisticsResult {
+  data: GFWForestData | null;
+  status: GFWStatisticsStatus;
+  /** When `data` was fetched from GFW (fresh or last-good), null when there is no data at all. */
+  asOf: string | null;
+  message: string;
+}
+
+interface GFWStatisticsSnapshot {
+  data: GFWForestData;
+  fetchedAt: string;
 }
 
 export interface GFWConfig {
@@ -242,114 +251,77 @@ export class GlobalForestWatchService {
     }));
   }
 
-  async getTreeCoverLoss(params: GFWQueryParams): Promise<GFWTreeCoverLoss[]> {
-    const { geometry = BAIKAL_GEOJSON, startYear = 2015, endYear = 2024 } = params;
+  /** Redis key holding the last successfully fetched forest-carbon snapshot, with its fetch date. */
+  static readonly STATISTICS_KEY = 'gfw:statistics';
+  private static readonly STATISTICS_TTL_SEC = 24 * 60 * 60;
 
+  /**
+   * Forest carbon/cover statistics for a geometry (Baikal region by default).
+   *
+   * Never fabricates numbers: without an API key, or when the live GFW call fails, this returns
+   * the last successfully fetched snapshot together with the date it was fetched (via `cached()`),
+   * or `data: null` with a status explaining why when no snapshot exists yet.
+   */
+  async getForestStatistics(geometry: GeoJSON.Geometry = BAIKAL_GEOJSON): Promise<GFWStatisticsResult> {
     if (!this.config.apiKey) {
-      console.warn('GFW API key not configured. Using sample data.');
-      return this.getSampleTreeCoverLoss(startYear, endYear);
-    }
-
-    try {
-      const response = await axios.post(
-        `${this.config.baseUrl}/dataset/umd_tree_cover_loss/v1.9/query`,
-        {
-          geometry,
-          sql: `SELECT umd_tree_cover_loss__year as year, 
-                       SUM(area__ha) as area_ha,
-                       SUM(whrc_aboveground_co2_emissions__Mg) as emissions_Mg_CO2
-                FROM data 
-                WHERE umd_tree_cover_loss__year >= ${startYear} 
-                  AND umd_tree_cover_loss__year <= ${endYear}
-                GROUP BY umd_tree_cover_loss__year
-                ORDER BY year`
-        },
-        {
-          headers: {
-            'x-api-key': this.config.apiKey,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      return response.data.data || [];
-    } catch (error) {
-      console.error('GFW API error:', error);
-      return this.getSampleTreeCoverLoss(startYear, endYear);
-    }
-  }
-
-  async getForestStatistics(geometry: GeoJSON.Geometry = BAIKAL_GEOJSON): Promise<GFWForestData> {
-    if (!this.config.apiKey) {
-      console.warn('GFW API key not configured. Using sample data.');
-      return this.getSampleForestData();
-    }
-
-    try {
-      const response = await axios.post(
-        `${this.config.baseUrl}/dataset/gfw_forest_carbon_gross_emissions/latest/query`,
-        { geometry },
-        {
-          headers: {
-            'x-api-key': this.config.apiKey,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      const data = response.data.data?.[0] || {};
+      const lastGood = await readLastGood<GFWStatisticsSnapshot>(GlobalForestWatchService.STATISTICS_KEY);
+      if (lastGood) {
+        return {
+          data: lastGood.data,
+          status: 'no_api_key',
+          asOf: lastGood.fetchedAt,
+          message: `GFW_API_KEY не настроен — показаны последние сохранённые данные от ${lastGood.fetchedAt}`,
+        };
+      }
       return {
-        area_ha: data.area__ha || 0,
-        tree_cover_extent_ha: data.umd_tree_cover_extent_2000__ha || 0,
-        tree_cover_loss_ha: data.umd_tree_cover_loss__ha || 0,
-        tree_cover_gain_ha: data.umd_tree_cover_gain__ha || 0,
-        primary_forest_loss_ha: data.umd_tree_cover_loss_from_fires__ha || 0,
-        emissions_Mt_CO2: (data.gfw_forest_carbon_gross_emissions__Mg_CO2e || 0) / 1000000
+        data: null,
+        status: 'no_api_key',
+        asOf: null,
+        message: 'GFW_API_KEY не настроен, сохранённых данных нет',
       };
-    } catch (error) {
-      console.error('GFW API error:', error);
-      return this.getSampleForestData();
-    }
-  }
-
-  async getDeforestationAlerts(geometry: GeoJSON.Geometry = BAIKAL_GEOJSON, days: number = 30): Promise<any[]> {
-    if (!this.config.apiKey) {
-      console.warn('GFW API key not configured. Using sample data.');
-      return this.getSampleAlerts();
     }
 
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-
-      const response = await axios.post(
-        `${this.config.baseUrl}/dataset/gfw_integrated_alerts/latest/query`,
-        {
-          geometry,
-          sql: `SELECT latitude, longitude, gfw_integrated_alerts__date, 
-                       gfw_integrated_alerts__confidence
-                FROM data 
-                WHERE gfw_integrated_alerts__date >= '${startDate.toISOString().split('T')[0]}'
-                  AND gfw_integrated_alerts__date <= '${endDate.toISOString().split('T')[0]}'
-                LIMIT 1000`
-        },
-        {
-          headers: {
-            'x-api-key': this.config.apiKey,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
+      const snapshot = await cached<GFWStatisticsSnapshot>(
+        GlobalForestWatchService.STATISTICS_KEY,
+        GlobalForestWatchService.STATISTICS_TTL_SEC,
+        async () => ({ data: await this.fetchForestStatisticsLive(geometry), fetchedAt: new Date().toISOString() })
       );
-
-      return response.data.data || [];
-    } catch (error) {
-      console.error('GFW Alerts API error:', error);
-      return this.getSampleAlerts();
+      return { data: snapshot.data, status: 'ok', asOf: snapshot.fetchedAt, message: 'Global Forest Watch Data API' };
+    } catch (error: any) {
+      console.error('GFW API error:', error.message ?? error);
+      return {
+        data: null,
+        status: 'source_unavailable',
+        asOf: null,
+        message: 'GFW Data API недоступен, сохранённых данных нет',
+      };
     }
+  }
+
+  private async fetchForestStatisticsLive(geometry: GeoJSON.Geometry): Promise<GFWForestData> {
+    const response = await axios.post(
+      `${this.config.baseUrl}/dataset/gfw_forest_carbon_gross_emissions/latest/query`,
+      { geometry },
+      {
+        headers: {
+          'x-api-key': this.config.apiKey!,
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const data = response.data.data?.[0];
+    if (!data) throw new Error('GFW API returned no data rows for this geometry');
+    return {
+      area_ha: data.area__ha || 0,
+      tree_cover_extent_ha: data.umd_tree_cover_extent_2000__ha || 0,
+      tree_cover_loss_ha: data.umd_tree_cover_loss__ha || 0,
+      tree_cover_gain_ha: data.umd_tree_cover_gain__ha || 0,
+      primary_forest_loss_ha: data.umd_tree_cover_loss_from_fires__ha || 0,
+      emissions_Mt_CO2: (data.gfw_forest_carbon_gross_emissions__Mg_CO2e || 0) / 1000000
+    };
   }
 
   private getSampleTreeCoverLossByRegion(region: RussianRegion, startYear: number, endYear: number): GFWTreeCoverLoss[] {
@@ -376,71 +348,6 @@ export class GlobalForestWatchService {
     return data;
   }
 
-  private getSampleTreeCoverLoss(startYear: number, endYear: number): GFWTreeCoverLoss[] {
-    const data: GFWTreeCoverLoss[] = [];
-    const baseArea = 15000;
-    
-    for (let year = startYear; year <= endYear; year++) {
-      const variation = (Math.random() - 0.5) * 0.4;
-      const fireYear = [2019, 2021, 2023].includes(year) ? 1.8 : 1;
-      const area = Math.round(baseArea * (1 + variation) * fireYear);
-      
-      data.push({
-        year,
-        area_ha: area,
-        emissions_Mg_CO2: area * 150
-      });
-    }
-    
-    return data;
-  }
-
-  private getSampleForestData(): GFWForestData {
-    return {
-      area_ha: 25000000,
-      tree_cover_extent_ha: 18500000,
-      tree_cover_loss_ha: 285000,
-      tree_cover_gain_ha: 120000,
-      primary_forest_loss_ha: 45000,
-      emissions_Mt_CO2: 42.5
-    };
-  }
-
-  private getSampleAlerts(): any[] {
-    const alerts = [];
-    const today = new Date();
-    
-    for (let i = 0; i < 15; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - Math.floor(Math.random() * 30));
-      
-      alerts.push({
-        latitude: 51.5 + Math.random() * 4.5,
-        longitude: 100.5 + Math.random() * 11,
-        date: date.toISOString().split('T')[0],
-        confidence: Math.random() > 0.5 ? 'high' : 'medium'
-      });
-    }
-    
-    return alerts;
-  }
-
-  toGeoJSON(alerts: any[]): GeoJSON.FeatureCollection {
-    return {
-      type: 'FeatureCollection',
-      features: alerts.map(a => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [a.longitude, a.latitude]
-        },
-        properties: {
-          date: a.date || a.gfw_integrated_alerts__date,
-          confidence: a.confidence || a.gfw_integrated_alerts__confidence
-        }
-      }))
-    };
-  }
 }
 
 export const gfwService = new GlobalForestWatchService({

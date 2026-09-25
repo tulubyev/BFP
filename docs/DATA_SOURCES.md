@@ -82,6 +82,15 @@ hand-built fixture matching the documented response shape, not a real Overpass r
 `GET /api/external/oopt` after deploy — `geojson.features[].geometry.type` should be
 `Polygon`/`MultiPolygon` for ordinary reserves, not just `Point`.
 
+**Scoped to the 83 mapped regions (v3, 2026-09-25):** the `["ISO3166-1"="RU"]` area still includes
+Crimea, so Overpass kept returning ~10 Crimean protected areas even though the map only covers the
+83 regions in `ru-regions.*.geojson` (no Crimea, Sevastopol or the 2022 regions — owner's decision,
+see CLAUDE.md). `overpassService.ts` now drops any feature whose label point isn't inside one of
+those region polygons (`@turf/boolean-point-in-polygon`), reading the boundaries file at runtime
+from `public/data/boundaries/` (Docker image) or `frontend/public/data/boundaries/` (dev), whichever
+is found first, picking the newest `ru-regions.*.geojson` by its version suffix. Redis key bumped
+`oopt:ru:v2` → `oopt:ru:v3` so an unfiltered cache entry is never served as if it were scoped.
+
 ## GFW tile layers (потери леса, DIST-ALERT, лесной покров) — итоговый набор (задача #2)
 
 Separate from the national/regional loss numbers above: `/tiles/gfw/{loss,dist,cover}/{z}/{x}/{y}.png`

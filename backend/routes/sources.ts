@@ -2,13 +2,14 @@
  * GET /api/sources/status — registry + load journal + computed freshness for every data source.
  */
 import { Router, Request, Response } from 'express';
+import pool from '../config/database';
 import { getAllSourcesStatus } from '../services/sourceStatus';
 
 const router = Router();
 
 router.get('/status', async (_req: Request, res: Response) => {
   try {
-    const sources = await getAllSourcesStatus();
+    const sources = await getAllSourcesStatus(new Date(), pool);
     res.json({ success: true, generatedAt: new Date().toISOString(), sources });
   } catch (err: any) {
     console.error('Sources status error:', err.message);

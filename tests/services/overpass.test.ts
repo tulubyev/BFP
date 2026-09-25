@@ -5,7 +5,14 @@
  * `members` where way members carry `geometry: [{lat, lon}, ...]` inline.
  */
 import axios from 'axios';
-import { getOOPT, ooptToGeoJSON, refreshOOPT } from '../../backend/services/overpassService';
+import {
+  filterToRegions,
+  getOOPT,
+  newestRegionsFile,
+  ooptToGeoJSON,
+  refreshOOPT,
+  type OOPTFeature,
+} from '../../backend/services/overpassService';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -52,6 +59,15 @@ const georgianPark = {
   id: 1004,
   tags: { name: 'ეროვნული პარკი', boundary: 'national_park' },
   members: [way([[44, 42], [44.1, 42], [44.1, 42.1], [44, 42.1], [44, 42]])],
+};
+
+// Has a Cyrillic name so it passes isLikelyRussia (matching the real bug: Overpass's Russia area
+// includes Crimea) but sits outside the 83 mapped regions and must be dropped by the scope filter.
+const crimeanReserve = {
+  type: 'relation',
+  id: 1005,
+  tags: { name: 'Крымский заповедник', 'name:ru': 'Крымский заповедник', boundary: 'protected_area', protect_class: '1' },
+  members: [way([[34.2, 44.7], [34.3, 44.7], [34.3, 44.8], [34.2, 44.8], [34.2, 44.7]])],
 };
 
 function mockOverpassResponse(elements: unknown[]) {
@@ -105,6 +121,14 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
     await expect(getOOPT()).rejects.toThrow();
   });
 
+  it('drops a Crimean protected area even though it passes the Russia-name heuristic (out of scope)', async () => {
+    // Exercises the real, checked-in frontend/public/data/boundaries/ru-regions.*.geojson — this
+    // relation sits well outside all 83 mapped regions, unlike nationalPark (inside Irkutsk/Buryatia).
+    mockOverpassResponse([nationalPark, crimeanReserve]);
+    const { features } = await getOOPT();
+    expect(features.map(f => f.id)).toEqual([1001]);
+  });
+
   it('refreshOOPT retries up to 3 times and reports failure without throwing', async () => {
     jest.useFakeTimers();
     try {
@@ -116,5 +140,92 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe('filterToRegions', () => {
+  const square = (name: string, [minLon, minLat, maxLon, maxLat]: [number, number, number, number]): GeoJSON.Feature<GeoJSON.Polygon> => ({
+    type: 'Feature',
+    properties: { name },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[[minLon, minLat], [maxLon, minLat], [maxLon, maxLat], [minLon, maxLat], [minLon, minLat]]],
+    },
+  });
+
+  const feature = (id: number, lon: number, lat: number): OOPTFeature => ({
+    id,
+    name: `Feature ${id}`,
+    name_ru: null,
+    protect_class: null,
+    boundary: null,
+    lat,
+    lon,
+    wikidata: null,
+    website: null,
+    area_ha: null,
+    osm_url: '',
+    geometry: { type: 'Point', coordinates: [lon, lat] },
+  });
+
+  const irkutsk = square('Иркутская область', [95, 51, 119, 65]);
+  const buryatia = square('Республика Бурятия', [98, 49, 116, 57]);
+
+  it('keeps a feature whose label point falls inside one of several mapped regions', () => {
+    const inIrkutsk = feature(1, 104, 53);
+    expect(filterToRegions([inIrkutsk], [irkutsk, buryatia])).toEqual([inIrkutsk]);
+  });
+
+  it('drops a feature outside every mapped region (e.g. Crimea, not among the 83)', () => {
+    const crimea = feature(2, 34, 45);
+    expect(filterToRegions([crimea], [irkutsk, buryatia])).toEqual([]);
+  });
+
+  it('drops everything when there are no mapped regions to match against', () => {
+    const inIrkutsk = feature(1, 104, 53);
+    expect(filterToRegions([inIrkutsk], [])).toEqual([]);
+  });
+
+  it('keeps only the in-scope features from a mixed list', () => {
+    const inIrkutsk = feature(1, 104, 53);
+    const crimea = feature(2, 34, 45);
+    expect(filterToRegions([inIrkutsk, crimea], [irkutsk, buryatia])).toEqual([inIrkutsk]);
+  });
+});
+
+describe('newestRegionsFile', () => {
+  it('picks the newest ru-regions.*.geojson by version, ignoring other files', () => {
+    expect(newestRegionsFile([
+      'baikal-districts.2026-09.geojson',
+      'ru-regions.2026-06.geojson',
+      'ru-regions.2026-09.geojson',
+    ])).toBe('ru-regions.2026-09.geojson');
+  });
+
+  it('returns null when no ru-regions.*.geojson file is present', () => {
+    expect(newestRegionsFile(['baikal-districts.2026-09.geojson', 'readme.txt'])).toBeNull();
+  });
+});
+
+describe('loadRegionPolygons', () => {
+  // Uses jest.isolateModules for a fresh module registry each time, since loadRegionPolygons()
+  // memoizes its result at module scope — without isolation, whichever variant runs first would
+  // decide the (cached) answer for the rest of the suite.
+  it('finds and parses the real checked-in boundaries file (the dev-mode path), all 83 regions', () => {
+    let regions: unknown[] | null = null;
+    jest.isolateModules(() => {
+      regions = require('../../backend/services/overpassService').loadRegionPolygons();
+    });
+    expect(regions).not.toBeNull();
+    expect(regions!.length).toBe(83);
+  });
+
+  it('returns null without throwing when no boundaries file exists in either known location', () => {
+    let regions: unknown[] | null = [];
+    jest.isolateModules(() => {
+      jest.doMock('fs', () => ({ readdirSync: () => { throw new Error('ENOENT'); } }));
+      regions = require('../../backend/services/overpassService').loadRegionPolygons();
+    });
+    expect(regions).toBeNull();
   });
 });
