@@ -30,6 +30,8 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - Never touch: the server `.env` (DB password, `CDN_URL`), anything needing `sudo` on the VPS,
   the Beget panel (DNS, CDN purge), `authorized_keys`, repo secrets. Ask the owner.
 - Database migrations on `forest_db` only after the owner agrees — there is no staging database.
+  There is no migrations table: applied on production = 001–011 (011 on 2026-09-25). Apply a new
+  one before merging the code that needs it, in a transaction, via `docker exec forestwatch-app`.
 - Do not prune Docker images or build cache on the VPS (shared by other projects).
 - `Проект_карты_убыли_лесов_Байкала.md` is the owner's local document — never commit it.
 
@@ -67,5 +69,9 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   negative longitudes — use `inBbox()` in `firmsService.ts`.
 - npm 11 skips install scripts unless allowed: `sharp` is listed in `allowScripts` in `package.json`.
 - Traefik routes only to healthy containers; the Dockerfile healthcheck polls every 2 s at start.
+- Cloud routines open PRs as drafts: `gh pr ready <n>` before `gh pr merge`.
+- FIRMS fire incidents (`backend/services/firmsHistory/`, source `firms`, `metadata.method =
+  'firms-cluster-v1'`) are hotspot clusters, not confirmed fires: gas flares in northern Irkutsk
+  oblast (oil/gas fields) also produce hotspots — a static-source mask is still to be built.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.
