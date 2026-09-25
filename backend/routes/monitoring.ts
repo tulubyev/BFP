@@ -448,12 +448,14 @@ router.get('/fire-hotspots/stats', async (req: Request, res: Response) => {
 
 router.get('/gfw/statistics', async (req: Request, res: Response) => {
   try {
-    const stats = await gfwService.getForestStatistics();
-    
+    const result = await gfwService.getForestStatistics();
     res.json({
       success: true,
       source: 'Global Forest Watch',
-      data: stats
+      status: result.status,
+      asOf: result.asOf,
+      message: result.message,
+      data: result.data,
     });
   } catch (error) {
     console.error('Error fetching GFW statistics:', error);
