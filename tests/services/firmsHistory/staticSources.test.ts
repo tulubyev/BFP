@@ -1,6 +1,10 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import {
-  aggregateCells, buildStaticMask, cellOf, daySpan, DEFAULT_STATIC_OPTIONS, isStaticDays, isStaticIncident,
-  partitionStatic, STATIC_CELL_DEG, STATIC_MIN_DAYS, STATIC_MIN_SPAN_DAYS, STATIC_RADIUS_KM, STATIC_WINDOW_DAYS,
+  aggregateCells, buildStaticMask, cellCenter, cellOf, daySpan, DEFAULT_STATIC_OPTIONS, isStaticDays, isStaticIncident,
+  loadArchiveStaticCells, NO_ARCHIVE_CELLS, parseArchiveStaticCells, partitionStatic, pickNewestArchiveCellsFile,
+  STATIC_CELL_DEG, STATIC_MIN_DAYS, STATIC_MIN_SPAN_DAYS, STATIC_RADIUS_KM, STATIC_WINDOW_DAYS,
   staticMaskInfo, staticWindowStart, type HeatCell,
 } from '../../../backend/services/firmsHistory/staticSources';
 import { haversineKm } from '../../../backend/services/firmsHistory/clusters';
@@ -155,6 +159,95 @@ describe('staticMaskInfo', () => {
     expect(staticMaskInfo(new Date('2026-10-08T12:00:00Z'))).toEqual({
       method: 'static-mask-v1', min_days: 4, window_days: 14, min_span_days: 7, radius_m: 500,
       marked_at: '2026-10-08T12:00:00.000Z',
+    });
+  });
+});
+
+describe('archive cells (FIRMS yearly archive, type = 2) united with the history rule', () => {
+  const flareCell = cellOf(FLARE.lat, FLARE.lon);
+  const archiveFile = (cells: unknown[], over: object = {}) =>
+    ({ version: 2024, generatedAt: '2026-09-25T00:00:00.000Z', gridDeg: STATIC_CELL_DEG, years: [2022, 2023, 2024], cells, ...over });
+  const archive = parseArchiveStaticCells(archiveFile([[flareCell.row, flareCell.col]]));
+
+  it('parses the cell list and rejects another grid', () => {
+    expect(archive.version).toBe(2024);
+    expect([...archive.keys]).toEqual([`${flareCell.row}:${flareCell.col}`]);
+    expect(parseArchiveStaticCells(archiveFile([[1, 2], ['x', 3], [4], 5, [6, 7.5]])).keys).toEqual(new Set(['1:2']));
+    expect(() => parseArchiveStaticCells(archiveFile([], { gridDeg: 0.01 }))).toThrow(/gridDeg/);
+    expect(() => parseArchiveStaticCells({ gridDeg: STATIC_CELL_DEG })).toThrow(/cells/);
+  });
+
+  it('cellCenter is the inverse of cellOf', () => {
+    const c = cellCenter(flareCell.row, flareCell.col);
+    expect(cellOf(c.lat, c.lon)).toEqual(flareCell);
+  });
+
+  it('masks a listed cell at once, with no history at all', () => {
+    const mask = buildStaticMask([], DEFAULT_STATIC_OPTIONS, archive);
+    expect(mask.isStatic(FLARE.lat, FLARE.lon)).toBe(true);
+    expect(mask.staticCells).toEqual([]);
+    expect(mask.archiveCells).toBe(1);
+    expect(mask.archiveVersion).toBe(2024);
+    // Only the listed cell: the next cell north (≈ 445 m) is not masked without history.
+    expect(mask.isStatic(FLARE.lat + STATIC_CELL_DEG, FLARE.lon)).toBe(false);
+    expect(mask.isStatic(ONE_DAY_FIRE.lat, ONE_DAY_FIRE.lon)).toBe(false);
+  });
+
+  it('keeps the history rule: history-static places stay static, a lingering fire still is not', () => {
+    const elsewhere = parseArchiveStaticCells(archiveFile([[1, 2]]));
+    const history = asHistory(flareHotspots(days('2026-09-25', 8)));
+    expect(buildStaticMask(aggregateCells(history), DEFAULT_STATIC_OPTIONS, elsewhere).isStatic(FLARE.lat, FLARE.lon)).toBe(true);
+    const smoulder = asHistory(flareHotspots(days('2026-09-30', 5), MOVING_FIRE));
+    expect(buildStaticMask(aggregateCells(smoulder), DEFAULT_STATIC_OPTIONS, archive).isStatic(MOVING_FIRE.lat, MOVING_FIRE.lon)).toBe(false);
+  });
+
+  it('touches and isStaticIncident see archive cells', () => {
+    const mask = buildStaticMask([], DEFAULT_STATIC_OPTIONS, archive);
+    expect(mask.touches({ minLat: FLARE.lat, minLon: FLARE.lon, maxLat: FLARE.lat, maxLon: FLARE.lon })).toBe(true);
+    expect(mask.touches({ minLat: 58.0, minLon: 107.0, maxLat: 58.1, maxLon: 107.1 })).toBe(false);
+    expect(isStaticIncident([{ lat: FLARE.lat, lon: FLARE.lon }], mask)).toBe(true);
+    expect(isStaticIncident([{ lat: FLARE.lat, lon: FLARE.lon }, { lat: FLARE.lat + 0.02, lon: FLARE.lon }], mask)).toBe(false);
+  });
+
+  it('without an archive behaves as before', () => {
+    const mask = buildStaticMask([], DEFAULT_STATIC_OPTIONS, NO_ARCHIVE_CELLS);
+    expect(mask).toMatchObject({ archiveCells: 0, archiveVersion: null });
+    expect(mask.isStatic(FLARE.lat, FLARE.lon)).toBe(false);
+  });
+
+  it('records the archive year in the provenance', () => {
+    expect(staticMaskInfo(new Date('2026-10-08T12:00:00Z'), DEFAULT_STATIC_OPTIONS, 2024)).toMatchObject({
+      method: 'static-mask-v1', archive_version: 2024, marked_at: '2026-10-08T12:00:00.000Z',
+    });
+  });
+
+  describe('loadArchiveStaticCells', () => {
+    let tmp: string;
+    beforeEach(() => { tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'regional-')); });
+    afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
+
+    it('picks the newest year', () => {
+      expect(pickNewestArchiveCellsFile(['firms-static-cells.2023.json', 'firms-archive.2025.json',
+        'firms-static-cells.2024.json', 'firms-static-cells.json'])).toBe('firms-static-cells.2024.json');
+      expect(pickNewestArchiveCellsFile([])).toBeNull();
+      const a = path.join(tmp, 'a');
+      const b = path.join(tmp, 'b');
+      fs.mkdirSync(a);
+      fs.mkdirSync(b);
+      fs.writeFileSync(path.join(a, 'firms-static-cells.2023.json'), JSON.stringify(archiveFile([[1, 1]], { version: 2023 })));
+      fs.writeFileSync(path.join(b, 'firms-static-cells.2024.json'), JSON.stringify(archiveFile([[2, 2], [3, 3]])));
+      const loaded = loadArchiveStaticCells([path.join(tmp, 'missing'), a, b]);
+      expect(loaded.version).toBe(2024);
+      expect(loaded.keys.size).toBe(2);
+    });
+
+    it('missing or malformed file → no archive cells', () => {
+      expect(loadArchiveStaticCells([path.join(tmp, 'missing')])).toBe(NO_ARCHIVE_CELLS);
+      fs.writeFileSync(path.join(tmp, 'firms-static-cells.2024.json'), '{ not json');
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      expect(loadArchiveStaticCells([tmp])).toBe(NO_ARCHIVE_CELLS);
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
     });
   });
 });

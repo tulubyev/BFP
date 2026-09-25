@@ -8,7 +8,9 @@ import {
   MigrationMissingError, type FirmsHistoryStore, type FirmsHistoryTx, type StoredHotspot,
 } from '../../../backend/services/firmsHistory/store';
 import type { JournalEntry } from '../../../backend/utils/journal';
-import { aggregateCells } from '../../../backend/services/firmsHistory/staticSources';
+import {
+  aggregateCells, cellOf, parseArchiveStaticCells, STATIC_CELL_DEG, type ArchiveStaticCells,
+} from '../../../backend/services/firmsHistory/staticSources';
 import {
   days, FLARE, flareHotspots, hotspot, MOVING_FIRE, movingFireHotspots, ONE_DAY_FIRE, oneDayFireHotspots,
 } from './fixtures';
@@ -97,7 +99,7 @@ class FakeDb implements FirmsHistoryStore {
   }
 }
 
-function setup(snapshot: FIRMSHotspot[], now: string) {
+function setup(snapshot: FIRMSHotspot[], now: string, archive?: ArchiveStaticCells) {
   const db = new FakeDb();
   const journal: { source: string; entry: JournalEntry }[] = [];
   const state = { snapshot, now: new Date(now) };
@@ -105,6 +107,7 @@ function setup(snapshot: FIRMSHotspot[], now: string) {
     store: db,
     loadSnapshot: async () => state.snapshot,
     loadRegions: () => regions,
+    ...(archive ? { loadArchiveCells: () => archive } : {}),
     record: async (source, entry) => { journal.push({ source, entry }); },
     now: () => state.now,
   });
@@ -313,6 +316,42 @@ describe('static heat source mask over two weeks of history', () => {
     const incidents = env.db.incidents.filter(i => near(i.row, FLARE));
     expect(incidents).toHaveLength(1);
     expect(incidents[0].row.metadata.status).not.toBe('static_source');
+  });
+});
+
+describe('static mask with FIRMS archive cells', () => {
+  beforeEach(() => jest.spyOn(console, 'log').mockImplementation(() => undefined));
+  afterEach(() => jest.restoreAllMocks());
+
+  // The yearly archive flagged the flare's pixels as type = 2 (static land source).
+  const archivePoints = flareHotspots(days('2024-06-01', 11));
+  const archive = parseArchiveStaticCells({
+    version: 2024, gridDeg: STATIC_CELL_DEG,
+    cells: archivePoints.map(h => cellOf(h.latitude, h.longitude)).map(c => [c.row, c.col]),
+  });
+  const near = (row: any) => Math.abs(row.center_lat - FLARE.lat) < 0.1 && Math.abs(row.center_lng - FLARE.lon) < 0.1;
+
+  it('masks the flare from the first day, without waiting for a week of history', async () => {
+    const { db, run } = setup([...flareHotspots(['2026-09-25']), ...oneDayFireHotspots('2026-09-25')], '2026-09-25T12:00:00Z', archive);
+    const summary = await run();
+    expect(summary).toMatchObject({ staticLocations: 0, archiveLocations: archive.keys.size, maskedHotspots: 2, created: 1 });
+    // Only the one-day fire becomes an incident.
+    expect(db.incidents.filter(i => near(i.row))).toEqual([]);
+    expect(db.incidents).toHaveLength(1);
+  });
+
+  it('re-labels an existing flare incident with the archive year in its provenance', async () => {
+    const env = setup(flareHotspots(['2026-09-25']), '2026-09-25T12:00:00Z');
+    await env.run(); // no archive yet: an ordinary incident
+    expect(env.db.incidents.filter(i => near(i.row))).toHaveLength(1);
+
+    const withArchive = setup([], '2026-09-25T18:00:00Z', archive);
+    withArchive.db.hotspots = env.db.hotspots;
+    withArchive.db.incidents = env.db.incidents;
+    expect(await withArchive.run()).toMatchObject({ maskedIncidents: 1 });
+    expect(env.db.incidents[0].row.metadata).toMatchObject({
+      status: 'static_source', static_mask: { method: 'static-mask-v1', archive_version: 2024 },
+    });
   });
 });
 

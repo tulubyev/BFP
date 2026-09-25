@@ -75,6 +75,8 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   oblast are masked from our own history (`staticSources.ts`: ≥ 4 distinct days in 14, spread
   ≥ 7 days, within 500 m): their hotspots create no incidents, and incidents made only of them get
   `metadata.status = 'static_source'`, hidden from the feed unless `?static_sources=include|only`.
-  The mask needs ≥ 8 days of history; the 24 h hotspot map layer is not masked.
+  The history rule needs ≥ 8 days of history; cells in the newest
+  `frontend/public/data/regional/firms-static-cells.<year>.json` (FIRMS archive `type = 2`,
+  `scripts/regional/build-firms-archive.sh`) are masked at once. The 24 h hotspot map layer is not masked.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.
