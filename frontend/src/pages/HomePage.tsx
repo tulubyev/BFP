@@ -1,291 +1,53 @@
-import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Link, useSearchParams } from 'react-router-dom';
-import { getIncidents, type Incident } from '../api/incidents';
-import IncidentCard from '../components/IncidentCard';
-import { parseIncidentId, recentStartDate } from '../utils/incidents';
-import { addBoundaryLayers } from '../map/boundariesLayer';
-import { addFirmsLayers } from '../map/firmsLayer';
-import { addOoptLayer } from '../map/ooptLayer';
-import { addSourcesControl } from '../map/sourcesControl';
+import { useEffect, useState } from 'react';
+import { getIncidents } from '../api/incidents';
+import { firmsUrl } from '../map/firms';
+import type { SourceStatusEntry, SourcesStatusResponse } from '../map/sourcesStatus';
+import HomeHero from '../components/HomeHero';
+import HomeActions from '../components/HomeActions';
+import MonitoringMap from '../components/MonitoringMap';
+import RosleshozStats, { type RosleskhozSummary } from '../components/RosleshozStats';
+import DataSourcesFooter from '../components/DataSourcesFooter';
+import { countActiveFirmsIncidents, errorStat, readyStat, loadingStat, findSourceStatus, type Stat } from '../utils/homeStats';
 
-interface RosleskhozSummary {
-  total_wood_volume_thousand_m3: number;
-  total_forestland_area_thousand_ha: number;
-  reforestation_latest: { year: number; area_thousand_ha: number } | null;
-  fires_area_thousand_ha: number;
-}
-
-const TRANSPARENT_TILE =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '', iconRetinaUrl: '' });
-
-function addMapLegend(map: L.Map): L.Control {
-  const Legend = L.Control.extend({
-    options: { position: 'bottomright' },
-    onAdd() {
-      const div = L.DomUtil.create('div', '');
-      div.style.cssText = [
-        'background:rgba(15,23,42,0.93)',
-        'border:1px solid #334155',
-        'border-radius:8px',
-        'padding:10px 14px',
-        'font-size:12px',
-        'color:#cbd5e1',
-        'min-width:225px',
-        'pointer-events:auto',
-        'backdrop-filter:blur(4px)',
-      ].join(';');
-      div.innerHTML = `
-        <p style="font-weight:700;color:#fff;margin:0 0 8px 0;font-size:13px">Легенда</p>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:6px;background:linear-gradient(90deg,#fbbf24,#dc2626);border-radius:2px;display:inline-block"></span>
-            <span>Потери леса 2001 → 2025 (Hansen/UMD)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:6px;background:#ec4899;border-radius:2px;display:inline-block"></span>
-            <span>Нарушения леса DIST-ALERT, 2 года (GFW)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:14px;height:14px;background:rgba(16,185,129,0.3);border:2px solid #10b981;border-radius:50%;display:inline-block"></span>
-            <span>Заповедник (OSM/Минприроды)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:14px;height:14px;background:rgba(139,92,246,0.3);border:2px solid #8b5cf6;border-radius:50%;display:inline-block"></span>
-            <span>Национальный парк (OSM/Минприроды)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:10px;height:10px;background:#ef4444;border:2px solid #fbbf24;border-radius:50%;display:inline-block"></span>
-            <span>Термоточка FIRMS 24ч (NASA VIIRS)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:0;border-top:2px solid #e2e8f0;display:inline-block"></span>
-            <span>Граница субъекта РФ (OSM)</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:16px;height:0;border-top:2px dashed #94a3b8;display:inline-block"></span>
-            <span>Муниципальный район (OSM)</span>
-          </div>
-          <hr style="border:none;border-top:1px solid #334155;margin:4px 0"/>
-          <p style="font-size:10px;color:#64748b;margin:0">
-            Hansen/UMD · GFW (CC BY 4.0) · NASA FIRMS · OSM © contributors (ODbL) · Esri · Рослесхоз
-          </p>
-        </div>`;
-      return div;
-    },
-  });
-  const legend = new Legend();
-  legend.addTo(map);
-  return legend;
-}
+const FIRE_INCIDENTS_LIMIT = 100;
 
 function HomePage() {
-  const [searchParams] = useSearchParams();
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-
   const [rosleshoz, setRosleshoz] = useState<RosleskhozSummary | null>(null);
-  const [, setOoptCount] = useState<number | null>(null);
-  const [apiStatus, setApiStatus] = useState<'loading' | 'online' | 'offline'>('loading');
-  const [recentIncidents, setRecentIncidents] = useState<Incident[]>([]);
+  const [activeFires, setActiveFires] = useState<Stat<number>>(loadingStat);
+  const [hotspots24h, setHotspots24h] = useState<Stat<number>>(loadingStat);
+  const [firmsSource, setFirmsSource] = useState<SourceStatusEntry | null>(null);
 
-  // ── Fetch statistics ───────────────────────────────────────────────────────
   useEffect(() => {
-    fetch('/health')
-      .then(r => r.json())
-      .then(() => setApiStatus('online'))
-      .catch(() => setApiStatus('offline'));
-
     fetch('/api/external/rosleshoz/summary')
       .then(r => r.json())
       .then(res => { if (res.success) setRosleshoz(res.data); })
       .catch(console.error);
-    // Only the last 90 days: seed incidents from 2023–2024 must not pose as current events
-    getIncidents({ limit: 3, startDate: recentStartDate() }).then(result => {
-      if (result.success) setRecentIncidents(result.data);
-    }).catch(console.error);
+
+    getIncidents({ type: 'fire', sort: 'date_desc', limit: FIRE_INCIDENTS_LIMIT })
+      .then(result => setActiveFires(result.success ? readyStat(countActiveFirmsIncidents(result.data)) : errorStat))
+      .catch(() => setActiveFires(errorStat));
+
+    fetch(firmsUrl('baikal'))
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then(res => setHotspots24h(res.success ? readyStat(res.count as number) : errorStat))
+      .catch(() => setHotspots24h(errorStat));
+
+    fetch('/api/sources/status')
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((res: SourcesStatusResponse) => {
+        if (res.success) setFirmsSource(findSourceStatus(res.sources, 'firms'));
+      })
+      .catch(err => console.warn('Sources status fetch failed:', err));
   }, []);
-
-  // ── Map initialisation ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-
-    const queryLat = Number(searchParams.get('lat'));
-    const queryLng = Number(searchParams.get('lng'));
-    const hasTarget = Number.isFinite(queryLat) && Number.isFinite(queryLng) && searchParams.has('lat') && searchParams.has('lng');
-    const map = L.map(mapRef.current).setView(hasTarget ? [queryLat, queryLng] : [53.5, 108.0], hasTarget ? 12 : 5);
-    mapInstanceRef.current = map;
-
-    // Base layers
-    const baseLayers: Record<string, L.TileLayer> = {
-      // CARTO basemaps now return "API KEY REQUIRED" tiles without a key — Esri Dark Gray instead
-      'Тёмная (Esri)': L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-        { attribution: 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors', maxZoom: 16 }
-      ),
-      'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors', maxZoom: 19,
-      }),
-      'ESRI Спутник': L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { attribution: '© Esri', maxZoom: 19 }
-      ),
-    };
-    baseLayers['Тёмная (Esri)'].addTo(map);
-
-    // ── GFW через /tiles/gfw: сервер раскрашивает закодированные плитки GFW и кэширует их ──
-    // (с CDN_URL плитки идут через CDN). © Hansen/UMD/Google/USGS/NASA, GLAD/UMD via GFW, CC BY 4.0
-    const tileBase = __CDN_URL__;
-    const GFW_ATTRIBUTION = '© Hansen/UMD/Google/USGS/NASA, GLAD/UMD via GFW (CC BY 4.0)';
-
-    // Потери леса 2001–2025 (v1.13): плитки 512 px, поэтому zoomOffset -1 — вчетверо меньше запросов
-    const gfwLossTiles = L.tileLayer(`${tileBase}/tiles/gfw/loss/{z}/{x}/{y}.png`, {
-      attribution: GFW_ATTRIBUTION, tileSize: 512, zoomOffset: -1,
-      minZoom: 3, maxNativeZoom: 14, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
-    });
-
-    // Нарушения лесного покрова DIST-ALERT (глобальные, обновляются еженедельно, последние 2 года)
-    const distAlertsTiles = L.tileLayer(`${tileBase}/tiles/gfw/dist/{z}/{x}/{y}.png`, {
-      attribution: GFW_ATTRIBUTION, minZoom: 3, maxNativeZoom: 14, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
-    });
-
-    // Лесной покров 2000 г. (сомкнутость ≥ 30%)
-    const gfwDensityTiles = L.tileLayer(`${tileBase}/tiles/gfw/cover/{z}/{x}/{y}.png`, {
-      attribution: GFW_ATTRIBUTION, opacity: 0.5, minZoom: 3, maxNativeZoom: 12, maxZoom: 19, errorTileUrl: TRANSPARENT_TILE,
-    });
-
-    // Layer control — static tile overlays only; async layers register themselves below
-    const overlayLayers: Record<string, L.Layer> = {
-      'Потери леса 2001–2025 (Hansen/UMD)': gfwLossTiles,
-      'Нарушения леса DIST-ALERT, 2 года (GFW)': distAlertsTiles,
-      'Лесной покров 2000 (Hansen/UMD)': gfwDensityTiles,
-    };
-
-    gfwLossTiles.addTo(map);
-    distAlertsTiles.addTo(map);
-
-    const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
-    addBoundaryLayers(map, layerControl);
-    addOoptLayer(map, layerControl, setOoptCount);
-    addFirmsLayers(map, layerControl);
-    addMapLegend(map);
-    addSourcesControl(map);
-    if (hasTarget) {
-      const incidentId = parseIncidentId(searchParams.get('incident'));
-      const popup = document.createElement('div');
-      const title = document.createElement('strong');
-      title.textContent = incidentId ? `Инцидент #${incidentId}` : 'Точка мониторинга';
-      const coordinates = document.createElement('p');
-      coordinates.textContent = `Координаты: ${queryLat.toFixed(5)}, ${queryLng.toFixed(5)}`;
-      popup.append(title, coordinates);
-      // Default Leaflet icon has no image here (iconUrl cleared above) — L.marker without an icon throws
-      const targetIcon = L.divIcon({
-        className: '',
-        html: '<div style="width:18px;height:18px;background:#facc15;border:3px solid #0f172a;border-radius:50%;box-shadow:0 0 0 3px rgba(250,204,21,0.45);"></div>',
-        iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10],
-      });
-      L.marker([queryLat, queryLng], { icon: targetIcon }).addTo(map).bindPopup(popup).openPopup();
-    }
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
-  }, [searchParams]);
-
-  const fmt = (n: number, d = 0) => n.toLocaleString('ru-RU', { maximumFractionDigits: d });
 
   return (
     <div className="px-4 py-8">
-      <div className="max-w-7xl mx-auto">
-
-        {/* Status */}
-        <div className="flex items-center gap-2 mb-6">
-          <div className={`w-3 h-3 rounded-full ${
-            apiStatus === 'online' ? 'bg-green-500' :
-            apiStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
-          }`} />
-          <span className="text-sm text-gray-400">
-            API: {apiStatus === 'online' ? 'Подключено' : apiStatus === 'offline' ? 'Недоступно' : 'Проверка...'}
-          </span>
-        </div>
-
-        {/* Рослесхоз official stats */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm font-semibold text-gray-300">Рослесхоз — официальная статистика</span>
-            <a href="https://rosleshoz.gov.ru/opendata/" target="_blank" rel="noopener noreferrer"
-              className="text-xs text-green-400 bg-green-900/30 border border-green-800/50 px-2 py-0.5 rounded-full hover:bg-green-900/50 transition-colors">
-              rosleshoz.gov.ru/opendata
-            </a>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {rosleshoz ? (
-              <>
-                <div className="card p-4 text-center">
-                  <p className="text-xl font-bold text-green-300">{fmt(rosleshoz.total_forestland_area_thousand_ha)} тыс. га</p>
-                  <p className="text-xs text-gray-400 mt-1">Площадь лесных земель РФ</p>
-                </div>
-                <div className="card p-4 text-center">
-                  <p className="text-xl font-bold text-blue-300">{fmt(rosleshoz.total_wood_volume_thousand_m3)} тыс. м³</p>
-                  <p className="text-xs text-gray-400 mt-1">Заготовка древесины (год)</p>
-                </div>
-                <div className="card p-4 text-center">
-                  <p className="text-xl font-bold text-emerald-300">
-                    {rosleshoz.reforestation_latest ? `${fmt(rosleshoz.reforestation_latest.area_thousand_ha, 1)} тыс. га` : '—'}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Лесовосстановление{rosleshoz.reforestation_latest ? ` (${rosleshoz.reforestation_latest.year})` : ''}
-                  </p>
-                </div>
-                <div className="card p-4 text-center">
-                  <p className="text-xl font-bold text-red-300">{fmt(rosleshoz.fires_area_thousand_ha, 1)} тыс. га</p>
-                  <p className="text-xs text-gray-400 mt-1">Площадь пожаров (лесфонд)</p>
-                </div>
-              </>
-            ) : (
-              [...Array(4)].map((_, i) => (
-                <div key={i} className="card p-4 text-center animate-pulse">
-                  <div className="h-6 bg-gray-700 rounded mx-auto w-2/3 mb-2" />
-                  <div className="h-3 bg-gray-800 rounded mx-auto w-3/4" />
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-
-        {/* Recent incidents */}
-        {recentIncidents.length > 0 && <section className="mb-8">
-          <div className="mb-4 flex items-end justify-between gap-4"><div><h2 className="text-2xl font-bold">Последние события</h2><p className="mt-1 text-sm text-slate-400">Свежие изменения из системы мониторинга</p></div><Link to="/incidents" className="text-sm text-green-400 hover:text-green-300">Все инциденты →</Link></div>
-          <div className="grid gap-5 md:grid-cols-3">{recentIncidents.map(item => <IncidentCard key={item.id} incident={item} onClick={() => { window.location.href = `/incidents?id=${item.id}`; }} />)}</div>
-        </section>}
-
-        {/* Map */}
-        <div className="card overflow-hidden">
-          <div ref={mapRef} className="h-[620px] w-full" />
-        </div>
-
-        {/* Data sources footer */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-600">
-            <span>Потери леса: <a href="https://www.globalforestwatch.org" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">Hansen/UMD · GFW</a></span>
-            <span>·</span>
-            <span>ООПТ: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">OSM © contributors (ODbL)</a></span>
-            <span>·</span>
-            <span>Пожары: <a href="https://firms.modaps.eosdis.nasa.gov" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">NASA FIRMS VIIRS</a></span>
-            <span>·</span>
-            <span>Статистика: <a href="https://rosleshoz.gov.ru/opendata/" target="_blank" rel="noopener noreferrer" className="hover:text-gray-400">Рослесхоз opendata</a></span>
-          </div>
-          <a href="/api/external/sources" target="_blank" rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:text-blue-400 transition-colors">
-            Все источники →
-          </a>
-        </div>
+      <div className="mx-auto max-w-7xl">
+        <HomeHero activeFires={activeFires} hotspots24h={hotspots24h} firmsSource={firmsSource} />
+        <HomeActions />
+        <MonitoringMap />
+        <RosleshozStats data={rosleshoz} />
+        <DataSourcesFooter />
       </div>
     </div>
   );
