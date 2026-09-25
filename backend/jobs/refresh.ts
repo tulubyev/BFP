@@ -6,6 +6,7 @@ import { OOPT_KEY, refreshOOPT, type OOPTResult } from '../services/overpassServ
 import { refreshRosleshoz } from '../services/rosleskhozService';
 import { runFirmsHistory } from '../services/firmsHistory/ingest';
 import { loadBaikalRegions } from '../services/firmsHistory/regions';
+import { loadArchiveStaticCells } from '../services/firmsHistory/staticSources';
 import { createPgFirmsHistoryStore } from '../services/firmsHistory/store';
 import { readLastGood } from '../utils/cache';
 import { recordRun, type JournalOutcome } from '../utils/journal';
@@ -34,6 +35,7 @@ export async function refreshFirmsWithHistory(
     store: createPgFirmsHistoryStore((await import('../config/database')).default),
     loadSnapshot: () => readLastGood(FIRMS_KEY),
     loadRegions: () => loadBaikalRegions().regions,
+    loadArchiveCells: () => loadArchiveStaticCells(),
     record: recordRun,
   }),
 ): Promise<boolean> {

@@ -1,7 +1,8 @@
 /**
  * FIRMS history job, run after each successful FIRMS refresh (jobs/refresh.ts):
  *   1. write the Russia-wide snapshot into gis.fire_hotspots (idempotent);
- *   2. build the static heat source mask from the last 14 days (staticSources.ts), re-label FIRMS
+ *   2. build the static heat source mask from the last 14 days plus the FIRMS archive cell list
+ *      (staticSources.ts), re-label FIRMS
  *      incidents made only of static-location hotspots as status 'static_source';
  *   3. cluster the last 72 h of hotspots in the Baikal regions, minus static-location hotspots;
  *   4. create/update FIRMS fire incidents in gis.forest_changes;
@@ -15,7 +16,8 @@ import { normalizeConfidence } from './hotspotRows';
 import { isFirmsIncident, isStaticSource, planIncidents, STATIC_SOURCE_STATUS, WINDOW_HOURS } from './incidents';
 import { findRegion, unionBbox, type RegionShape } from './regions';
 import {
-  buildStaticMask, isStaticIncident, partitionStatic, staticMaskInfo, staticWindowStart,
+  buildStaticMask, isStaticIncident, NO_ARCHIVE_CELLS, partitionStatic, staticMaskInfo, staticWindowStart,
+  type ArchiveStaticCells,
 } from './staticSources';
 import { MigrationMissingError, type FirmsHistoryStore, type StoredHotspot } from './store';
 
@@ -29,6 +31,8 @@ export interface FirmsHistoryDeps {
   loadSnapshot: () => Promise<FIRMSHotspot[] | null>;
   /** Baikal region shapes; may throw if the boundaries file is missing. */
   loadRegions: () => RegionShape[];
+  /** Static land source cells from the FIRMS yearly archive; none by default. */
+  loadArchiveCells?: () => ArchiveStaticCells;
   record: (source: string, entry: JournalEntry) => Promise<void>;
   now?: () => Date;
 }
@@ -45,8 +49,10 @@ export interface FirmsHistorySummary {
   maskedHotspots: number;
   /** Incidents re-labelled status 'static_source' by this run. */
   maskedIncidents: number;
-  /** Static locations (grid cells) currently in the mask. */
+  /** Static locations (grid cells) currently in the mask by our own history. */
   staticLocations: number;
+  /** Grid cells in the mask from the FIRMS archive (firms-static-cells.<year>.json). */
+  archiveLocations: number;
 }
 
 /** Stored hotspots → cluster points: only those acquired since `cutoff` and inside a Baikal region. */
@@ -100,13 +106,14 @@ export async function runFirmsHistory(deps: FirmsHistoryDeps): Promise<FirmsHist
       const { written, rejected } = await tx.insertHotspots(snapshot);
       const result: FirmsHistorySummary = {
         received: snapshot.length, written, rejected, clusters: 0, created: 0, updated: 0, deactivated: 0,
-        maskedHotspots: 0, maskedIncidents: 0, staticLocations: 0,
+        maskedHotspots: 0, maskedIncidents: 0, staticLocations: 0, archiveLocations: 0,
       };
       const bbox = regions && unionBbox(regions);
       if (!regions || !bbox) return result;
 
       const windowStart = staticWindowStart(now);
-      const mask = buildStaticMask(await tx.loadHeatCells(windowStart, bbox));
+      const archive = deps.loadArchiveCells?.() ?? NO_ARCHIVE_CELLS;
+      const mask = buildStaticMask(await tx.loadHeatCells(windowStart, bbox), undefined, archive);
 
       // Incidents seen within the mask window, so a flare incident that went quiet is re-labelled too.
       const existing = await tx.loadFirmsIncidents(`${windowStart}T00:00:00.000Z`);
@@ -114,7 +121,7 @@ export async function runFirmsHistory(deps: FirmsHistoryDeps): Promise<FirmsHist
       for (const incident of existing) {
         if (!isFirmsIncident(incident) || isStaticSource(incident) || !mask.touches(incident.bbox)) continue;
         if (!isStaticIncident(await tx.loadIncidentHotspots(incident), mask)) continue;
-        const info = staticMaskInfo(now, mask.options);
+        const info = staticMaskInfo(now, mask.options, mask.archiveVersion);
         await tx.markStaticSource(incident.id, info);
         incident.metadata = { ...incident.metadata, status: STATIC_SOURCE_STATUS, static_mask: info };
         maskedIncidents++;
@@ -139,6 +146,7 @@ export async function runFirmsHistory(deps: FirmsHistoryDeps): Promise<FirmsHist
         maskedHotspots: masked.length,
         maskedIncidents,
         staticLocations: mask.staticCells.length,
+        archiveLocations: mask.archiveCells,
       };
     });
 
@@ -158,7 +166,8 @@ export async function runFirmsHistory(deps: FirmsHistoryDeps): Promise<FirmsHist
     }
     console.log(`[firms-history] ${summary.written}/${summary.received} hotspots written, `
       + `${summary.created} incidents created, ${summary.updated} updated, ${summary.deactivated} deactivated; `
-      + `static mask: ${summary.staticLocations} locations, ${summary.maskedHotspots} hotspots, `
+      + `static mask: ${summary.staticLocations} locations + ${summary.archiveLocations} archive cells, `
+      + `${summary.maskedHotspots} hotspots, `
       + `${summary.maskedIncidents} incidents re-labelled`);
     return summary;
   } catch (err: any) {

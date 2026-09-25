@@ -7,6 +7,8 @@ COPY tsconfig.json jest.config.js ./
 COPY backend ./backend
 COPY frontend ./frontend
 COPY tests ./tests
+# tests/regional imports the FIRMS archive aggregation from scripts/regional
+COPY scripts ./scripts
 # Optional: serve built assets from a CDN (see docker-compose.prod.yml)
 ARG CDN_URL=""
 ENV CDN_URL=$CDN_URL

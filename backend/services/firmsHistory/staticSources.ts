@@ -10,8 +10,15 @@
  *
  * The database aggregates hotspots into ~445 m grid cells (per-cell distinct days, cells seen on
  * ≥ 2 days only); this module unions the days of cells whose centroid lies within the radius.
- * With less history than the span rule needs, nothing is masked. No I/O.
+ * With less history than the span rule needs, nothing is masked.
+ *
+ * Archive cells: a location is also static when its grid cell is listed in the newest
+ * `firms-static-cells.<year>.json` (scripts/regional/build-firms-archive.sh: cells where NASA FIRMS
+ * flagged `type = 2`, static land source, in its yearly archive). They take effect at once, without
+ * waiting for our own history. No such file → history-only behaviour. Only the loader does I/O.
  */
+import fs from 'fs';
+import path from 'path';
 import { haversineKm, type Bbox } from './clusters';
 
 export const STATIC_MIN_DAYS = 4;
@@ -58,8 +65,19 @@ export function cellOf(lat: number, lon: number): { row: number; col: number } {
 }
 
 function colAt(row: number, lon: number): number {
-  return Math.floor((lon * Math.cos(((row + 0.5) * STATIC_CELL_DEG * Math.PI) / 180)) / STATIC_CELL_DEG);
+  return Math.floor((lon * Math.cos(rowLatRad(row))) / STATIC_CELL_DEG);
 }
+
+function rowLatRad(row: number): number {
+  return ((row + 0.5) * STATIC_CELL_DEG * Math.PI) / 180;
+}
+
+/** Centre of a grid cell (inverse of cellOf). */
+export function cellCenter(row: number, col: number): { lat: number; lon: number } {
+  return { lat: (row + 0.5) * STATIC_CELL_DEG, lon: ((col + 0.5) * STATIC_CELL_DEG) / Math.cos(rowLatRad(row)) };
+}
+
+const cellKey = (row: number, col: number) => `${row}:${col}`;
 
 /** First day (YYYY-MM-DD, UTC) of the window: today and the windowDays − 1 days before it. */
 export function staticWindowStart(now: Date, windowDays: number = STATIC_WINDOW_DAYS): string {
@@ -102,21 +120,56 @@ export function aggregateCells(
     .map(c => ({ row: c.row, col: c.col, lat: c.lat / c.n, lon: c.lon / c.n, days: [...c.days].sort() }));
 }
 
+/** Static land source cells from the FIRMS yearly archive (grid of cellOf). */
+export interface ArchiveStaticCells {
+  /** Last archive year the cells come from, e.g. 2024; null when there is no file. */
+  version: number | null;
+  /** `${row}:${col}` keys. */
+  keys: ReadonlySet<string>;
+}
+
+export const NO_ARCHIVE_CELLS: ArchiveStaticCells = { version: null, keys: new Set() };
+
+/**
+ * Parses `firms-static-cells.<year>.json` (`{ version, gridDeg, cells: [[row, col], …] }`).
+ * A file on another grid would mask the wrong places, so it is rejected, as is any malformed file.
+ */
+export function parseArchiveStaticCells(json: any): ArchiveStaticCells {
+  if (json?.gridDeg !== STATIC_CELL_DEG || !Array.isArray(json.cells)) {
+    throw new Error(`firms-static-cells: expected gridDeg ${STATIC_CELL_DEG} and a cells array`);
+  }
+  const keys = new Set<string>();
+  for (const c of json.cells) {
+    if (Array.isArray(c) && Number.isInteger(c[0]) && Number.isInteger(c[1])) keys.add(cellKey(c[0], c[1]));
+  }
+  const version = Number(json.version);
+  return { version: Number.isFinite(version) ? version : null, keys };
+}
+
 export interface StaticMask {
   readonly options: StaticMaskOptions;
   /** Distinct days with detections within the radius of the point, sorted. */
   daysNear(lat: number, lon: number): string[];
+  /** Static by our history (the day rule) or by the FIRMS archive (its cell is listed). */
   isStatic(lat: number, lon: number): boolean;
-  /** Cells that are static locations themselves (their neighbourhood passes the rule). */
+  /** Cells that are static locations by our history (their neighbourhood passes the rule). */
   staticCells: HeatCell[];
+  /** Number of archive cells in the mask. */
+  archiveCells: number;
+  /** Year of the archive cell list, null without one. */
+  archiveVersion: number | null;
   /** True when some static location lies within the radius of the box — worth a closer look. */
   touches(bbox: Bbox): boolean;
 }
 
-export function buildStaticMask(cells: HeatCell[], opts: StaticMaskOptions = DEFAULT_STATIC_OPTIONS): StaticMask {
+export function buildStaticMask(
+  cells: HeatCell[],
+  opts: StaticMaskOptions = DEFAULT_STATIC_OPTIONS,
+  archive: ArchiveStaticCells = NO_ARCHIVE_CELLS,
+): StaticMask {
   const index = new Map<string, HeatCell[]>();
   for (const c of cells) {
-    const key = `${c.row}:${c.col}`;
+    const key = cellKey(c.row, c.col);
     index.set(key, [...(index.get(key) ?? []), c]);
   }
   // Centroids within the radius can sit up to this many cells away from the point's own cell.
@@ -129,7 +182,7 @@ export function buildStaticMask(cells: HeatCell[], opts: StaticMaskOptions = DEF
       // Columns are scaled per row, so find the point's column in each neighbouring row.
       const col = colAt(row + dr, lon);
       for (let dc = -reach; dc <= reach; dc++) {
-        for (const c of index.get(`${row + dr}:${col + dc}`) ?? []) {
+        for (const c of index.get(cellKey(row + dr, col + dc)) ?? []) {
           if (haversineKm(lat, lon, c.lat, c.lon) <= opts.radiusKm) for (const d of c.days) days.add(d);
         }
       }
@@ -137,19 +190,30 @@ export function buildStaticMask(cells: HeatCell[], opts: StaticMaskOptions = DEF
     return [...days].sort();
   };
 
-  const isStatic = (lat: number, lon: number) => isStaticDays(daysNear(lat, lon), opts);
-  const staticCells = cells.filter(c => isStatic(c.lat, c.lon));
+  const byHistory = (lat: number, lon: number) => isStaticDays(daysNear(lat, lon), opts);
+  const inArchive = (lat: number, lon: number) => {
+    if (!archive.keys.size) return false;
+    const { row, col } = cellOf(lat, lon);
+    return archive.keys.has(cellKey(row, col));
+  };
+  const isStatic = (lat: number, lon: number) => inArchive(lat, lon) || byHistory(lat, lon);
+  const staticCells = cells.filter(c => byHistory(c.lat, c.lon));
+  const archiveCenters = [...archive.keys].map(k => {
+    const [row, col] = k.split(':').map(Number);
+    return cellCenter(row, col);
+  });
 
   const touches = (bbox: Bbox): boolean => {
     const padLat = opts.radiusKm / KM_PER_DEG_LAT;
-    return staticCells.some(c => {
+    const near = (c: { lat: number; lon: number }) => {
       const padLon = padLat / Math.max(Math.cos((c.lat * Math.PI) / 180), 0.01);
       return c.lat >= bbox.minLat - padLat && c.lat <= bbox.maxLat + padLat
         && c.lon >= bbox.minLon - padLon && c.lon <= bbox.maxLon + padLon;
-    });
+    };
+    return staticCells.some(near) || archiveCenters.some(near);
   };
 
-  return { options: opts, daysNear, isStatic, staticCells, touches };
+  return { options: opts, daysNear, isStatic, staticCells, archiveCells: archive.keys.size, archiveVersion: archive.keys.size ? archive.version : null, touches };
 }
 
 /** Splits points into those at static locations and the rest. */
@@ -175,16 +239,72 @@ export interface StaticMaskInfo {
   window_days: number;
   min_span_days: number;
   radius_m: number;
+  /** Year of the FIRMS archive cell list in use (firms-static-cells.<year>.json); absent without one. */
+  archive_version?: number;
   marked_at: string;
 }
 
-export function staticMaskInfo(now: Date, opts: StaticMaskOptions = DEFAULT_STATIC_OPTIONS): StaticMaskInfo {
+export function staticMaskInfo(
+  now: Date,
+  opts: StaticMaskOptions = DEFAULT_STATIC_OPTIONS,
+  archiveVersion: number | null = null,
+): StaticMaskInfo {
   return {
     method: STATIC_MASK_METHOD,
     min_days: opts.minDays,
     window_days: opts.windowDays,
     min_span_days: opts.minSpanDays,
     radius_m: Math.round(opts.radiusKm * 1000),
+    ...(archiveVersion !== null ? { archive_version: archiveVersion } : {}),
     marked_at: now.toISOString(),
   };
+}
+
+const ARCHIVE_CELLS_FILE_RE = /^firms-static-cells\.(\d{4})\.json$/;
+
+/** Newest `firms-static-cells.<year>.json` among file names, or null. */
+export function pickNewestArchiveCellsFile(names: string[]): string | null {
+  const matches = names.filter(n => ARCHIVE_CELLS_FILE_RE.test(n)).sort();
+  return matches.length ? matches[matches.length - 1] : null;
+}
+
+/**
+ * Where the regional data lives: `public/` next to `dist/` in the Docker image (vite build output),
+ * `frontend/public/` in a dev checkout.
+ */
+export const REGIONAL_DATA_DIRS = [
+  path.resolve(__dirname, '../../../public/data/regional'),
+  path.resolve(__dirname, '../../../frontend/public/data/regional'),
+];
+
+let loadedArchive: { dirs: string; cells: ArchiveStaticCells } | null = null;
+
+/**
+ * Loads (once per list of dirs) the newest archive cell list. No file → no archive cells
+ * (history-only mask); an unreadable or malformed file is logged and ignored the same way.
+ */
+export function loadArchiveStaticCells(dirs: string[] = REGIONAL_DATA_DIRS): ArchiveStaticCells {
+  const key = dirs.join('\n');
+  if (loadedArchive?.dirs === key) return loadedArchive.cells;
+  let best: { name: string; file: string } | null = null;
+  for (const dir of dirs) {
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+    const newest = pickNewestArchiveCellsFile(names);
+    if (newest && (!best || newest > best.name)) best = { name: newest, file: path.join(dir, newest) };
+  }
+  let cells = NO_ARCHIVE_CELLS;
+  if (best) {
+    try {
+      cells = parseArchiveStaticCells(JSON.parse(fs.readFileSync(best.file, 'utf8')));
+    } catch (err: any) {
+      console.warn(`[firms-history] ${best.name} ignored:`, err?.message ?? err);
+    }
+  }
+  loadedArchive = { dirs: key, cells };
+  return cells;
 }
