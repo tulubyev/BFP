@@ -14,6 +14,8 @@ import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
 import sourcesRoutes from './routes/sources';
 import tileRoutes from './routes/tiles';
+import { createRegionsRouter } from './routes/regions';
+import { regionsService } from './services/regions';
 import { startRefreshJobs } from './jobs/refresh';
 
 /** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
@@ -90,6 +92,7 @@ class Server {
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/external', externalRoutes);
     this.app.use('/api/sources', sourcesRoutes);
+    this.app.use('/api/regions', createRegionsRouter(regionsService));
     this.app.use('/tiles', tileRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {

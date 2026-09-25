@@ -25,6 +25,8 @@ export interface JournalEntry {
    * 'static_source' by the run, static locations in the mask.
    */
   masked?: { hotspots: number; incidents: number; staticLocations: number };
+  /** Source names that could not be matched (regions: Rosleshoz subject names without an ISO code). */
+  unmapped?: string[];
   /** Present only when outcome is 'failed'. */
   error?: string;
 }
