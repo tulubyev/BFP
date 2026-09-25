@@ -11,6 +11,7 @@ import {
   bboxDistanceKm, comparePoints, mergeBbox, pixelAreaHa, pixelKey, pointsBbox, qualifies, uniquePixels,
   type Bbox, type ClusterPoint,
 } from './clusters';
+import type { StaticMaskInfo } from './staticSources';
 
 export const INCIDENT_METHOD = 'firms-cluster-v1';
 export const INCIDENT_SOURCE = 'firms';
@@ -20,7 +21,13 @@ export const MATCH_DISTANCE_KM = 2;
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export type IncidentStatus = 'active' | 'inactive';
+export type ActivityStatus = 'active' | 'inactive';
+/**
+ * 'static_source': every hotspot of the incident sits at a static heat source (staticSources.ts —
+ * gas flare, industry). Set once by the job, never reverted, never matched or re-timed again.
+ */
+export type IncidentStatus = ActivityStatus | 'static_source';
+export const STATIC_SOURCE_STATUS = 'static_source';
 
 export interface FirmsIncidentMetadata {
   method: typeof INCIDENT_METHOD;
@@ -41,6 +48,8 @@ export interface FirmsIncidentMetadata {
   max_hotspot_id: number;
   dataset: string;
   area_method: string;
+  /** Present once the incident was re-labelled status 'static_source'. */
+  static_mask?: StaticMaskInfo;
 }
 
 export interface ExistingIncident {
@@ -70,7 +79,7 @@ export interface IncidentRow {
 export interface IncidentPlan {
   creates: IncidentRow[];
   updates: { id: number; row: IncidentRow }[];
-  statusChanges: { id: number; status: IncidentStatus }[];
+  statusChanges: { id: number; status: ActivityStatus }[];
 }
 
 const DATASET = 'NASA FIRMS VIIRS 375 m NRT (Suomi NPP, NOAA-20, NOAA-21)';
@@ -78,7 +87,7 @@ const AREA_METHOD = 'upper bound: distinct 375 m VIIRS pixels × 14.06 ha';
 
 const round = (n: number, digits: number) => Math.round(n * 10 ** digits) / 10 ** digits;
 
-export function statusAt(lastSeen: string, now: Date): IncidentStatus {
+export function statusAt(lastSeen: string, now: Date): ActivityStatus {
   return now.getTime() - new Date(lastSeen).getTime() > INACTIVE_AFTER_HOURS * HOUR_MS ? 'inactive' : 'active';
 }
 
@@ -87,10 +96,14 @@ export function isFirmsIncident(incident: Pick<ExistingIncident, 'metadata'>): b
   return incident.metadata?.method === INCIDENT_METHOD;
 }
 
-/** Open for new points: a FIRMS incident whose last point is ≤ 72 h old. */
+export function isStaticSource(incident: Pick<ExistingIncident, 'metadata'>): boolean {
+  return incident.metadata?.status === STATIC_SOURCE_STATUS;
+}
+
+/** Open for new points: a FIRMS incident whose last point is ≤ 72 h old and not a static source. */
 export function isMatchable(incident: ExistingIncident, now: Date): boolean {
   const last = incident.metadata.last_seen;
-  if (!isFirmsIncident(incident) || typeof last !== 'string') return false;
+  if (!isFirmsIncident(incident) || isStaticSource(incident) || typeof last !== 'string') return false;
   return now.getTime() - new Date(last).getTime() <= WINDOW_HOURS * HOUR_MS;
 }
 
@@ -205,7 +218,8 @@ export function mergeIntoIncident(incident: ExistingIncident, points: ClusterPoi
  * qualify (≥ 2 points or 1 high-confidence point) become new incidents.
  */
 export function planIncidents(clusters: ClusterPoint[][], existing: ExistingIncident[], now: Date): IncidentPlan {
-  const firms = existing.filter(isFirmsIncident);
+  // Static sources keep their status: not matched, not re-timed.
+  const firms = existing.filter(i => isFirmsIncident(i) && !isStaticSource(i));
   const matchable = firms.filter(i => isMatchable(i, now));
   const assigned = new Map<number, ClusterPoint[]>();
   const creates: IncidentRow[] = [];

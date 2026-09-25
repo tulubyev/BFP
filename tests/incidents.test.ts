@@ -1,6 +1,7 @@
 import { buildIncidentQuery, getIncidents, IncidentsApiError, type Incident } from '../frontend/src/api/incidents';
 import {
-  detectedDateLabel, firmsIncidentInfo, formatCacheBanner, formatDateTime, parseIncidentId, parsePage, pluralHotspots, recentStartDate, serializeIncident,
+  detectedDateLabel, firmsIncidentInfo, formatCacheBanner, formatDateTime, parseIncidentId, parsePage, parseStaticSources,
+  pluralHotspots, recentStartDate, serializeIncident, STATIC_SOURCE_LABEL, staticSourceNote,
 } from '../frontend/src/utils/incidents';
 
 describe('incident query construction', () => {
@@ -147,7 +148,7 @@ describe('firmsIncidentInfo', () => {
       },
     });
     expect(info).toEqual({
-      hotspotCount: 3, active: true, statusLabel: 'Активен', frpMax: 40.5,
+      hotspotCount: 3, active: true, staticSource: false, statusLabel: 'Активен', frpMax: 40.5,
       firstSeen: '2026-09-24T05:00:00.000Z', lastSeen: '2026-09-24T06:00:00.000Z',
       sourceLabel: 'NASA FIRMS, кластер 3 термоточки',
     });
@@ -159,6 +160,35 @@ describe('firmsIncidentInfo', () => {
     expect(info.frpMax).toBeNull();
     expect(info.firstSeen).toBeNull();
     expect(formatDateTime(info.firstSeen)).toBe('—');
+  });
+
+  it('labels static heat sources (gas flares) and explains them with the stored thresholds', () => {
+    const incident = { ...base, metadata: {
+      method: 'firms-cluster-v1', status: 'static_source', hotspot_count: 9,
+      static_mask: { method: 'static-mask-v1', min_days: 4, window_days: 14, min_span_days: 7 },
+    } };
+    const info = firmsIncidentInfo(incident)!;
+    expect(info).toMatchObject({ staticSource: true, active: false });
+    expect(info.statusLabel).toBe(STATIC_SOURCE_LABEL);
+    expect(STATIC_SOURCE_LABEL).toBe('Постоянный источник тепла (факел/промышленность)');
+    expect(staticSourceNote(incident)).toContain('не менее 4 дней из 14, разнесённых не менее чем на 7 дней');
+    expect(staticSourceNote({ ...base, metadata: { method: 'firms-cluster-v1', status: 'static_source' } }))
+      .toContain('изо дня в день');
+  });
+});
+
+describe('static source filter', () => {
+  it('passes only the explicit modes to the API; the default (hidden) sends nothing', () => {
+    expect(buildIncidentQuery({ staticSources: 'include' }).get('static_sources')).toBe('include');
+    expect(buildIncidentQuery({ staticSources: 'only' }).get('static_sources')).toBe('only');
+    expect(buildIncidentQuery({}).has('static_sources')).toBe(false);
+  });
+
+  it('parses the incidents page URL param', () => {
+    expect(parseStaticSources('include')).toBe('include');
+    expect(parseStaticSources('only')).toBe('only');
+    expect(parseStaticSources(null)).toBeUndefined();
+    expect(parseStaticSources('<script>')).toBeUndefined();
   });
 });
 

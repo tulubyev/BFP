@@ -19,6 +19,20 @@ export const FOREST_CHANGES_SORT_COLUMNS: Record<string, string> = {
  */
 export const REGION_EXPR = `COALESCE(fa.region, fc.metadata->>'region')`;
 
+/**
+ * FIRMS incidents made only of hotspots at static heat sources (gas flares, industry) carry
+ * metadata.status = 'static_source' (firmsHistory/staticSources.ts). Hidden unless asked for:
+ * `static_sources=include` shows them with everything else, `static_sources=only` shows only them.
+ */
+export type StaticSourcesMode = 'exclude' | 'include' | 'only';
+export const STATIC_SOURCES_MODES: readonly StaticSourcesMode[] = ['exclude', 'include', 'only'];
+export const DEFAULT_STATIC_SOURCES: StaticSourcesMode = 'exclude';
+
+/** SQL condition that drops static-source incidents; `alias` is the forest_changes table alias. */
+export function notStaticSourceSql(alias = 'fc'): string {
+  return `COALESCE(${alias}.metadata->>'status', '') <> 'static_source'`;
+}
+
 export const DEFAULT_SORT = 'date_desc';
 export const DEFAULT_LIMIT = 12;
 export const MAX_LIMIT = 100;
@@ -32,6 +46,7 @@ export interface ForestChangesRawQuery {
   limit?: unknown;
   offset?: unknown;
   sort?: unknown;
+  static_sources?: unknown;
 }
 
 export interface BuiltForestChangesQuery {
@@ -80,8 +95,13 @@ export function buildForestChangesQuery(query: ForestChangesRawQuery): BuiltFore
   const offset = clampOffset(query.offset);
 
   const params: any[] = [];
-  const filters: Record<string, string> = {};
+  const staticRaw = firstString(query.static_sources) as StaticSourcesMode | undefined;
+  const staticSources = staticRaw && STATIC_SOURCES_MODES.includes(staticRaw) ? staticRaw : DEFAULT_STATIC_SOURCES;
+  // Always part of the cache key, so last-good copies cached before the filter existed are not reused.
+  const filters: Record<string, string> = { static_sources: staticSources };
   let where = ' WHERE 1=1';
+  if (staticSources === 'exclude') where += ` AND ${notStaticSourceSql()}`;
+  if (staticSources === 'only') where += ` AND fc.metadata->>'status' = 'static_source'`;
 
   const changeType = firstString(query.change_type);
   if (changeType !== undefined) {

@@ -10,9 +10,18 @@ export const incidentTypes: Record<string, { label: string; icon: string; color:
   other: { label: 'Изменение', icon: '◉', color: 'border-slate-500/50 bg-slate-500/10' },
 };
 
+const staticSourceType = { label: 'Источник тепла', icon: '🏭', color: 'border-slate-500/50 bg-slate-500/10' };
+
+/** Type badge; a static heat source (gas flare) is not shown as a fire. */
+export function incidentTypeOf(incident: Incident) {
+  if (firmsIncidentInfo(incident)?.staticSource) return staticSourceType;
+  return incidentTypes[incident.change_type] || incidentTypes.other;
+}
+
 export function getIncidentStatus(incident: Incident) {
   const firms = firmsIncidentInfo(incident);
   if (firms) {
+    if (firms.staticSource) return { label: firms.statusLabel, style: 'bg-amber-500/15 text-amber-300' };
     return firms.active
       ? { label: firms.statusLabel, style: 'bg-red-500/15 text-red-300' }
       : { label: firms.statusLabel, style: 'bg-slate-500/15 text-slate-300' };
@@ -28,7 +37,7 @@ const number = (value: number | string | null | undefined) =>
   value == null ? null : Number(value);
 
 export default function IncidentCard({ incident, onClick }: { incident: Incident; onClick: () => void }) {
-  const type = incidentTypes[incident.change_type] || incidentTypes.other;
+  const type = incidentTypeOf(incident);
   const status = getIncidentStatus(incident);
   const confidence = number(incident.confidence);
   const area = number(incident.area_ha);

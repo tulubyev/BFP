@@ -71,7 +71,10 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - Traefik routes only to healthy containers; the Dockerfile healthcheck polls every 2 s at start.
 - Cloud routines open PRs as drafts: `gh pr ready <n>` before `gh pr merge`.
 - FIRMS fire incidents (`backend/services/firmsHistory/`, source `firms`, `metadata.method =
-  'firms-cluster-v1'`) are hotspot clusters, not confirmed fires: gas flares in northern Irkutsk
-  oblast (oil/gas fields) also produce hotspots — a static-source mask is still to be built.
+  'firms-cluster-v1'`) are hotspot clusters, not confirmed fires. Gas flares in northern Irkutsk
+  oblast are masked from our own history (`staticSources.ts`: ≥ 4 distinct days in 14, spread
+  ≥ 7 days, within 500 m): their hotspots create no incidents, and incidents made only of them get
+  `metadata.status = 'static_source'`, hidden from the feed unless `?static_sources=include|only`.
+  The mask needs ≥ 8 days of history; the 24 h hotspot map layer is not masked.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.

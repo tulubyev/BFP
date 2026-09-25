@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
-import { getIncidentStatus, incidentTypes } from './IncidentCard';
-import { FIRMS_AREA_NOTE, detectedDateLabel, firmsIncidentInfo, formatDateTime, serializeIncident } from '../utils/incidents';
+import { getIncidentStatus, incidentTypeOf } from './IncidentCard';
+import {
+  FIRMS_AREA_NOTE, STATIC_SOURCE_LABEL, detectedDateLabel, firmsIncidentInfo, formatDateTime, serializeIncident, staticSourceNote,
+} from '../utils/incidents';
 
 export default function IncidentModal({ incident, onClose }: { incident: Incident; onClose: () => void }) {
   const navigate = useNavigate();
-  const type = incidentTypes[incident.change_type] || incidentTypes.other;
+  const type = incidentTypeOf(incident);
   const status = getIncidentStatus(incident);
   const firms = firmsIncidentInfo(incident);
   const rows: [string, string][] = firms ? [
@@ -16,7 +18,9 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
     ['Площадь', incident.area_ha == null ? '—' : `до ${Number(incident.area_ha).toLocaleString('ru-RU')} га (${FIRMS_AREA_NOTE})`],
     ['Источник', firms.sourceLabel],
     ['Спутники', incident.satellite || '—'],
-    ['Статус', firms.active ? 'Активен — новые точки за последние 48 ч' : 'Затих — новых точек нет более 48 ч'],
+    ['Статус', firms.staticSource
+      ? `${STATIC_SOURCE_LABEL}. ${staticSourceNote(incident)}`
+      : firms.active ? 'Активен — новые точки за последние 48 ч' : 'Затих — новых точек нет более 48 ч'],
     ['Первая точка', formatDateTime(firms.firstSeen)],
     ['Последняя точка', formatDateTime(firms.lastSeen)],
     ['Макс. мощность (FRP)', firms.frpMax == null ? '—' : `${firms.frpMax.toLocaleString('ru-RU')} МВт`],

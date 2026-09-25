@@ -20,6 +20,11 @@ export interface JournalEntry {
   rejected?: number;
   /** Incidents created/updated/deactivated by the run (firms_history). */
   incidents?: { created: number; updated: number; deactivated: number };
+  /**
+   * Static heat source mask (firms_history): hotspots left out of clustering, incidents re-labelled
+   * 'static_source' by the run, static locations in the mask.
+   */
+  masked?: { hotspots: number; incidents: number; staticLocations: number };
   /** Present only when outcome is 'failed'. */
   error?: string;
 }
