@@ -80,6 +80,9 @@ describe('isMatchable', () => {
   it('never matches rows without metadata.method (seed data)', () => {
     expect(isMatchable({ ...base, metadata: { last_seen: hoursAgo(1) } }, NOW)).toBe(false);
   });
+  it('never matches static heat sources', () => {
+    expect(isMatchable({ ...base, metadata: { ...base.metadata, status: 'static_source' } }, NOW)).toBe(false);
+  });
 });
 
 describe('mergeIntoIncident', () => {
@@ -181,6 +184,15 @@ describe('planIncidents', () => {
     const plan = planIncidents(clusterPoints([point(5, 52.001, 104, { acquiredAt: hoursAgo(1) })]), [quiet], NOW);
     expect(plan.updates[0].row.metadata.status).toBe('active');
     expect(plan.statusChanges).toEqual([]);
+  });
+
+  it('leaves static-source incidents alone: no growth, no status flip; a fire next to one is new', () => {
+    const flare = stored(4, buildNewIncident([point(1, 60.72, 108.05, { confidence: 'high', acquiredAt: hoursAgo(49) })], NOW));
+    flare.metadata.status = 'static_source';
+    const plan = planIncidents(clusterPoints([point(9, 60.7205, 108.05, { confidence: 'high', acquiredAt: hoursAgo(1) })]), [flare], NOW);
+    expect(plan.updates).toEqual([]);
+    expect(plan.statusChanges).toEqual([]);
+    expect(plan.creates).toHaveLength(1);
   });
 
   it('ignores rows without metadata.method (seed data)', () => {

@@ -24,6 +24,11 @@ export function parsePage(value: string | null): number {
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
+/** The incidents page `static` URL param; anything else means the API default (hidden). */
+export function parseStaticSources(value: string | null): 'include' | 'only' | undefined {
+  return value === 'include' || value === 'only' ? value : undefined;
+}
+
 /** Banner shown on the incidents page when the API served a last-good copy instead of live data. */
 export function formatCacheBanner(fetchedAt: string): string {
   const date = new Date(fetchedAt);
@@ -37,6 +42,8 @@ export function formatCacheBanner(fetchedAt: string): string {
 export interface FirmsIncidentInfo {
   hotspotCount: number;
   active: boolean;
+  /** metadata.status 'static_source': all hotspots at a place that burns day after day (gas flare). */
+  staticSource: boolean;
   statusLabel: string;
   firstSeen: string | null;
   lastSeen: string | null;
@@ -46,6 +53,20 @@ export interface FirmsIncidentInfo {
 }
 
 export const FIRMS_AREA_NOTE = 'оценка по пикселям 375 м, сверху';
+export const STATIC_SOURCE_LABEL = 'Постоянный источник тепла (факел/промышленность)';
+
+/** Explains a static-source incident; uses the thresholds stored with it when present. */
+export function staticSourceNote(incident: Incident): string {
+  const mask = incident.metadata?.static_mask as Record<string, unknown> | undefined;
+  const minDays = Number(mask?.min_days);
+  const windowDays = Number(mask?.window_days);
+  const spanDays = Number(mask?.min_span_days);
+  const span = Number.isFinite(spanDays) && spanDays > 0 ? `, разнесённых не менее чем на ${spanDays} дней` : '';
+  const rule = Number.isFinite(minDays) && Number.isFinite(windowDays) && minDays > 0 && windowDays > 0
+    ? `не менее ${minDays} дней из ${windowDays}${span}`
+    : 'изо дня в день';
+  return `Термоточки на этом месте фиксируются ${rule} — вероятно, газовый факел или промышленный объект, а не лесной пожар`;
+}
 
 /** Russian plural: 1 термоточка, 2 термоточки, 5 термоточек. */
 export function pluralHotspots(n: number): string {
@@ -63,11 +84,13 @@ export function firmsIncidentInfo(incident: Incident): FirmsIncidentInfo | null 
   const count = Number(m.hotspot_count);
   const hotspotCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
   const active = m.status === 'active';
+  const staticSource = m.status === 'static_source';
   const frp = Number(m.frp_max);
   return {
     hotspotCount,
     active,
-    statusLabel: active ? 'Активен' : 'Затих',
+    staticSource,
+    statusLabel: staticSource ? STATIC_SOURCE_LABEL : active ? 'Активен' : 'Затих',
     firstSeen: typeof m.first_seen === 'string' ? m.first_seen : null,
     lastSeen: typeof m.last_seen === 'string' ? m.last_seen : null,
     frpMax: m.frp_max != null && Number.isFinite(frp) ? frp : null,

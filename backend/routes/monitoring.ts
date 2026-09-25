@@ -5,6 +5,7 @@ import { firmsService, getFIRMSInfo } from '../services/firmsService';
 import { gfwService, getGFWInfo } from '../services/globalForestWatch';
 import { createForestChangesHandler } from '../services/incidentsService';
 import { incidentsCache } from '../utils/incidentsCache';
+import { notStaticSourceSql } from '../services/forestChangesQuery';
 
 const router = Router();
 
@@ -88,8 +89,10 @@ router.get('/forest-changes/geojson', async (req: Request, res: Response) => {
                  FROM gis.forest_changes`;
     const params: any[] = [];
 
+    // Static heat sources (gas flares) are not forest events; hidden as in /forest-changes.
+    query += ` WHERE ${notStaticSourceSql('forest_changes')}`;
     if (change_type) {
-      query += ' WHERE change_type = $1';
+      query += ' AND change_type = $1';
       params.push(change_type);
     }
 

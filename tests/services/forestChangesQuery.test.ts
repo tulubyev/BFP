@@ -3,6 +3,7 @@ import {
   forestChangesCacheKey,
   DEFAULT_SORT,
   MAX_LIMIT,
+  notStaticSourceSql,
 } from '../../backend/services/forestChangesQuery';
 
 describe('buildForestChangesQuery', () => {
@@ -12,7 +13,7 @@ describe('buildForestChangesQuery', () => {
     expect(built.orderBy).toBe('fc.detected_date DESC');
     expect(built.limit).toBe(12);
     expect(built.offset).toBe(0);
-    expect(built.where).toBe(' WHERE 1=1');
+    expect(built.where).toBe(" WHERE 1=1 AND COALESCE(fc.metadata->>'status', '') <> 'static_source'");
     expect(built.params).toEqual([]);
   });
 
@@ -72,8 +73,42 @@ describe('buildForestChangesQuery', () => {
 
   it('ignores unknown/empty filter values', () => {
     const built = buildForestChangesQuery({ change_type: '', region: undefined, severity: '   ' });
-    expect(built.where).toBe(' WHERE 1=1');
+    expect(built.where).toBe(buildForestChangesQuery({}).where);
     expect(built.params).toEqual([]);
+  });
+});
+
+describe('static heat sources (FIRMS gas flares)', () => {
+  it('hides incidents with metadata.status static_source by default, in data and count queries', () => {
+    const built = buildForestChangesQuery({});
+    expect(built.filters.static_sources).toBe('exclude');
+    expect(built.dataQuery).toContain("COALESCE(fc.metadata->>'status', '') <> 'static_source'");
+    expect(built.countQuery).toContain("COALESCE(fc.metadata->>'status', '') <> 'static_source'");
+  });
+
+  it('shows them with static_sources=include and only them with static_sources=only', () => {
+    const include = buildForestChangesQuery({ static_sources: 'include' });
+    expect(include.where).toBe(' WHERE 1=1');
+    const only = buildForestChangesQuery({ static_sources: 'only', change_type: 'fire' });
+    expect(only.where).toContain("fc.metadata->>'status' = 'static_source'");
+    expect(only.params).toEqual(['fire']);
+  });
+
+  it('falls back to hiding them for unknown values, never interpolating the value', () => {
+    const built = buildForestChangesQuery({ static_sources: "include' OR 1=1 --" });
+    expect(built.filters.static_sources).toBe('exclude');
+    expect(built.dataQuery).not.toContain('OR 1=1');
+  });
+
+  it('keeps separate cache entries per mode', () => {
+    const keys = new Set(['exclude', 'include', 'only'].map(m => forestChangesCacheKey({ static_sources: m })));
+    expect(keys.size).toBe(3);
+    expect(forestChangesCacheKey({})).toBe(forestChangesCacheKey({ static_sources: 'exclude' }));
+    expect(forestChangesCacheKey({})).toContain('static_sources=exclude');
+  });
+
+  it('builds the same condition for the GeoJSON route (table alias)', () => {
+    expect(notStaticSourceSql('forest_changes')).toBe("COALESCE(forest_changes.metadata->>'status', '') <> 'static_source'");
   });
 });
 

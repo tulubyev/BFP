@@ -3,8 +3,11 @@
  * orchestration (ingest.ts) is tested with an in-memory fake.
  */
 import { buildHotspotInserts, HOTSPOT_SOURCE } from './hotspotRows';
-import { INCIDENT_METHOD, type ExistingIncident, type IncidentRow, type IncidentStatus } from './incidents';
+import {
+  INCIDENT_METHOD, STATIC_SOURCE_STATUS, type ActivityStatus, type ExistingIncident, type IncidentRow,
+} from './incidents';
 import type { LatLonBbox } from './regions';
+import { STATIC_CELL_DEG, STATIC_MIN_CELL_DAYS, type HeatCell, type StaticMaskInfo } from './staticSources';
 import type { FIRMSHotspot } from '../firmsService';
 
 export interface StoredHotspot {
@@ -25,11 +28,23 @@ export interface FirmsHistoryTx {
   insertHotspots(hotspots: FIRMSHotspot[]): Promise<{ written: number; rejected: number }>;
   /** Stored FIRMS hotspots acquired on or after `sinceDate` (YYYY-MM-DD) inside `bbox`. */
   loadHotspots(sinceDate: string, bbox: LatLonBbox): Promise<StoredHotspot[]>;
+  /**
+   * Per-cell hotspot history since `sinceDate` inside `bbox` for the static source mask: cells of
+   * STATIC_CELL_DEG seen on ≥ STATIC_MIN_CELL_DAYS distinct days (see staticSources.ts).
+   */
+  loadHeatCells(sinceDate: string, bbox: LatLonBbox): Promise<HeatCell[]>;
+  /**
+   * The stored hotspots an incident was built from: inside its bbox, acquired between its first
+   * and last point (dates, UTC), already counted (id ≤ metadata.max_hotspot_id).
+   */
+  loadIncidentHotspots(incident: ExistingIncident): Promise<StoredHotspot[]>;
   /** FIRMS incidents still marked active or with a point since `lastSeenSince` (ISO). */
   loadFirmsIncidents(lastSeenSince: string): Promise<ExistingIncident[]>;
   insertIncident(row: IncidentRow): Promise<number>;
   updateIncident(id: number, row: IncidentRow): Promise<void>;
-  setIncidentStatus(id: number, status: IncidentStatus): Promise<void>;
+  setIncidentStatus(id: number, status: ActivityStatus): Promise<void>;
+  /** metadata.status = 'static_source' plus metadata.static_mask; the row is kept. */
+  markStaticSource(id: number, info: StaticMaskInfo): Promise<void>;
 }
 
 export interface FirmsHistoryStore {
@@ -84,12 +99,59 @@ export const SET_STATUS_SQL = `UPDATE gis.forest_changes`
   + ` SET metadata = metadata || jsonb_build_object('status', $2::text), updated_at = NOW()`
   + ` WHERE id = $1 AND metadata->>'method' = '${INCIDENT_METHOD}'`;
 
-export const LOAD_HOTSPOTS_SQL = `SELECT id, latitude::float8 AS lat, longitude::float8 AS lon, satellite,`
+export const MARK_STATIC_SQL = `UPDATE gis.forest_changes`
+  + ` SET metadata = metadata || jsonb_build_object('status', '${STATIC_SOURCE_STATUS}'::text, 'static_mask', $2::jsonb),`
+  + ` updated_at = NOW()`
+  + ` WHERE id = $1 AND metadata->>'method' = '${INCIDENT_METHOD}'`;
+
+const HOTSPOT_SELECT = `SELECT id, latitude::float8 AS lat, longitude::float8 AS lon, satellite,`
   + ` to_char(acquisition_date, 'YYYY-MM-DD') AS acq_date, to_char(acquisition_time, 'HH24MI') AS acq_time,`
   + ` confidence, frp::float8 AS frp`
-  + ` FROM gis.fire_hotspots`
+  + ` FROM gis.fire_hotspots`;
+
+export const LOAD_HOTSPOTS_SQL = HOTSPOT_SELECT
   + ` WHERE source = $1 AND acquisition_date >= $2::date`
   + ` AND latitude BETWEEN $3 AND $4 AND longitude BETWEEN $5 AND $6`;
+
+export const LOAD_INCIDENT_HOTSPOTS_SQL = HOTSPOT_SELECT
+  + ` WHERE source = $1 AND acquisition_date BETWEEN $2::date AND $3::date`
+  + ` AND latitude BETWEEN $4 AND $5 AND longitude BETWEEN $6 AND $7 AND id <= $8`;
+
+/**
+ * Distinct detection days per grid cell (the static source mask input). Uses the
+ * acquisition_date index (migration 011) for the window; one row per cell seen on ≥ $8 days, so
+ * the result stays small even in a heavy fire season (most fire pixels burn on one day only).
+ * Cell formula = cellOf() in staticSources.ts: row = floor(lat / d), col = floor(lon·cos((row + ½)·d) / d).
+ */
+export const LOAD_HEAT_CELLS_SQL = `SELECT cell_row, cell_col, avg(lat) AS lat, avg(lon) AS lon,`
+  + ` array_agg(DISTINCT day) AS days`
+  + ` FROM (SELECT cell_row, floor(lon * cos(radians((cell_row + 0.5) * $2::float8)) / $2::float8)::int AS cell_col,`
+  + ` lat, lon, day`
+  + ` FROM (SELECT floor(latitude::float8 / $2::float8)::int AS cell_row, latitude::float8 AS lat,`
+  + ` longitude::float8 AS lon, to_char(acquisition_date, 'YYYY-MM-DD') AS day`
+  + ` FROM gis.fire_hotspots`
+  + ` WHERE source = $1 AND acquisition_date >= $3::date`
+  + ` AND latitude BETWEEN $4 AND $5 AND longitude BETWEEN $6 AND $7) h) c`
+  + ` GROUP BY cell_row, cell_col`
+  + ` HAVING count(DISTINCT day) >= $8`;
+
+const toStoredHotspot = (r: any): StoredHotspot => ({
+  id: Number(r.id),
+  lat: Number(r.lat),
+  lon: Number(r.lon),
+  satellite: String(r.satellite),
+  acqDate: r.acq_date,
+  acqTime: r.acq_time ?? null,
+  confidence: r.confidence ?? null,
+  frp: r.frp == null ? null : Number(r.frp),
+});
+
+/** node-postgres returns text[] as a JS array; tolerate the '{a,b}' literal too. */
+function textArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === 'string') return value.replace(/^\{|\}$/g, '').split(',').filter(Boolean);
+  return [];
+}
 
 export const LOAD_INCIDENTS_SQL = `SELECT id, satellite, center_lat::float8 AS center_lat, center_lng::float8 AS center_lng,`
   + ` bbox_min_lat::float8 AS bbox_min_lat, bbox_min_lng::float8 AS bbox_min_lng,`
@@ -118,16 +180,31 @@ function txFor(client: PgClientLike): FirmsHistoryTx {
       const { rows } = await client.query(LOAD_HOTSPOTS_SQL, [
         HOTSPOT_SOURCE, sinceDate, bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon,
       ]);
+      return rows.map(toStoredHotspot);
+    },
+
+    async loadHeatCells(sinceDate, bbox) {
+      const { rows } = await client.query(LOAD_HEAT_CELLS_SQL, [
+        HOTSPOT_SOURCE, STATIC_CELL_DEG, sinceDate, bbox.minLat, bbox.maxLat, bbox.minLon, bbox.maxLon, STATIC_MIN_CELL_DAYS,
+      ]);
       return rows.map(r => ({
-        id: Number(r.id),
+        row: Number(r.cell_row),
+        col: Number(r.cell_col),
         lat: Number(r.lat),
         lon: Number(r.lon),
-        satellite: String(r.satellite),
-        acqDate: r.acq_date,
-        acqTime: r.acq_time ?? null,
-        confidence: r.confidence ?? null,
-        frp: r.frp == null ? null : Number(r.frp),
+        days: textArray(r.days).sort(),
       }));
+    },
+
+    async loadIncidentHotspots(incident) {
+      const m = incident.metadata;
+      if (typeof m.first_seen !== 'string' || typeof m.last_seen !== 'string') return [];
+      const { rows } = await client.query(LOAD_INCIDENT_HOTSPOTS_SQL, [
+        HOTSPOT_SOURCE, m.first_seen.slice(0, 10), m.last_seen.slice(0, 10),
+        incident.bbox.minLat, incident.bbox.maxLat, incident.bbox.minLon, incident.bbox.maxLon,
+        Number(m.max_hotspot_id ?? 0),
+      ]);
+      return rows.map(toStoredHotspot);
     },
 
     async loadFirmsIncidents(lastSeenSince) {
@@ -155,6 +232,10 @@ function txFor(client: PgClientLike): FirmsHistoryTx {
 
     async setIncidentStatus(id, status) {
       await client.query(SET_STATUS_SQL, [id, status]);
+    },
+
+    async markStaticSource(id, info) {
+      await client.query(MARK_STATIC_SQL, [id, JSON.stringify(info)]);
     },
   };
 }

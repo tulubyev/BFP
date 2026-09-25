@@ -25,6 +25,8 @@ export interface IncidentFilters {
   startDate?: string;
   endDate?: string;
   sort?: 'date_desc' | 'date_asc' | 'area_desc' | 'area_asc';
+  /** Static heat sources (gas flares, industry) are hidden by the API unless 'include' or 'only'. */
+  staticSources?: 'include' | 'only';
   page?: number;
   limit?: number;
 }
@@ -60,6 +62,7 @@ export function buildIncidentQuery(filters: IncidentFilters = {}): URLSearchPara
   if (filters.region) params.set('region', filters.region);
   if (filters.startDate) params.set('start_date', filters.startDate);
   if (filters.endDate) params.set('end_date', filters.endDate);
+  if (filters.staticSources) params.set('static_sources', filters.staticSources);
   params.set('sort', filters.sort || 'date_desc');
   const limit = filters.limit || 12;
   params.set('limit', String(limit));
