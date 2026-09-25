@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
 import { getIncidentStatus, incidentTypes } from './IncidentCard';
-import { FIRMS_AREA_NOTE, firmsIncidentInfo, formatDateTime, serializeIncident } from '../utils/incidents';
+import { FIRMS_AREA_NOTE, detectedDateLabel, firmsIncidentInfo, formatDateTime, serializeIncident } from '../utils/incidents';
 
 export default function IncidentModal({ incident, onClose }: { incident: Incident; onClose: () => void }) {
   const navigate = useNavigate();
@@ -11,7 +11,7 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
   const firms = firmsIncidentInfo(incident);
   const rows: [string, string][] = firms ? [
     ['Регион', incident.region || 'Не определён'],
-    ['Дата обнаружения', new Date(incident.detected_date).toLocaleDateString('ru-RU')],
+    ['Дата обнаружения', detectedDateLabel(incident)],
     ['Координаты центра', incident.center_lat != null && incident.center_lng != null ? `${Number(incident.center_lat).toFixed(5)}, ${Number(incident.center_lng).toFixed(5)}` : '—'],
     ['Площадь', incident.area_ha == null ? '—' : `до ${Number(incident.area_ha).toLocaleString('ru-RU')} га (${FIRMS_AREA_NOTE})`],
     ['Источник', firms.sourceLabel],

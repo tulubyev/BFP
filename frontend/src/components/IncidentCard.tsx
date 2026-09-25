@@ -1,5 +1,5 @@
 import type { Incident } from '../api/incidents';
-import { FIRMS_AREA_NOTE, firmsIncidentInfo, formatDateTime } from '../utils/incidents';
+import { FIRMS_AREA_NOTE, detectedDateLabel, firmsIncidentInfo, formatDateTime } from '../utils/incidents';
 
 export const incidentTypes: Record<string, { label: string; icon: string; color: string }> = {
   fire: { label: 'Пожар', icon: '🔥', color: 'border-red-500/50 bg-red-500/10' },
@@ -45,7 +45,7 @@ export default function IncidentCard({ incident, onClick }: { incident: Incident
       </div>
       <dl className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4 text-sm">
         <div className="col-span-2"><dt className="text-xs text-slate-500">Регион</dt><dd className="mt-1 text-slate-200">{incident.region || incident.forest_area_name || 'Не определён'}</dd></div>
-        <div><dt className="text-xs text-slate-500">Обнаружено</dt><dd className="mt-1 text-slate-200">{new Date(incident.detected_date).toLocaleDateString('ru-RU')}</dd></div>
+        <div><dt className="text-xs text-slate-500">Обнаружено</dt><dd className="mt-1 text-slate-200">{detectedDateLabel(incident)}</dd></div>
         <div>
           <dt className="text-xs text-slate-500">Площадь</dt>
           <dd className="mt-1 text-slate-200">{area == null ? '—' : `${firms ? 'до ' : ''}${area.toLocaleString('ru-RU')} га`}</dd>

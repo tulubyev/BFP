@@ -81,3 +81,13 @@ export function formatDateTime(value: string | null): string {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+/**
+ * "Обнаружено" date. For FIRMS incidents it is the first hotspot's date in the viewer's time zone,
+ * so it matches the first/last hotspot times shown next to it (detected_date is a UTC date).
+ */
+export function detectedDateLabel(incident: Incident): string {
+  const firstSeen = firmsIncidentInfo(incident)?.firstSeen;
+  const d = new Date(firstSeen ?? incident.detected_date);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU');
+}

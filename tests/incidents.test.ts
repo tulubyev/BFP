@@ -1,6 +1,6 @@
 import { buildIncidentQuery, getIncidents, IncidentsApiError, type Incident } from '../frontend/src/api/incidents';
 import {
-  firmsIncidentInfo, formatCacheBanner, formatDateTime, parseIncidentId, parsePage, pluralHotspots, recentStartDate, serializeIncident,
+  detectedDateLabel, firmsIncidentInfo, formatCacheBanner, formatDateTime, parseIncidentId, parsePage, pluralHotspots, recentStartDate, serializeIncident,
 } from '../frontend/src/utils/incidents';
 
 describe('incident query construction', () => {
@@ -168,5 +168,18 @@ describe('pluralHotspots', () => {
       '1 термоточка', '2 термоточки', '5 термоточек', '11 термоточек', '12 термоточек',
       '21 термоточка', '22 термоточки', '25 термоточек', '111 термоточек',
     ]);
+  });
+});
+
+describe('detectedDateLabel', () => {
+  const base = { id: 1, forest_area_id: null, change_type: 'fire', detected_date: '2026-09-20T00:00:00.000Z' };
+
+  it('uses the first hotspot time for FIRMS incidents, matching the times shown next to it', () => {
+    const firms = { ...base, source: 'firms', metadata: { method: 'firms-cluster-v1', first_seen: '2026-09-25T12:00:00Z', last_seen: '2026-09-25T13:00:00Z' } };
+    expect(detectedDateLabel(firms as Incident)).toBe('25.09.2026');
+  });
+
+  it('falls back to detected_date for other incidents', () => {
+    expect(detectedDateLabel({ ...base, detected_date: '2026-09-20T12:00:00Z' } as Incident)).toBe('20.09.2026');
   });
 });
