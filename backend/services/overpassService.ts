@@ -9,19 +9,74 @@
  * happen here (see osmRings.ts / geoSimplify.ts) rather than pulling in osmtogeojson.
  */
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 import { cached, warm } from '../utils/cache';
 import { buildMultiPolygon, type WayGeometryMember } from '../utils/osmRings';
 import { simplifyFeatureGeometry } from '../utils/geoSimplify';
 import area from '@turf/area';
 import pointOnFeature from '@turf/point-on-feature';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 
 // overpass.openstreetmap.fr answers 403 or empty results; the bbox query pulled in non-Russian parks
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
-// v2: polygons instead of point centers — bumped so an old point-shaped cache entry is never reused
-export const OOPT_KEY = 'oopt:ru:v2';
+// v3: scoped to the 83 regions the map actually covers (see loadRegionPolygons below) — Overpass's
+// Russia area still returns Crimean protected areas, which a v2 cache entry would keep serving
+export const OOPT_KEY = 'oopt:ru:v3';
 const OOPT_TTL_SEC = 3 * 24 * 60 * 60; // refreshed daily in the background
 // Keeps ~150 features' worth of polygons under ~1.5 MB gzipped; see geoSimplify.ts
 const MAX_VERTICES_PER_RING = 300;
+
+// The map only covers these 83 regions (no Crimea, Sevastopol or the 2022 regions — CLAUDE.md).
+// Both paths are tried since this runs both in the Docker image (built frontend copied to
+// public/) and in dev (ts-node against the source tree, no build step).
+const BOUNDARIES_DIRS = [
+  path.join(__dirname, '../../public/data/boundaries'),
+  path.join(__dirname, '../../frontend/public/data/boundaries'),
+];
+const REGION_FILE_RE = /^ru-regions\.(\d{4}-\d{2})\.geojson$/;
+
+/** Picks the newest `ru-regions.<version>.geojson` name from a directory listing, or null. */
+export function newestRegionsFile(filenames: string[]): string | null {
+  const versioned = filenames
+    .map(name => ({ name, version: REGION_FILE_RE.exec(name)?.[1] }))
+    .filter((f): f is { name: string; version: string } => f.version !== undefined)
+    .sort((a, b) => a.version.localeCompare(b.version));
+  return versioned.length ? versioned[versioned.length - 1].name : null;
+}
+
+type RegionPolygon = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>;
+
+let regionPolygonsCache: RegionPolygon[] | null | undefined;
+
+/**
+ * Reads the newest `ru-regions.*.geojson` boundaries file (Docker image path first, then dev).
+ * Returns null (rather than throwing) when no boundaries file is found anywhere, so a missing
+ * file degrades to "don't scope-filter" instead of breaking ООПТ entirely.
+ */
+export function loadRegionPolygons(): RegionPolygon[] | null {
+  if (regionPolygonsCache !== undefined) return regionPolygonsCache;
+  for (const dir of BOUNDARIES_DIRS) {
+    let filenames: string[];
+    try {
+      filenames = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+    const file = newestRegionsFile(filenames);
+    if (!file) continue;
+    try {
+      const collection = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')) as GeoJSON.FeatureCollection;
+      regionPolygonsCache = collection.features as RegionPolygon[];
+      return regionPolygonsCache;
+    } catch (err: any) {
+      console.warn(`OOPT region filter: failed to read ${file} in ${dir}:`, err.message);
+    }
+  }
+  console.warn('OOPT region filter: no ru-regions.*.geojson boundaries file found; not scope-filtering');
+  regionPolygonsCache = null;
+  return null;
+}
 
 // OSM area filter for Russia (precise, no false positives).
 const QUERY_AREA = `[out:json][timeout:180];
@@ -156,6 +211,11 @@ function parseFeatures(elements: any[]): OOPTFeature[] {
   return features;
 }
 
+/** Keeps only features whose label point falls inside at least one of the mapped region polygons. */
+export function filterToRegions(features: OOPTFeature[], regions: RegionPolygon[]): OOPTFeature[] {
+  return features.filter(f => regions.some(region => booleanPointInPolygon([f.lon, f.lat], region)));
+}
+
 export async function getOOPT(): Promise<OOPTResult> {
   // An empty answer (Overpass overload) never replaces the last good list
   return cached(OOPT_KEY, OOPT_TTL_SEC, () => fetchOOPT(1), { isValid: hasFeatures });
@@ -184,7 +244,9 @@ async function fetchOOPT(attempts: number): Promise<OOPTResult> {
         },
       });
       if (typeof res.data === 'string' || res.data?.elements === undefined) throw new Error('Unexpected response format');
-      const features = parseFeatures(res.data.elements);
+      const parsed = parseFeatures(res.data.elements);
+      const regions = loadRegionPolygons();
+      const features = regions ? filterToRegions(parsed, regions) : parsed;
       if (features.length === 0) throw new Error('empty result');
       return { features, source: OVERPASS_ENDPOINT, fetchedAt: new Date().toISOString() };
     } catch (err: any) {
