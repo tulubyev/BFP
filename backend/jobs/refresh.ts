@@ -4,6 +4,9 @@
 import { FIRMS_KEY, firmsService } from '../services/firmsService';
 import { OOPT_KEY, refreshOOPT, type OOPTResult } from '../services/overpassService';
 import { refreshRosleshoz } from '../services/rosleskhozService';
+import { runFirmsHistory } from '../services/firmsHistory/ingest';
+import { loadBaikalRegions } from '../services/firmsHistory/regions';
+import { createPgFirmsHistoryStore } from '../services/firmsHistory/store';
 import { readLastGood } from '../utils/cache';
 import { recordRun, type JournalOutcome } from '../utils/journal';
 
@@ -19,12 +22,32 @@ export interface RefreshJob {
 
 const MIN = 60 * 1000;
 
+/**
+ * FIRMS refresh, then (only when it succeeded) the history job: hotspots → gis.fire_hotspots,
+ * Baikal clusters → fire incidents. The history job journals itself under `firms_history` and
+ * never throws, so its failure (e.g. migration 011 not applied) never marks the map layer failed.
+ */
+export async function refreshFirmsWithHistory(
+  refresh: () => Promise<boolean> = () => firmsService.refreshRussia(),
+  history: () => Promise<unknown> = async () => runFirmsHistory({
+    // Loaded lazily: importing the pool opens a database connection.
+    store: createPgFirmsHistoryStore((await import('../config/database')).default),
+    loadSnapshot: () => readLastGood(FIRMS_KEY),
+    loadRegions: () => loadBaikalRegions().regions,
+    record: recordRun,
+  }),
+): Promise<boolean> {
+  const ok = await refresh();
+  if (ok) await history().catch((err: any) => console.warn('[firms-history] failed:', err?.message ?? err));
+  return ok;
+}
+
 export const DEFAULT_JOBS: RefreshJob[] = [
   {
     name: 'firms',
     firstDelayMs: 5 * 1000,
     everyMs: 30 * MIN,
-    run: () => firmsService.refreshRussia(),
+    run: () => refreshFirmsWithHistory(),
     count: () => readLastGood<unknown[]>(FIRMS_KEY).then(v => v?.length),
   },
   { name: 'rosleshoz', firstDelayMs: 20 * 1000, everyMs: 12 * 60 * MIN, run: refreshRosleshoz },

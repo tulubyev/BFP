@@ -41,6 +41,17 @@ describe('getSourceStatus', () => {
     expect(status.journal?.lastAttempt?.outcome).toBe('updated');
   });
 
+  it('firms: attaches the history journal (hotspots written, incidents) next to the refresh journal', async () => {
+    const failed = { startedAt: NOW.toISOString(), finishedAt: NOW.toISOString(), durationMs: 5, outcome: 'failed', error: 'migration 011 not applied: …' };
+    const ok = { startedAt: NOW.toISOString(), finishedAt: NOW.toISOString(), durationMs: 900, outcome: 'updated', items: 10, written: 7, incidents: { created: 1, updated: 0, deactivated: 0 } };
+    redis.store.set('journal:firms_history', JSON.stringify([failed, ok]));
+    const status = await getSourceStatus(getSourceDefinition('firms')!, NOW);
+    expect(status.historyJournal?.lastAttempt?.error).toContain('migration 011 not applied');
+    expect(status.historyJournal?.lastSuccess).toMatchObject({ written: 7, incidents: { created: 1 } });
+    const oopt = await getSourceStatus(getSourceDefinition('oopt')!, NOW);
+    expect(oopt.historyJournal).toBeUndefined();
+  });
+
   it('firms: failed once the newest acquisition is far too old', async () => {
     redis.store.set('firms:viirs:ru:last-good', JSON.stringify([{ acq_date: '2026-09-20', acq_time: '0000' }]));
     const status = await getSourceStatus(getSourceDefinition('firms')!, NOW);

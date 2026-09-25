@@ -2,12 +2,35 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
 import { getIncidentStatus, incidentTypes } from './IncidentCard';
-import { serializeIncident } from '../utils/incidents';
+import { FIRMS_AREA_NOTE, firmsIncidentInfo, formatDateTime, serializeIncident } from '../utils/incidents';
 
 export default function IncidentModal({ incident, onClose }: { incident: Incident; onClose: () => void }) {
   const navigate = useNavigate();
   const type = incidentTypes[incident.change_type] || incidentTypes.other;
   const status = getIncidentStatus(incident);
+  const firms = firmsIncidentInfo(incident);
+  const rows: [string, string][] = firms ? [
+    ['Регион', incident.region || 'Не определён'],
+    ['Дата обнаружения', new Date(incident.detected_date).toLocaleDateString('ru-RU')],
+    ['Координаты центра', incident.center_lat != null && incident.center_lng != null ? `${Number(incident.center_lat).toFixed(5)}, ${Number(incident.center_lng).toFixed(5)}` : '—'],
+    ['Площадь', incident.area_ha == null ? '—' : `до ${Number(incident.area_ha).toLocaleString('ru-RU')} га (${FIRMS_AREA_NOTE})`],
+    ['Источник', firms.sourceLabel],
+    ['Спутники', incident.satellite || '—'],
+    ['Статус', firms.active ? 'Активен — новые точки за последние 48 ч' : 'Затих — новых точек нет более 48 ч'],
+    ['Первая точка', formatDateTime(firms.firstSeen)],
+    ['Последняя точка', formatDateTime(firms.lastSeen)],
+    ['Макс. мощность (FRP)', firms.frpMax == null ? '—' : `${firms.frpMax.toLocaleString('ru-RU')} МВт`],
+    ['Точки высокой достоверности', incident.confidence == null ? '—' : `${Math.round(Number(incident.confidence) * 100)}%`],
+  ] : [
+    ['Регион', incident.region || incident.forest_area_name || 'Не определён'],
+    ['Дата обнаружения', new Date(incident.detected_date).toLocaleString('ru-RU')],
+    ['Координаты', incident.center_lat != null && incident.center_lng != null ? `${Number(incident.center_lat).toFixed(5)}, ${Number(incident.center_lng).toFixed(5)}` : '—'],
+    ['Площадь', incident.area_ha == null ? '—' : `${Number(incident.area_ha).toLocaleString('ru-RU')} га`],
+    ['Источник', incident.source || 'БД мониторинга'],
+    ['Спутник', incident.satellite || '—'],
+    ['Уверенность', incident.confidence == null ? '—' : `${Math.round(Number(incident.confidence) * 100)}%`],
+    ['Подтверждено', incident.confirmed_date ? new Date(incident.confirmed_date).toLocaleDateString('ru-RU') : 'Нет'],
+  ];
   useEffect(() => {
     const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
     window.addEventListener('keydown', close);
@@ -38,16 +61,7 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
         <div className="p-6">
           <div className="mb-6 flex flex-wrap gap-2"><span className={`rounded-full px-3 py-1 text-sm ${status.style}`}>{status.label}</span>{incident.severity && <span className="rounded-full bg-slate-700 px-3 py-1 text-sm">Важность: {incident.severity}</span>}</div>
           <dl className="grid gap-5 sm:grid-cols-2">
-            {[
-              ['Регион', incident.region || incident.forest_area_name || 'Не определён'],
-              ['Дата обнаружения', new Date(incident.detected_date).toLocaleString('ru-RU')],
-              ['Координаты', incident.center_lat != null && incident.center_lng != null ? `${Number(incident.center_lat).toFixed(5)}, ${Number(incident.center_lng).toFixed(5)}` : '—'],
-              ['Площадь', incident.area_ha == null ? '—' : `${Number(incident.area_ha).toLocaleString('ru-RU')} га`],
-              ['Источник', incident.source || 'БД мониторинга'],
-              ['Спутник', incident.satellite || '—'],
-              ['Уверенность', incident.confidence == null ? '—' : `${Math.round(Number(incident.confidence) * 100)}%`],
-              ['Подтверждено', incident.confirmed_date ? new Date(incident.confirmed_date).toLocaleDateString('ru-RU') : 'Нет'],
-            ].map(([label, value]) => <div key={label}><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-slate-200">{value}</dd></div>)}
+            {rows.map(([label, value]) => <div key={label}><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-slate-200">{value}</dd></div>)}
           </dl>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <button onClick={showOnMap} disabled={incident.center_lat == null || incident.center_lng == null} className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">Показать на карте</button>

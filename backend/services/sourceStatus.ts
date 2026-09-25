@@ -24,6 +24,9 @@ const THRESHOLDS: Partial<Record<SourceId, FreshnessThresholds>> = {
 /** Which sources keep a load journal (the background jobs in jobs/refresh.ts). */
 const JOURNALED = new Set<SourceId>(['firms', 'oopt', 'rosleshoz']);
 
+/** Extra journals shown with a source: FIRMS history writes (gis.fire_hotspots + incidents). */
+const HISTORY_JOURNALS: Partial<Record<SourceId, string>> = { firms: 'firms_history' };
+
 async function firmsFreshness(): Promise<Date | null> {
   const hotspots = await readLastGood<FIRMSHotspot[]>(FIRMS_KEY);
   return hotspots ? newestAcquisition(hotspots) : null;
@@ -71,6 +74,8 @@ export interface SourceStatus {
   state: FreshnessState;
   freshness: { timestamp: string; ageMs: number } | null;
   journal: SourceJournal | null;
+  /** Journal of the history job that stores this source in the database, if any. */
+  historyJournal?: SourceJournal | null;
 }
 
 export async function getSourceStatus(def: SourceDefinition, now: Date = new Date()): Promise<SourceStatus> {
@@ -84,6 +89,12 @@ export async function getSourceStatus(def: SourceDefinition, now: Date = new Dat
   if (JOURNALED.has(def.id)) {
     const runs = await readJournal(def.id);
     journal = { lastAttempt: lastAttempt(runs), lastSuccess: lastSuccess(runs), runs };
+  }
+  const historySource = HISTORY_JOURNALS[def.id];
+  let historyJournal: SourceJournal | undefined;
+  if (historySource) {
+    const runs = await readJournal(historySource);
+    historyJournal = { lastAttempt: lastAttempt(runs), lastSuccess: lastSuccess(runs), runs };
   }
 
   return {
@@ -99,6 +110,7 @@ export async function getSourceStatus(def: SourceDefinition, now: Date = new Dat
     state,
     freshness: timestamp ? { timestamp: timestamp.toISOString(), ageMs: ageMs as number } : null,
     journal,
+    ...(historyJournal ? { historyJournal } : {}),
   };
 }
 

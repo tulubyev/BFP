@@ -1,4 +1,5 @@
 import type { Incident } from '../api/incidents';
+import { FIRMS_AREA_NOTE, firmsIncidentInfo, formatDateTime } from '../utils/incidents';
 
 export const incidentTypes: Record<string, { label: string; icon: string; color: string }> = {
   fire: { label: 'Пожар', icon: '🔥', color: 'border-red-500/50 bg-red-500/10' },
@@ -10,6 +11,12 @@ export const incidentTypes: Record<string, { label: string; icon: string; color:
 };
 
 export function getIncidentStatus(incident: Incident) {
+  const firms = firmsIncidentInfo(incident);
+  if (firms) {
+    return firms.active
+      ? { label: firms.statusLabel, style: 'bg-red-500/15 text-red-300' }
+      : { label: firms.statusLabel, style: 'bg-slate-500/15 text-slate-300' };
+  }
   if (incident.confirmed_date) return { label: 'Подтверждено', style: 'bg-green-500/15 text-green-300' };
   if (incident.severity === 'high' || incident.severity === 'critical') {
     return { label: 'Обрабатывается', style: 'bg-amber-500/15 text-amber-300' };
@@ -25,6 +32,7 @@ export default function IncidentCard({ incident, onClick }: { incident: Incident
   const status = getIncidentStatus(incident);
   const confidence = number(incident.confidence);
   const area = number(incident.area_ha);
+  const firms = firmsIncidentInfo(incident);
 
   return (
     <button onClick={onClick} className={`text-left rounded-xl border p-5 transition hover:-translate-y-1 hover:border-slate-400 ${type.color}`}>
@@ -38,9 +46,17 @@ export default function IncidentCard({ incident, onClick }: { incident: Incident
       <dl className="mt-5 grid grid-cols-2 gap-x-3 gap-y-4 text-sm">
         <div className="col-span-2"><dt className="text-xs text-slate-500">Регион</dt><dd className="mt-1 text-slate-200">{incident.region || incident.forest_area_name || 'Не определён'}</dd></div>
         <div><dt className="text-xs text-slate-500">Обнаружено</dt><dd className="mt-1 text-slate-200">{new Date(incident.detected_date).toLocaleDateString('ru-RU')}</dd></div>
-        <div><dt className="text-xs text-slate-500">Площадь</dt><dd className="mt-1 text-slate-200">{area == null ? '—' : `${area.toLocaleString('ru-RU')} га`}</dd></div>
-        <div><dt className="text-xs text-slate-500">Источник</dt><dd className="mt-1 text-slate-200">{incident.source || incident.satellite || 'БД'}</dd></div>
-        <div><dt className="text-xs text-slate-500">Уверенность</dt><dd className="mt-1 text-slate-200">{confidence == null ? '—' : `${Math.round(confidence * 100)}%`}</dd></div>
+        <div>
+          <dt className="text-xs text-slate-500">Площадь</dt>
+          <dd className="mt-1 text-slate-200">{area == null ? '—' : `${firms ? 'до ' : ''}${area.toLocaleString('ru-RU')} га`}</dd>
+          {firms && area != null && <dd className="text-xs text-slate-500">{FIRMS_AREA_NOTE}</dd>}
+        </div>
+        <div className={firms ? 'col-span-2' : undefined}><dt className="text-xs text-slate-500">Источник</dt><dd className="mt-1 text-slate-200">{firms ? firms.sourceLabel : incident.source || incident.satellite || 'БД'}</dd></div>
+        {firms ? (
+          <div className="col-span-2"><dt className="text-xs text-slate-500">Первая / последняя точка</dt><dd className="mt-1 text-slate-200">{formatDateTime(firms.firstSeen)} — {formatDateTime(firms.lastSeen)}</dd></div>
+        ) : (
+          <div><dt className="text-xs text-slate-500">Уверенность</dt><dd className="mt-1 text-slate-200">{confidence == null ? '—' : `${Math.round(confidence * 100)}%`}</dd></div>
+        )}
       </dl>
     </button>
   );

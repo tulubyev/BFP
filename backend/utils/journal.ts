@@ -14,6 +14,12 @@ export interface JournalEntry {
   outcome: JournalOutcome;
   /** Item count, where cheaply available (e.g. cached list length). */
   items?: number;
+  /** Rows written to the database (history jobs, e.g. firms_history). */
+  written?: number;
+  /** Items dropped as malformed. */
+  rejected?: number;
+  /** Incidents created/updated/deactivated by the run (firms_history). */
+  incidents?: { created: number; updated: number; deactivated: number };
   /** Present only when outcome is 'failed'. */
   error?: string;
 }

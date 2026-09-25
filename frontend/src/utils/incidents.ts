@@ -32,3 +32,52 @@ export function formatCacheBanner(fetchedAt: string): string {
     : date.toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short' });
   return `База данных недоступна — показаны данные на ${when}`;
 }
+
+/** FIRMS-specific fields of an incident created by the backend clustering job (metadata.method). */
+export interface FirmsIncidentInfo {
+  hotspotCount: number;
+  active: boolean;
+  statusLabel: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  frpMax: number | null;
+  /** "NASA FIRMS, кластер N термоточек" */
+  sourceLabel: string;
+}
+
+export const FIRMS_AREA_NOTE = 'оценка по пикселям 375 м, сверху';
+
+/** Russian plural: 1 термоточка, 2 термоточки, 5 термоточек. */
+export function pluralHotspots(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'термоточка';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'термоточки';
+  return 'термоточек';
+}
+
+/** Null for anything that is not a FIRMS cluster incident (seed data, other sources). */
+export function firmsIncidentInfo(incident: Incident): FirmsIncidentInfo | null {
+  const m = incident.metadata;
+  if (!m || m.method !== 'firms-cluster-v1') return null;
+  const count = Number(m.hotspot_count);
+  const hotspotCount = Number.isFinite(count) && count > 0 ? Math.trunc(count) : 0;
+  const active = m.status === 'active';
+  const frp = Number(m.frp_max);
+  return {
+    hotspotCount,
+    active,
+    statusLabel: active ? 'Активен' : 'Затих',
+    firstSeen: typeof m.first_seen === 'string' ? m.first_seen : null,
+    lastSeen: typeof m.last_seen === 'string' ? m.last_seen : null,
+    frpMax: m.frp_max != null && Number.isFinite(frp) ? frp : null,
+    sourceLabel: `NASA FIRMS, кластер ${hotspotCount} ${pluralHotspots(hotspotCount)}`,
+  };
+}
+
+/** Date-time in the viewer's locale time zone, or '—' for a missing/invalid value. */
+export function formatDateTime(value: string | null): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
+}

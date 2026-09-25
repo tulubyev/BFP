@@ -1,4 +1,4 @@
-import { fetchForestChanges, createForestChangesHandler, QueryablePool, IncidentsCacheLike, ForestChangesResult } from '../../backend/services/incidentsService';
+import { fetchForestChanges, createForestChangesHandler, REGIONS_QUERY, QueryablePool, IncidentsCacheLike, ForestChangesResult } from '../../backend/services/incidentsService';
 import { forestChangesCacheKey } from '../../backend/services/forestChangesQuery';
 
 function fakePool(overrides: Partial<{ rows: any[]; total: number; regions: string[]; fail: boolean }> = {}): QueryablePool {
@@ -129,5 +129,13 @@ describe('createForestChangesHandler', () => {
     await handler(req, res as any);
 
     expect(res.statusCode).not.toBe(200);
+  });
+});
+
+describe('REGIONS_QUERY', () => {
+  it('lists forest-area regions and regions stored on incidents (FIRMS)', () => {
+    expect(REGIONS_QUERY).toContain('FROM gis.forest_areas');
+    expect(REGIONS_QUERY).toContain("metadata->>'region'");
+    expect(REGIONS_QUERY).toMatch(/ORDER BY region$/);
   });
 });
