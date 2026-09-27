@@ -25,7 +25,6 @@ client/src/
 ```
 src/
 ├── config/        # Конфигурация
-├── models/        # Модели данных
 ├── routes/        # API маршруты
 ├── services/      # Бизнес-логика
 └── utils/         # Утилиты
@@ -107,8 +106,8 @@ npm test -- --coverage  # С покрытием
 ```
 tests/
 ├── setup.ts       # Настройка Jest
-└── services/
-    └── databaseService.test.ts
+└── utils/
+    └── stubs.test.ts
 ```
 
 ### Написание тестов

@@ -9,7 +9,6 @@ dotenv.config();
 
 import titilerRoutes from './routes/titiler';
 import stacRoutes from './routes/stac';
-import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
 import sourcesRoutes from './routes/sources';
@@ -88,7 +87,6 @@ class Server {
   private initializeRoutes(): void {
     this.app.use('/api/titiler', titilerRoutes);
     this.app.use('/api/stac', stacRoutes);
-    this.app.use('/api/analytics', analyticsRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/external', externalRoutes);
     this.app.use('/api/sources', sourcesRoutes);

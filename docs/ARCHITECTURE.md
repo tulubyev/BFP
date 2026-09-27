@@ -62,7 +62,6 @@
 | Endpoint | Метод | Описание |
 |----------|-------|----------|
 | `/health` | GET | Проверка состояния |
-| `/api/analytics/*` | GET | Аналитика лесов |
 | `/api/stac/*` | GET | STAC каталог |
 | `/api/titiler/*` | GET | COG тайлы |
 

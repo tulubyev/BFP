@@ -18,15 +18,11 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 │   ├── config/
 │   │   ├── database.ts         # PostgreSQL connection pool
 │   │   └── titiler.ts          # TiTiler service config
-│   ├── models/
-│   │   └── forestArea.ts       # Forest area & change interfaces
 │   ├── routes/
-│   │   ├── analytics.ts        # Forest analytics endpoints
 │   │   ├── monitoring.ts       # Monitoring data endpoints
 │   │   ├── stac.ts             # STAC API proxy endpoints
 │   │   └── titiler.ts          # TiTiler proxy endpoints
 │   ├── services/
-│   │   ├── databaseService.ts  # Database operations
 │   │   ├── spectralIndices.ts  # NDVI, NBR, EVI calculators
 │   │   ├── firmsService.ts     # NASA FIRMS integration
 │   │   ├── globalForestWatch.ts # GFW API integration
