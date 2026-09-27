@@ -21,6 +21,7 @@ import { readJournal } from './utils/journal';
 import { loadArchiveStaticCells } from './services/firmsHistory/staticSources';
 import { startRefreshJobs } from './jobs/refresh';
 import { SPA_FALLBACK_RE } from './utils/spaFallback';
+import { applyApiProtection, bodyErrorHandler, jsonBodyParser } from './middleware/apiProtection';
 
 /** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
 function cdnOrigin(url: string | undefined): string[] {
@@ -74,7 +75,10 @@ class Server {
       crossOriginResourcePolicy: { policy: 'cross-origin' },
     }));
     this.app.use(cors());
-    this.app.use(express.json());
+    // trust proxy + per-IP limits on /api/* only (before body parsing)
+    applyApiProtection(this.app);
+    this.app.use(jsonBodyParser());
+    this.app.use(bodyErrorHandler);
     this.app.use(express.static(path.join(__dirname, '../public'), {
       setHeaders: (res, filePath) => {
         // Vite assets carry a content hash, boundary files a version — safe to cache forever (browser + CDN)

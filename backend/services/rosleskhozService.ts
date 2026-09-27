@@ -5,6 +5,7 @@
  */
 import axios from 'axios';
 import { cached, warm } from '../utils/cache';
+import { RESPONSE_LIMITS } from '../utils/responseLimits';
 
 const BASE = 'https://rosleshoz.gov.ru';
 
@@ -78,7 +79,9 @@ async function resolveDatasetPath(key: keyof typeof DATASETS): Promise<string> {
   let path = fallback;
   try {
     const dir = fallback.slice(0, fallback.lastIndexOf('/'));
-    const meta = await axios.get<string>(`${BASE}${dir}/meta.csv`, { timeout: 15000, headers: HTTP_HEADERS, responseType: 'text' });
+    const meta = await axios.get<string>(`${BASE}${dir}/meta.csv`, {
+      timeout: 15000, headers: HTTP_HEADERS, responseType: 'text', maxContentLength: RESPONSE_LIMITS.rosleshozMeta,
+    });
     path = latestDataPath(meta.data) ?? fallback;
   } catch (err: any) {
     console.warn(`Rosleshoz meta.csv for ${key} failed, using known file:`, err.message);
@@ -115,7 +118,9 @@ export function latestDatasetModified(): Date | null {
 const isNonEmpty = (data: unknown) => data != null && (!Array.isArray(data) || data.length > 0);
 
 async function loadDataset<T>(key: keyof typeof DATASETS, transform: (rows: Record<string, string>[]) => T): Promise<T> {
-  const response = await axios.get(BASE + (await resolveDatasetPath(key)), { timeout: 15000, headers: HTTP_HEADERS });
+  const response = await axios.get(BASE + (await resolveDatasetPath(key)), {
+    timeout: 15000, headers: HTTP_HEADERS, maxContentLength: RESPONSE_LIMITS.rosleshozCsv,
+  });
   return transform(parseCSV(response.data));
 }
 

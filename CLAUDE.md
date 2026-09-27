@@ -60,6 +60,16 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   Leaflet file. Popups and labels are built with text nodes (`frontend/src/map/popup.ts`) —
   no `innerHTML` with data from APIs.
 - New logic comes with jest tests; extract pure functions to make it testable.
+- SQL: request values only as `$n` placeholders; numbers through clamping parsers
+  (`backend/utils/queryParams.ts`), sort keys and enumerations through fixed whitelists.
+  `tests/security/sqlGuard.test.ts` fails on any other `${…}` in SQL text (allowlist in the test).
+- Outgoing HTTP: every axios call sets `timeout` and `maxContentLength` from
+  `backend/utils/responseLimits.ts` (fetch: `readBodyWithLimit`); checked by
+  `tests/security/responseLimits.test.ts`.
+- `/api/*` is rate limited in `backend/middleware/apiProtection.ts` (300/min per IP, 20/min for
+  exports and incident imagery; `/ndvi-series` is polled every 5 s, so it is not in the strict
+  budget); a new expensive endpoint goes into `EXPENSIVE_API_PATHS`.
+  Never limit `/health`, `/tiles`, `/imagery`, `/assets`, `/data` (Beget CDN pulls them).
 
 ## Gotchas
 

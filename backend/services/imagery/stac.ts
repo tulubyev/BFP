@@ -3,6 +3,7 @@
  * Only the fields the imagery code needs are kept (`slimItem`), so an item cached in Redis is small.
  */
 import type { Bbox } from './geometry';
+import { readJsonWithLimit, RESPONSE_LIMITS } from '../../utils/responseLimits';
 
 export const STAC_API_URL = 'https://earth-search.aws.element84.com/v1';
 export const S2_COLLECTION = 'sentinel-2-c1-l2a';
@@ -131,7 +132,7 @@ export const fetchJson: FetchJson = async (url, init = {}) => {
     signal: AbortSignal.timeout(init.timeoutMs ?? 15_000),
   });
   if (!res.ok) throw new HttpStatusError(res.status, url);
-  return res.json();
+  return readJsonWithLimit(res, RESPONSE_LIMITS.stacJson);
 };
 
 export interface StacClient {

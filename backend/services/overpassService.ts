@@ -17,6 +17,7 @@ import { simplifyFeatureGeometry } from '../utils/geoSimplify';
 import area from '@turf/area';
 import pointOnFeature from '@turf/point-on-feature';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { RESPONSE_LIMITS } from '../utils/responseLimits';
 
 // overpass.openstreetmap.fr answers 403 or empty results; the bbox query pulled in non-Russian parks
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -238,6 +239,7 @@ async function fetchOOPT(attempts: number): Promise<OOPTResult> {
       // Overpass-side timeout above and this client timeout are generous.
       const res = await axios.post(OVERPASS_ENDPOINT, body.toString(), {
         timeout: 200000,
+        maxContentLength: RESPONSE_LIMITS.overpass,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'User-Agent': 'forestwatch.ru/1.0 (+https://forestwatch.ru)',
