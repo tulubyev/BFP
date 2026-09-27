@@ -38,9 +38,15 @@ describe('stretchSwir', () => {
 });
 
 describe('RGBA composition', () => {
-  it('truecolor passes bytes through; nodata in any band is transparent', () => {
-    const rgba = truecolorRgba([10, 0], [20, 5], [30, 6]);
-    expect(Array.from(rgba)).toEqual([10, 20, 30, 255, 0, 0, 0, 0]);
+  it('truecolor passes bytes through; only 0 in all bands (TCI nodata) is transparent', () => {
+    const rgba = truecolorRgba([10, 0, 0], [20, 5, 0], [30, 6, 0]);
+    expect(Array.from(rgba)).toEqual([10, 20, 30, 255, 0, 5, 6, 255, 0, 0, 0, 0]);
+  });
+
+  it('swir: nodata (0) in any band is transparent', () => {
+    const rgba = swirRgba([3000, 0], [3000, 3000], [3000, 3000], [C1, C1, C1]);
+    expect(rgba[3]).toBe(255);
+    expect(Array.from(rgba.subarray(4))).toEqual([0, 0, 0, 0]);
   });
 
   it('rounds and clamps interpolated values', () => {

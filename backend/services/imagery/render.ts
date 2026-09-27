@@ -4,7 +4,9 @@
  * - truecolor: the `visual` asset (TCI, 8-bit RGB) as is.
  * - swir: B12 / B8A / B04 as R / G / B, reflectance 0–0.4 → 0–255 with a gamma. Burn scars come out
  *   dark red, active fire bright orange, healthy forest green.
- * Pixels with nodata (0) in any band are transparent. The incident bbox is drawn as a thin
+ * Nodata pixels are transparent: TCI marks them 0 in all three bands (a single 0 is just a very
+ * dark pixel — common in low-sun autumn scenes), the L2A reflectance bands 0 in any band.
+ * The incident bbox is drawn as a thin
  * yellow outline (an SVG composited by sharp).
  */
 import sharp from 'sharp';
@@ -47,16 +49,21 @@ export function stretchSwir(dn: number, s: ReflectanceScale): number {
   return Math.round(255 * t ** (1 / SWIR_GAMMA));
 }
 
-/** RGBA pixels from three bands; `toByte` maps a band value to 0–255. Nodata (0) in any band → transparent. */
+/** Which zero bands make a pixel nodata: 'all' for TCI (visual), 'any' for L2A reflectance bands. */
+export type NodataRule = 'all' | 'any';
+
+/** RGBA pixels from three bands; `toByte` maps a band value to 0–255. Nodata (0, see NodataRule) → transparent. */
 export function composeRgba(
   bands: [ArrayLike<number>, ArrayLike<number>, ArrayLike<number>],
   toByte: [(v: number) => number, (v: number) => number, (v: number) => number],
+  nodata: NodataRule = 'any',
 ): Buffer {
   const n = bands[0].length;
   const out = Buffer.alloc(n * 4);
   for (let i = 0; i < n; i++) {
     const r = bands[0][i]; const g = bands[1][i]; const b = bands[2][i];
-    if (r === 0 || g === 0 || b === 0) continue; // stays 0,0,0,0
+    const empty = nodata === 'all' ? r === 0 && g === 0 && b === 0 : r === 0 || g === 0 || b === 0;
+    if (empty) continue; // stays 0,0,0,0
     out[i * 4] = toByte[0](r);
     out[i * 4 + 1] = toByte[1](g);
     out[i * 4 + 2] = toByte[2](b);
@@ -68,7 +75,7 @@ export function composeRgba(
 const clampByte = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
 export function truecolorRgba(r: ArrayLike<number>, g: ArrayLike<number>, b: ArrayLike<number>): Buffer {
-  return composeRgba([r, g, b], [clampByte, clampByte, clampByte]);
+  return composeRgba([r, g, b], [clampByte, clampByte, clampByte], 'all');
 }
 
 export function swirRgba(
