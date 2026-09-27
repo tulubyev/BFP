@@ -217,3 +217,21 @@ official data agreement or API access from Рослесхоз. Until
 then, ФГИС ЛК stays undocumented as a working layer and OpenTopoMap (also removed per the
 2026-09-24 map design, see `docs/superpowers/specs/2026-09-24-cdn-redis-map-design.md`) is not
 brought back either.
+
+## Выгрузки и методология (2026-09-27)
+
+- `GET /api/export/incidents.csv|.geojson|.json` — фильтры как у `/api/monitoring/forest-changes`
+  (`change_type`, `severity`, `region`, `start_date`, `end_date`, `sort`, `static_sources`), без
+  пагинации, не больше 5000 строк (`EXPORT_LIMIT`), больше — 413; БД недоступна — 503, не пустой файл.
+  Без кэша. `GET /api/export/regions.csv|.json` — `regionsService.list()` в длинном формате
+  (строка на субъект и показатель, `null` → пустая ячейка).
+- Блок `metadata` во всех форматах (`backend/services/export/provenance.ts`): время, фильтры,
+  источники из `sourceRegistry.ts` с лицензиями и временем последней успешной загрузки из журнала,
+  версии методов (`firms-cluster-v1`, `static-mask-v1` с годом ячеек архива), ссылка на
+  `/methodology`, предупреждения. JSON — `{ metadata, data }`, GeoJSON — foreign member
+  `metadata`, CSV — заголовок `X-Export-Metadata` (JSON, не-ASCII как `\uXXXX`) и колонки
+  `source`, `method`, `license` в каждой строке; CSV в UTF-8 с BOM, RFC 4180, текст, начинающийся
+  с `= + - @ \t \r`, получает префикс `'`.
+- Страница `/methodology`: источники строятся из `/api/sources/status`, числа в тексте — из
+  `frontend/src/methodology/params.ts`, который `tests/methodology.test.ts` сверяет с константами
+  бэкенда.

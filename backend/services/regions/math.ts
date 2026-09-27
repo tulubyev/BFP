@@ -3,8 +3,13 @@
  * when an input is missing — a missing value is never turned into a zero.
  */
 
-/** Count per `per` km² (default 10 000 km²); null without a count or a positive area. */
-export function perArea(count: number | null | undefined, areaKm2: number | null | undefined, per = 10_000): number | null {
+/** Area (km²) densities are normalized to: hotspots per 10 000 km². */
+export const PER_AREA_KM2 = 10_000;
+/** Deviation baseline: mean of this many preceding complete years. */
+export const DEVIATION_WINDOW_YEARS = 5;
+
+/** Count per `per` km² (default PER_AREA_KM2); null without a count or a positive area. */
+export function perArea(count: number | null | undefined, areaKm2: number | null | undefined, per = PER_AREA_KM2): number | null {
   if (count == null || !Number.isFinite(count) || !areaKm2 || areaKm2 <= 0) return null;
   return (count / areaKm2) * per;
 }
@@ -22,7 +27,7 @@ export function deviationFromMean(
   series: Record<number, number | null | undefined>,
   year: number,
   completeYears: number[],
-  window = 5,
+  window = DEVIATION_WINDOW_YEARS,
 ): DeviationResult {
   const complete = new Set(completeYears);
   const x = series[year];
