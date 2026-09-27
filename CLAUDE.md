@@ -85,5 +85,8 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   `node:20-slim`, CI Node 20), impossible in jest, so `jest.config.js` maps `quick-lru` to
   `tests/mocks/quick-lru.js`. `writeArrayBuffer` (tests) needs a flat pixel-interleaved typed array.
   Before/after imagery (`backend/services/imagery/`) reads Sentinel-2 COGs from AWS itself — no TiTiler.
+- Imagery indices and NDVI series: `indices.ts` (pure math), `series.ts` (one year), `ndviSeries.ts` (background
+  queue, in-process — lost on restart, the next request re-queues). The `/imagery` response is cached under
+  `imagery:incident:v2:*`; a new render (`ndvi`) was added under `RENDER_VERSION` v1 because its URLs are new.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.

@@ -1,20 +1,27 @@
 /**
- * Pixel math for the two renders and PNG encoding with sharp.
+ * Pixel math for the three renders and PNG encoding with sharp.
  *
  * - truecolor: the `visual` asset (TCI, 8-bit RGB) as is.
  * - swir: B12 / B8A / B04 as R / G / B, reflectance 0–0.4 → 0–255 with a gamma. Burn scars come out
  *   dark red, active fire bright orange, healthy forest green.
+ * - ndvi: NDVI from B8A / B04 on the brown → yellow → green palette (−0.2…0.9, indices.ts); pixels that
+ *   are not clear by SCL (clouds, shadows, snow) are transparent, so a cloud never looks like a burn.
  * Nodata pixels are transparent: TCI marks them 0 in all three bands (a single 0 is just a very
  * dark pixel — common in low-sun autumn scenes), the L2A reflectance bands 0 in any band.
  * The incident bbox is drawn as a thin
  * yellow outline (an SVG composited by sharp).
  */
 import sharp from 'sharp';
+import { ndviColor, ndviOf } from './indices';
+import { isClearScl } from './selection';
 import type { RasterBand } from './stac';
 
-export const RENDERS = ['truecolor', 'swir'] as const;
+export const RENDERS = ['truecolor', 'swir', 'ndvi'] as const;
 export type Render = typeof RENDERS[number];
-/** Part of every image URL and cache key: bump when the look of a render changes. */
+/**
+ * Part of every image URL and cache key: bump when the look of a render changes. `ndvi` was added
+ * under v1 (its URLs are new, nothing cached to invalidate); truecolor and swir are unchanged.
+ */
 export const RENDER_VERSION = 'v1';
 
 export const SWIR_MAX_REFLECTANCE = 0.4;
@@ -83,6 +90,22 @@ export function swirRgba(
   scales: [ReflectanceScale, ReflectanceScale, ReflectanceScale],
 ): Buffer {
   return composeRgba([b12, b8a, b04], [v => stretchSwir(v, scales[0]), v => stretchSwir(v, scales[1]), v => stretchSwir(v, scales[2])]);
+}
+
+/** NDVI palette colours; nodata or non-clear SCL → transparent. `scl` is on the same grid as the bands. */
+export function ndviRgba(
+  red: ArrayLike<number>, nir: ArrayLike<number>, scl: ArrayLike<number>,
+  scales: [ReflectanceScale, ReflectanceScale],
+): Buffer {
+  const out = Buffer.alloc(red.length * 4);
+  for (let i = 0; i < red.length; i++) {
+    if (!isClearScl(scl[i])) continue;
+    const v = ndviOf(red[i], nir[i], scales[0], scales[1]);
+    if (v === null) continue;
+    const [r, g, b] = ndviColor(v);
+    out[i * 4] = r; out[i * 4 + 1] = g; out[i * 4 + 2] = b; out[i * 4 + 3] = 255;
+  }
+  return out;
 }
 
 /**

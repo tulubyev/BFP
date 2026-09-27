@@ -20,6 +20,17 @@ import { DEFINITIONS } from '../backend/services/regions/indicators';
 import { DEVIATION_WINDOW_YEARS, PER_AREA_KM2 } from '../backend/services/regions/math';
 import { BAIKAL_ISOS, EXPECTED_REGION_COUNT } from '../backend/services/regions/registry';
 import { SOURCE_REGISTRY } from '../backend/services/sourceRegistry';
+import { AOI_MARGIN, MAX_AOI_KM, MIN_AOI_KM } from '../backend/services/imagery/geometry';
+import {
+  DNBR_THRESHOLDS, INDEX_PIXEL_M, MIN_VALID_FRACTION, NDVI_RENDER_MAX, NDVI_RENDER_MIN, SITE_PAD_KM,
+} from '../backend/services/imagery/indices';
+import { SWIR_MAX_REFLECTANCE } from '../backend/services/imagery/render';
+import {
+  BEFORE_DAYS, MAX_CANDIDATES, MAX_NODATA_FRACTION, MAX_SEARCH_CLOUD_COVER, MIN_CLEAR_FRACTION,
+} from '../backend/services/imagery/selection';
+import {
+  SERIES_FIRST_YEAR, SUMMER_LABEL, SUMMER_WINDOW, YEAR_TTL_CURRENT_SEC, YEAR_TTL_PAST_SEC,
+} from '../backend/services/imagery/series';
 
 const text = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 
@@ -55,6 +66,31 @@ describe('methodology numbers match the code', () => {
     expect(METHODOLOGY.export.limit).toBe(BACKEND_EXPORT_LIMIT);
     expect(EXPORT_LIMIT).toBe(BACKEND_EXPORT_LIMIT);
   });
+
+  it('Sentinel-2 scenes, indices and the summer series', () => {
+    const m = METHODOLOGY.imagery;
+    expect(m.beforeDays).toBe(BEFORE_DAYS);
+    expect(m.maxSearchCloudPct).toBe(MAX_SEARCH_CLOUD_COVER);
+    expect(m.maxCandidates).toBe(MAX_CANDIDATES);
+    expect(m.minClearPct).toBe(MIN_CLEAR_FRACTION * 100);
+    expect(m.maxNodataPct).toBe(MAX_NODATA_FRACTION * 100);
+    expect(m.aoiMinKm).toBe(MIN_AOI_KM);
+    expect(m.aoiMaxKm).toBe(MAX_AOI_KM);
+    expect(AOI_MARGIN).toBeGreaterThan(1); // «с запасом»
+    expect(m.swirMax).toBe(SWIR_MAX_REFLECTANCE);
+    expect(m.indexPixelM).toBe(INDEX_PIXEL_M);
+    expect(m.minValidPct).toBe(MIN_VALID_FRACTION * 100);
+    expect(m.dnbr).toEqual(DNBR_THRESHOLDS);
+    expect(m.ndviMin).toBe(NDVI_RENDER_MIN);
+    expect(m.ndviMax).toBe(NDVI_RENDER_MAX);
+    expect(m.seriesFirstYear).toBe(SERIES_FIRST_YEAR);
+    expect(m.seriesWindow).toBe(SUMMER_LABEL);
+    expect(SUMMER_WINDOW).toEqual({ start: '07-01', end: '08-31' });
+    expect(m.yearCachePastDays).toBe(YEAR_TTL_PAST_SEC / 86_400);
+    expect(m.yearCacheCurrentDays).toBe(YEAR_TTL_CURRENT_SEC / 86_400);
+    // «расширенный на половину пикселя VIIRS»
+    expect(SITE_PAD_KM * 2 * 1000).toBe(METHODOLOGY.firms.pixelM);
+  });
 });
 
 describe('methodology sections', () => {
@@ -81,20 +117,58 @@ describe('methodology sections', () => {
     expect(html).toMatch(/не больше\s+5\s000 записей/);
   });
 
+  it('describes Sentinel-2 scenes, indices and the series with the code numbers', () => {
+    const m = METHODOLOGY.imagery;
+    expect(html).toContain('Снимки и индексы Sentinel-2');
+    expect(html).toContain(`не меньше ${MIN_AOI_KM} км`);
+    expect(html).toContain(`квадрат ${MAX_AOI_KM} км`);
+    expect(html).toContain(`за ${BEFORE_DAYS} дней до первой термоточки`);
+    expect(html).toContain(`меньше ${MAX_SEARCH_CLOUD_COVER} %`);
+    expect(html).toContain(`до ${MAX_CANDIDATES} кандидатов`);
+    expect(html).toContain(`не меньше ${MIN_CLEAR_FRACTION * 100} % чистых пикселей`);
+    expect(html).toContain(`не больше ${MAX_NODATA_FRACTION * 100} %`);
+    expect(html).toContain('до 0,4 растянуто');
+    expect(html).toContain('NDVI = (B8A − B04) / (B8A + B04)');
+    expect(html).toContain('NBR = (B8A − B12) / (B8A + B12)');
+    expect(html).toContain('dNBR = NBR до − NBR после');
+    expect(html).toContain(`одной сетке ${INDEX_PIXEL_M} м`);
+    expect(html).toContain(`меньше ${MIN_VALID_FRACTION * 100} %`);
+    expect(html).toContain('меньше 0,10 — не горело');
+    expect(html).toContain('0,10–0,27 — низкая');
+    expect(html).toContain('0,27–0,44 — умеренно-низкая');
+    expect(html).toContain('0,44–0,66 — умеренно-высокая');
+    expect(html).toContain('0,66 и больше — высокая');
+    expect(html).toContain('от −0,20 (коричневый)');
+    expect(html).toContain('до 0,90');
+    expect(html).toContain(`с ${SERIES_FIRST_YEAR} по текущий`);
+    expect(html).toContain(`за ${SUMMER_LABEL}`);
+    expect(html).toContain(`хранятся ${m.yearCachePastDays} дней, текущий — ${m.yearCacheCurrentDays} дней`);
+    expect(html).toContain('не полевое обследование');
+    expect(html).not.toContain('раздел будет дополнен');
+  });
+
   it('says what the data does not mean', () => {
     expect(html).toContain('Термоточка — не подтверждённый пожар');
     expect(html).toContain('Потеря покрова ≠ незаконная рубка');
     expect(html).toContain('Крым, Севастополь и регионы 2022 г. не включены');
-    expect(html).toContain('Снимки до/после в карточке инцидента');
+    expect(html).toContain('Индексы — спутниковая оценка для проверки, а не полевые данные');
   });
 
   it('has no number that is not a known parameter', () => {
+    const m = METHODOLOGY.imagery;
     const allowed = new Set([
       '375', '14,06', '72', '2', '48', '500', '4', '14', '7', '8', '83', '10 000', '5', '2015', '2022', '5 000', '20', '30',
       // «Suomi NPP, NOAA-20, NOAA-21», «type = 2», «регионы 2022 г.», «× 100 %»
       '21', '100', '24',
+      // Sentinel-2 section: every number from METHODOLOGY.imagery; «Sentinel-2», «Collection 1», «1 июля – 31 августа»
+      ...[m.beforeDays, m.maxSearchCloudPct, m.maxCandidates, m.minClearPct, m.maxNodataPct, m.aoiMinKm, m.aoiMaxKm,
+        m.indexPixelM, m.minValidPct, m.seriesFirstYear, m.yearCachePastDays, m.yearCacheCurrentDays].map(String),
+      ...[...Object.values(m.dnbr), m.ndviMin, m.ndviMax].map(v => Math.abs(v).toFixed(2).replace('.', ',')),
+      '0,4', '1', '31',
     ]);
-    const numbers = html.replace(/NOAA-2[01]|firms-cluster-v1|static-mask-v1/g, '').match(/\d[\d\s,]*\d|\d/g) ?? [];
+    const numbers = html
+      .replace(/NOAA-2[01]|firms-cluster-v1|static-mask-v1|B04|B08|B8A|B12|Sentinel-2/g, '')
+      .match(/\d[\d\s,]*\d|\d/g) ?? [];
     const unknown = numbers.map(n => n.trim()).filter(n => !allowed.has(n.replace(/\s/g, ' ')));
     expect(unknown).toEqual([]);
   });

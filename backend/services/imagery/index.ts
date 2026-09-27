@@ -2,21 +2,24 @@
  * Production wiring of the imagery feature: Earth Search STAC, remote COGs, Redis caches and the
  * render/scene-check concurrency limits.
  *
- * Caches: STAC item by id — 30 days (`cached()`); incident scene selection — 24 h, keyed by
- * last_seen (`cached()`: a STAC/network error throws and is never stored as a good value);
- * rendered PNG — 1 day in Redis (long-term storage is the browser and the Beget CDN).
+ * Caches: STAC item by id — 30 days (`cached()`); incident scene selection with indices — 24 h, keyed
+ * by last_seen (`cached()`: a STAC/network error throws and is never stored as a good value);
+ * rendered PNG — 1 day in Redis (long-term storage is the browser and the Beget CDN); NDVI series —
+ * per year (365 days past, 7 days current) plus the whole series 24 h (ndviSeries.ts).
  */
 import { getRedis } from '../../config/redis';
 import { cached } from '../../utils/cache';
 import { createLimiter, withTimeout } from '../../utils/limiter';
 import { openRemoteCog } from './cog';
 import { INCIDENT_GEO_SQL, incidentGeoFromRow } from './incident';
+import { createNdviSeries, type YearStore } from './ndviSeries';
 import { incidentImageryKey, pngKey, sceneItemKey, type ImageRequest } from './request';
 import {
   getIncidentImagery, renderScenePng, sceneCovers, type ImageryDeps, type IncidentGeo, type IncidentImagery,
 } from './service';
+import { computeSeriesYear, type SeriesYear } from './series';
 import { createStacClient, type S2Scene } from './stac';
-import type { ImageRouteDeps, IncidentImageryDeps, PngStore } from '../../routes/imagery';
+import type { ImageRouteDeps, IncidentImageryDeps, NdviSeriesRouteDeps, PngStore } from '../../routes/imagery';
 
 const DAY_SEC = 24 * 60 * 60;
 export const ITEM_TTL_SEC = 30 * DAY_SEC;
@@ -121,16 +124,50 @@ export const imageRouteDeps: ImageRouteDeps = {
   sceneCovers: (scene, request) => sceneCovers(scene, request.bbox),
 };
 
+export const redisYearStore: YearStore = {
+  async get(key) {
+    try {
+      const raw = await getRedis()?.get(key);
+      return raw ? (JSON.parse(raw) as SeriesYear) : null;
+    } catch (err: any) {
+      console.warn(`ndvi year read ${key} failed:`, err.message);
+      return null;
+    }
+  },
+  async set(key, value, ttlSec) {
+    try {
+      await getRedis()?.set(key, JSON.stringify(value), 'EX', ttlSec);
+    } catch (err: any) {
+      console.warn(`ndvi year write ${key} failed:`, err.message);
+    }
+  },
+};
+
+const ndviSeries = createNdviSeries({
+  store: redisYearStore,
+  computeYear: (target, year) => computeSeriesYear(target, year, imageryDeps),
+  cachedSeries: (key, ttl, fetcher) => cached(key, ttl, fetcher),
+});
+
 export interface QueryPool {
   query(text: string, params?: unknown[]): Promise<{ rows: any[] }>;
 }
 
+const incidentLoader = (pool: QueryPool) => async (id: number): Promise<IncidentGeo | 'no-geometry' | null> => {
+  const { rows } = await pool.query(INCIDENT_GEO_SQL, [id]);
+  return rows[0] ? incidentGeoFromRow(rows[0]) : null;
+};
+
+export function createNdviSeriesDeps(pool: QueryPool): NdviSeriesRouteDeps {
+  return {
+    loadIncident: incidentLoader(pool),
+    getSeries: incident => ndviSeries.get(incident.id, incident.bbox),
+  };
+}
+
 export function createIncidentImageryDeps(pool: QueryPool): IncidentImageryDeps {
   return {
-    async loadIncident(id: number): Promise<IncidentGeo | 'no-geometry' | null> {
-      const { rows } = await pool.query(INCIDENT_GEO_SQL, [id]);
-      return rows[0] ? incidentGeoFromRow(rows[0]) : null;
-    },
+    loadIncident: incidentLoader(pool),
     getImagery(incident: IncidentGeo): Promise<IncidentImagery> {
       return cached(incidentImageryKey(incident.id, incident.lastSeen), SELECTION_TTL_SEC,
         () => getIncidentImagery(incident, imageryDeps));

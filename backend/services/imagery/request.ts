@@ -50,6 +50,7 @@ export function parseImageRequest(sceneId: string, render: string, bboxParam: st
   return { ok: true, value: { sceneId, render: render as Render, bbox, bboxParam } };
 }
 
-export const incidentImageryKey = (id: number, lastSeen: string) => `imagery:incident:v1:${id}:${lastSeen}`;
+/** v2: the response gained `indices` (NDVI/NBR, dNBR) and the `ndvi` image URL. */
+export const incidentImageryKey = (id: number, lastSeen: string) => `imagery:incident:v2:${id}:${lastSeen}`;
 export const sceneItemKey = (sceneId: string) => `imagery:s2:item:v1:${sceneId}`;
 export const pngKey = (r: ImageRequest) => `imagery:s2:png:${RENDER_VERSION}:${r.sceneId}:${r.render}:${r.bboxParam}`;

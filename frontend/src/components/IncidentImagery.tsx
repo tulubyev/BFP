@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getIncidentImagery, ImageryApiError, type ImageryRender, type ImagerySide, type IncidentImagery as Imagery } from '../api/imagery';
 import { IMAGERY_NOTE, IMAGERY_RENDER_LABELS, hasImages, imageUrl, sideCaption } from '../utils/imagery';
+import { IndicesPanel, NdviLegend } from './IncidentIndices';
 
-const RENDERS: ImageryRender[] = ['truecolor', 'swir'];
+const RENDERS: ImageryRender[] = ['truecolor', 'swir', 'ndvi'];
 
 type State =
   | { kind: 'loading' }
@@ -102,12 +103,14 @@ export default function IncidentImagery({ incidentId }: { incidentId: number }) 
           <SideImage title="После" side={state.data.after} render={render} />
         </div>
       )}
+      {state.kind === 'ready' && state.data.indices && <IndicesPanel indices={state.data.indices} />}
 
       <div className="mt-3 space-y-1 text-xs text-slate-500">
         {state.kind === 'ready' && hasImages([state.data.before, state.data.after]) && (
           <p>{state.data.source.attribution}. Каталог: Earth Search (Element 84), AWS Open Data. Жёлтая рамка — границы события.</p>
         )}
         {render === 'swir' && <p>SWIR (B12/B8A/B04): гари — тёмно-красные, активный огонь — ярко-оранжевый, лес — зелёный.</p>}
+        {render === 'ndvi' && <NdviLegend />}
         <p>{IMAGERY_NOTE}</p>
       </div>
     </section>

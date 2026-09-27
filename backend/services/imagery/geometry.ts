@@ -58,6 +58,14 @@ export function expandAoi(b: Bbox): Bbox {
   return bboxAround(lon, lat, w, h);
 }
 
+/** The bbox grown by `km` on every side (measured at its central latitude), rounded to 5 decimals. */
+export function padBbox(b: Bbox, km: number): Bbox {
+  const lat = (b[1] + b[3]) / 2;
+  const dLon = km / kmPerDegLon(lat);
+  const dLat = km / KM_PER_DEG_LAT;
+  return [round(b[0] - dLon, 5), round(b[1] - dLat, 5), round(b[2] + dLon, 5), round(b[3] + dLat, 5)];
+}
+
 export function bboxIntersects(a: Bbox, b: Bbox): boolean {
   return a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
 }

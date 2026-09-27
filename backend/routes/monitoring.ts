@@ -6,8 +6,8 @@ import { gfwService, getGFWInfo } from '../services/globalForestWatch';
 import { createForestChangesHandler } from '../services/incidentsService';
 import { incidentsCache } from '../utils/incidentsCache';
 import { notStaticSourceSql } from '../services/forestChangesQuery';
-import { createIncidentImageryHandler } from './imagery';
-import { createIncidentImageryDeps } from '../services/imagery';
+import { createIncidentImageryHandler, createNdviSeriesHandler } from './imagery';
+import { createIncidentImageryDeps, createNdviSeriesDeps } from '../services/imagery';
 import { HOTSPOT_GEOJSON_LIMIT, parseDays } from '../utils/queryParams';
 
 const router = Router();
@@ -85,6 +85,8 @@ router.get('/forest-changes', createForestChangesHandler(pool, incidentsCache));
 
 // Sentinel-2 before/after scenes for one incident (cached 24 h per last_seen)
 router.get('/forest-changes/:id/imagery', createIncidentImageryHandler(createIncidentImageryDeps(pool)));
+// Summer NDVI by year, computed in the background: `pending` + progress until ready
+router.get('/forest-changes/:id/ndvi-series', createNdviSeriesHandler(createNdviSeriesDeps(pool)));
 
 router.get('/forest-changes/geojson', async (req: Request, res: Response) => {
   try {

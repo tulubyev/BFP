@@ -1,20 +1,25 @@
 /**
  * Sentinel-2 before/after images for incidents: scene selection (STAC search + SCL check over the
- * AOI) and rendering of one image. All I/O comes in through `ImageryDeps`, so tests run offline.
+ * AOI), NDVI/NBR indices over the incident site for the picked scenes, and rendering of one image.
+ * All I/O comes in through `ImageryDeps`, so tests run offline.
  */
 import proj4 from 'proj4';
 import { readToGrid, type OpenCog } from './cog';
 import {
-  bboxIntersects, clipBbox, expandAoi, planGrid, projectBbox, toGridPixel, utmProjDef,
+  bboxIntersects, clipBbox, expandAoi, padBbox, planGrid, projectBbox, toGridPixel, utmProjDef,
   type Bbox, type Grid, type Project,
 } from './geometry';
-import { encodePng, outlineSvg, reflectanceScale, swirRgba, truecolorRgba, type Render } from './render';
+import {
+  INDEX_MAX_SIDE, INDEX_PIXEL_M, SITE_PAD_KM, combineIndices, polygonMask, regionIndexStats, subtractMask,
+  type IncidentIndices, type RegionIndexStats,
+} from './indices';
+import { RENDERS, encodePng, ndviRgba, outlineSvg, reflectanceScale, swirRgba, truecolorRgba, type Render } from './render';
 import { imagePath } from './request';
 import {
   MAX_CANDIDATES, MAX_SEARCH_CLOUD_COVER, activityWindow, afterNoneReason, afterWindow, beforeNoneReason, beforeWindow,
   clearPct, orderCandidates, pickScene, sclStats, toInterval, type SclStats, type TimeWindow,
 } from './selection';
-import { STAC_API_URL, platformLabel, type S2Scene, type StacClient } from './stac';
+import { STAC_API_URL, platformLabel, type S2AssetKey, type S2Scene, type StacClient } from './stac';
 
 export interface ImageryDeps {
   stac: StacClient;
@@ -30,6 +35,8 @@ export interface IncidentGeo {
   bbox: Bbox;
   firstSeen: string;
   lastSeen: string;
+  /** False when `bbox` is only the centre point (not a FIRMS incident): no NDVI series then. */
+  hasBbox?: boolean;
 }
 
 export type ImagerySide =
@@ -50,6 +57,8 @@ export interface IncidentImagery {
   aoi: Bbox;
   before: ImagerySide;
   after: ImagerySide;
+  /** NDVI/NBR over the incident site for the two scenes, ΔNDVI, dNBR and its USGS class. */
+  indices: IncidentIndices;
   source: { name: string; url: string; license: string; attribution: string };
   generatedAt: string;
 }
@@ -93,8 +102,56 @@ function okSide(scene: S2Scene, stats: SclStats, outline: Bbox, duringActivity: 
     platform: platformLabel(scene),
     clearPct: clearPct(stats),
     ...(duringActivity ? { duringActivity: true as const } : {}),
-    urls: { truecolor: imagePath(scene.id, 'truecolor', outline), swir: imagePath(scene.id, 'swir', outline) },
+    urls: Object.fromEntries(RENDERS.map(r => [r, imagePath(scene.id, r, outline)])) as Record<Render, string>,
   };
+}
+
+/** Grid and region masks for index statistics of one scene: the site and the ring around it (AOI minus site). */
+export interface IndexPlan {
+  grid: Grid;
+  site: Uint8Array;
+  ring: Uint8Array;
+}
+
+export function indexPlan(epsg: number, aoi: Bbox, site: Bbox): IndexPlan {
+  const { grid, project } = sceneGrid(epsg, aoi, INDEX_MAX_SIDE, INDEX_PIXEL_M);
+  const corners = (b: Bbox) => ([[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]] as [number, number][])
+    .map(p => toGridPixel(project(p), grid));
+  const siteMask = polygonMask(grid, corners(site));
+  return { grid, site: siteMask, ring: subtractMask(polygonMask(grid, corners(aoi)), siteMask) };
+}
+
+/** Site of an incident for index statistics: bbox of hotspot centres + half a VIIRS pixel, cut to the AOI. */
+export const incidentSite = (bbox: Bbox, aoi: Bbox): Bbox => clipBbox(padBbox(bbox, SITE_PAD_KM), aoi);
+
+/** One band of a scene on the grid (nearest neighbour: statistics, not a picture), behind deps.schedule. */
+export async function readSceneBand(
+  scene: S2Scene, key: S2AssetKey, grid: Grid, deps: ImageryDeps, signal?: AbortSignal,
+): Promise<Float32Array> {
+  const href = scene.assets[key]?.href;
+  if (!href) throw new Error(`${scene.id}: no ${key} asset`);
+  const [band] = await run(deps, async () => readToGrid(await deps.openCog(href, signal), grid, 'nearest', signal));
+  return band;
+}
+
+/**
+ * Index statistics of a scene over the site and the ring. `scl` may be passed when already read on
+ * `plan.grid`; NBR (B12) only with `nbr: true`.
+ */
+export async function readSceneIndices(
+  scene: S2Scene, plan: IndexPlan, deps: ImageryDeps, opts: { nbr: boolean; scl?: Float32Array; signal?: AbortSignal },
+): Promise<{ site: RegionIndexStats; ring: RegionIndexStats }> {
+  const read = (key: S2AssetKey) => readSceneBand(scene, key, plan.grid, deps, opts.signal);
+  const [scl, red, nir, swir] = await Promise.all([
+    opts.scl ?? read('scl'), read('red'), read('nir08'), opts.nbr ? read('swir22') : undefined,
+  ]);
+  const bands = { red, nir, scl, ...(swir ? { swir } : {}) };
+  const scales = {
+    red: reflectanceScale(scene.assets.red?.['raster:bands']),
+    nir: reflectanceScale(scene.assets.nir08?.['raster:bands']),
+    ...(swir ? { swir: reflectanceScale(scene.assets.swir22?.['raster:bands']) } : {}),
+  };
+  return { site: regionIndexStats(bands, scales, plan.site), ring: regionIndexStats(bands, scales, plan.ring) };
 }
 
 async function candidates(deps: ImageryDeps, aoi: Bbox, window: TimeWindow, sort: 'asc' | 'desc'): Promise<S2Scene[]> {
@@ -111,32 +168,45 @@ export async function getIncidentImagery(incident: IncidentGeo, deps: ImageryDep
   const outline = clipBbox(incident.bbox, aoi);
   const readScl = (scene: S2Scene) => readSceneScl(scene, aoi, deps);
 
-  const beforeSide = async (): Promise<ImagerySide> => {
+  type Picked = { side: ImagerySide; scene: S2Scene | null };
+  const beforeSide = async (): Promise<Picked> => {
     const picked = await pickScene(await candidates(deps, aoi, beforeWindow(incident.firstSeen), 'desc'), readScl);
     return picked.scene && picked.stats
-      ? okSide(picked.scene, picked.stats, outline, false)
-      : { status: 'none', reason: beforeNoneReason(picked.checked) };
+      ? { side: okSide(picked.scene, picked.stats, outline, false), scene: picked.scene }
+      : { side: { status: 'none', reason: beforeNoneReason(picked.checked) }, scene: null };
   };
 
-  const afterSide = async (): Promise<ImagerySide> => {
+  const afterSide = async (): Promise<Picked> => {
     const window = afterWindow(incident.lastSeen, now);
     const after = window ? await candidates(deps, aoi, window, 'asc') : [];
     const picked = await pickScene(after, readScl);
-    if (picked.scene && picked.stats) return okSide(picked.scene, picked.stats, outline, false);
+    if (picked.scene && picked.stats) return { side: okSide(picked.scene, picked.stats, outline, false), scene: picked.scene };
     // Nothing usable after the last hotspot: the newest scene while the incident was burning
     const during = await candidates(deps, aoi, activityWindow(incident.firstSeen, incident.lastSeen), 'desc');
     const pickedDuring = await pickScene(during, readScl);
-    if (pickedDuring.scene && pickedDuring.stats) return okSide(pickedDuring.scene, pickedDuring.stats, outline, true);
-    return { status: 'none', reason: afterNoneReason(after.length + during.length, [...picked.checked, ...pickedDuring.checked]) };
+    if (pickedDuring.scene && pickedDuring.stats) {
+      return { side: okSide(pickedDuring.scene, pickedDuring.stats, outline, true), scene: pickedDuring.scene };
+    }
+    const reason = afterNoneReason(after.length + during.length, [...picked.checked, ...pickedDuring.checked]);
+    return { side: { status: 'none', reason }, scene: null };
   };
 
-  const [before, after] = await Promise.all([beforeSide(), afterSide()]);
+  const [b, a] = await Promise.all([beforeSide(), afterSide()]);
+  const before = b.side;
+  const after = a.side;
+  // Indices over the site; a read failure rejects, so the selection is not cached without them
+  const site = incidentSite(incident.bbox, aoi);
+  const siteStats = async (scene: S2Scene | null) =>
+    (scene ? (await readSceneIndices(scene, indexPlan(scene.epsg, aoi, site), deps, { nbr: true })).site : null);
+  const [beforeStats, afterStats] = await Promise.all([siteStats(b.scene), siteStats(a.scene)]);
+  const indices = combineIndices(beforeStats, afterStats, after.status === 'ok' && after.duringActivity === true, site);
   const years = [before, after].flatMap(s => (s.status === 'ok' ? [new Date(s.datetime).getUTCFullYear()] : []));
   return {
     incidentId: incident.id,
     aoi,
     before,
     after,
+    indices,
     source: {
       name: SOURCE_NAME,
       url: STAC_API_URL,
@@ -157,7 +227,7 @@ export async function renderScenePng(
 ): Promise<Buffer> {
   const aoi = expandAoi(outline);
   const { grid, project } = sceneGrid(scene.epsg, aoi);
-  const open = (key: 'visual' | 'swir22' | 'nir08' | 'red') => {
+  const open = (key: 'visual' | 'swir22' | 'nir08' | 'red' | 'scl') => {
     const href = scene.assets[key]?.href;
     if (!href) throw new Error(`${scene.id}: no ${key} asset`);
     return deps.openCog(href, signal);
@@ -168,6 +238,16 @@ export async function renderScenePng(
     const [r, g, b] = await readToGrid(await open('visual'), grid, 'bilinear', signal);
     if (!g || !b) throw new Error(`${scene.id}: visual asset is not RGB`);
     rgba = truecolorRgba(r, g, b);
+  } else if (render === 'ndvi') {
+    const [[red], [nir], [scl]] = await Promise.all([
+      readToGrid(await open('red'), grid, 'bilinear', signal),
+      readToGrid(await open('nir08'), grid, 'bilinear', signal),
+      readToGrid(await open('scl'), grid, 'nearest', signal),
+    ]);
+    rgba = ndviRgba(red, nir, scl, [
+      reflectanceScale(scene.assets.red?.['raster:bands']),
+      reflectanceScale(scene.assets.nir08?.['raster:bands']),
+    ]);
   } else {
     const [[b12], [b8a], [b04]] = await Promise.all(
       (['swir22', 'nir08', 'red'] as const).map(async key => readToGrid(await open(key), grid, 'bilinear', signal)),

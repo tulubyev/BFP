@@ -1,8 +1,9 @@
 import sharp from 'sharp';
 import type { OpenedCog } from '../../../backend/services/imagery/cog';
 import { expandAoi, projectBbox, type Bbox } from '../../../backend/services/imagery/geometry';
+import { INDEX_REASONS } from '../../../backend/services/imagery/indices';
 import {
-  attributionFor, getIncidentImagery, projectorFor, readSceneScl, renderScenePng, sceneCovers, sceneGrid, type ImageryDeps,
+  attributionFor, getIncidentImagery, incidentSite, projectorFor, readSceneScl, renderScenePng, sceneCovers, sceneGrid, type ImageryDeps,
 } from '../../../backend/services/imagery/service';
 import type { S2Scene, SearchParams } from '../../../backend/services/imagery/stac';
 import { NONE_REASONS } from '../../../backend/services/imagery/selection';
@@ -17,12 +18,28 @@ function constantCog(value: number): OpenedCog {
   return {
     samples: 1,
     levels: [{ width: 10_000, height: 10_000, origin: [300_000, 6_000_000], resolution: [20, -20] }],
-    async readWindow(_level, w) { return [new Uint8Array((w[2] - w[0]) * (w[3] - w[1])).fill(value)]; },
+    async readWindow(_level, w) { return [new Uint16Array((w[2] - w[0]) * (w[3] - w[1])).fill(value)]; },
   };
 }
 
-const s = (id: string, datetime: string, sclValue: number) =>
-  ({ ...scene({ id, datetime, assets: { ...scene().assets, scl: { href: `https://example.test/${id}/SCL.tif:${sclValue}` } } }) });
+/** Band DNs (C1: reflectance = DN × 0.0001 − 0.1). Healthy forest: NDVI 0.812, NBR 0.526. */
+const HEALTHY = { red: 1300, nir: 3900, swir: 1900 };
+/** Burn scar: NDVI 0.238, NBR −0.278. */
+const BURNT = { red: 1800, nir: 2300, swir: 3300 };
+
+/** A scene whose every COG is constant; the value rides in the href after the last ":". */
+const s = (id: string, datetime: string, sclValue: number, dn = HEALTHY) => {
+  const base = scene().assets;
+  return scene({
+    id, datetime, assets: {
+      ...base,
+      scl: { href: `https://example.test/${id}/SCL.tif:${sclValue}` },
+      red: { ...base.red!, href: `https://example.test/${id}/B04.tif:${dn.red}` },
+      nir08: { ...base.nir08!, href: `https://example.test/${id}/B8A.tif:${dn.nir}` },
+      swir22: { ...base.swir22!, href: `https://example.test/${id}/B12.tif:${dn.swir}` },
+    },
+  });
+};
 
 function fakeDeps(byWindow: (p: SearchParams) => S2Scene[]): ImageryDeps & { searches: SearchParams[] } {
   const searches: SearchParams[] = [];
@@ -44,9 +61,19 @@ describe('getIncidentImagery', () => {
     const deps = fakeDeps(p => (p.sort === 'desc' && p.datetime.startsWith('2025-05')
       ? [s('S2A_T48UUE_20250718T043045_L2A', '2025-07-18T04:33:00Z', CLOUD), s('S2B_T48UUE_20250713T043045_L2A', '2025-07-13T04:33:00Z', CLEAR)]
       : p.sort === 'asc'
-        ? [s('S2C_T48UUE_20250725T043045_L2A', '2025-07-25T04:33:00Z', CLEAR)]
+        ? [s('S2C_T48UUE_20250725T043045_L2A', '2025-07-25T04:33:00Z', CLEAR, BURNT)]
         : []));
     const r = await getIncidentImagery(incident, deps);
+    expect(r.indices).toEqual({
+      before: { ndvi: 0.812, nbr: 0.526, validPct: 100 },
+      after: { ndvi: 0.238, nbr: -0.278, validPct: 100 },
+      dNdvi: -0.574,
+      dNbr: 0.804,
+      severity: { class: 'high', label: 'высокая степень выгорания' },
+      reasons: [],
+      site: incidentSite(INCIDENT_BBOX, r.aoi),
+      note: 'оценка по двум снимкам Sentinel-2, не полевое обследование',
+    });
     expect(r.before).toEqual({
       status: 'ok',
       sceneId: 'S2B_T48UUE_20250713T043045_L2A',
@@ -56,6 +83,7 @@ describe('getIncidentImagery', () => {
       urls: {
         truecolor: '/imagery/s2/v1/S2B_T48UUE_20250713T043045_L2A/truecolor/103.05000,53.60000,103.09000,53.63000.png',
         swir: '/imagery/s2/v1/S2B_T48UUE_20250713T043045_L2A/swir/103.05000,53.60000,103.09000,53.63000.png',
+        ndvi: '/imagery/s2/v1/S2B_T48UUE_20250713T043045_L2A/ndvi/103.05000,53.60000,103.09000,53.63000.png',
       },
     });
     expect(r.after).toMatchObject({ status: 'ok', sceneId: 'S2C_T48UUE_20250725T043045_L2A' });
@@ -80,6 +108,10 @@ describe('getIncidentImagery', () => {
     const r = await getIncidentImagery(incident, deps);
     expect(r.after).toMatchObject({ status: 'ok', sceneId: 'S2A_T48UUE_20250721T043045_L2A', duringActivity: true });
     expect(r.before).toEqual({ status: 'none', reason: NONE_REASONS.beforeCloudy });
+    expect(r.indices).toMatchObject({
+      before: null, after: { ndvi: 0.812, nbr: 0.526, validPct: 100 }, dNdvi: null, dNbr: null, severity: null,
+      reasons: [INDEX_REASONS.beforeMissing],
+    });
   });
 
   it('an active incident searches only during activity (no window after last_seen = now)', async () => {
@@ -101,12 +133,35 @@ describe('getIncidentImagery', () => {
     await expect(getIncidentImagery(incident, deps)).rejects.toThrow('STAC 502');
   });
 
-  it('routes every SCL read through deps.schedule', async () => {
+  it('routes every COG read (SCL check, index bands) through deps.schedule', async () => {
     const deps = fakeDeps(p => (p.sort === 'asc' ? [s('S2C_T48UUE_20250725T043045_L2A', '2025-07-25T04:33:00Z', CLEAR)] : []));
     let calls = 0;
+    const opened: string[] = [];
     const schedule = <T,>(task: () => Promise<T>): Promise<T> => { calls++; return task(); };
-    await getIncidentImagery(incident, { ...deps, schedule });
-    expect(calls).toBe(1);
+    const openCog = async (href: string) => { opened.push(href.split('/').pop()!.split(':')[0]); return deps.openCog(href); };
+    await getIncidentImagery(incident, { ...deps, schedule, openCog });
+    // scene check + SCL, B04, B8A, B12 for the indices of the one picked scene
+    expect(opened.sort()).toEqual(['B04.tif', 'B12.tif', 'B8A.tif', 'SCL.tif', 'SCL.tif']);
+    expect(calls).toBe(opened.length);
+  });
+
+  it('a failed index read rejects the whole selection (never cached without indices)', async () => {
+    const deps = fakeDeps(p => (p.sort === 'asc' ? [s('S2C_T48UUE_20250725T043045_L2A', '2025-07-25T04:33:00Z', CLEAR)] : []));
+    const openCog = async (href: string) => {
+      if (href.includes('B12')) throw new Error('COG 503');
+      return deps.openCog(href);
+    };
+    await expect(getIncidentImagery(incident, { ...deps, openCog })).rejects.toThrow('COG 503');
+  });
+
+  it('no dNBR for an "after" scene taken during activity', async () => {
+    const deps = fakeDeps(p => {
+      if (p.sort === 'asc') return [];
+      if (p.datetime.startsWith('2025-07-20')) return [s('S2A_T48UUE_20250721T043045_L2A', '2025-07-21T04:33:00Z', CLEAR, BURNT)];
+      return [s('S2B_T48UUE_20250713T043045_L2A', '2025-07-13T04:33:00Z', CLEAR)];
+    });
+    const r = await getIncidentImagery(incident, deps);
+    expect(r.indices).toMatchObject({ dNdvi: -0.574, dNbr: null, severity: null, reasons: [INDEX_REASONS.duringActivity] });
   });
 });
 
@@ -175,6 +230,17 @@ describe('renderScenePng (in-memory GeoTIFFs)', () => {
     const png = await renderScenePng(sc, 'truecolor', INCIDENT_BBOX, deps({ 'TCI.tif': small }));
     const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
     expect(data[(info.width * info.height - 1) * 4 + 3]).toBe(0);
+  });
+
+  it('renders ndvi from B04/B8A with the SCL mask', async () => {
+    const band = (v: number) => memoryCog([grid2d(h, w, () => v)], origin, 50);
+    // SCL: the left half clear vegetation, the right half cloud
+    const scl = await memoryCog([grid2d(h, w, (_r, c) => (c < w / 2 ? 4 : 9))], origin, 50, 32648, 8);
+    const png = await renderScenePng(sc, 'ndvi', INCIDENT_BBOX, deps({ 'B04.tif': await band(1400), 'B8A.tif': await band(4100), 'SCL.tif': scl }));
+    const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+    expect(data[1]).toBeGreaterThan(data[0]); // top-left: green
+    expect(data[3]).toBe(255);
+    expect(data[(info.width - 1) * 4 + 3]).toBe(0); // top-right: cloud → transparent
   });
 
   it('fails clearly when an asset is missing', async () => {

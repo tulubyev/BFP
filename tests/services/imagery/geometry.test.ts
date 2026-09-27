@@ -1,5 +1,5 @@
 import {
-  bboxIntersects, bboxSizeKm, clipBbox, expandAoi, formatBbox, pickLevel, pixelWindow, planGrid, projectBbox,
+  bboxIntersects, bboxSizeKm, clipBbox, expandAoi, formatBbox, padBbox, pickLevel, pixelWindow, planGrid, projectBbox,
   resampleToGrid, toGridPixel, utmProjDef, type Bbox, type CogLevel, type Grid,
 } from '../../../backend/services/imagery/geometry';
 import { projectorFor } from '../../../backend/services/imagery/service';
@@ -175,5 +175,15 @@ describe('toGridPixel', () => {
     const grid: Grid = { extent: [1000, 2000, 1100, 2100], width: 10, height: 10, pixelSize: 10 };
     expect(toGridPixel([1000, 2100], grid)).toEqual([0, 0]);
     expect(toGridPixel([1050, 2000], grid)).toEqual([5, 10]);
+  });
+});
+
+describe('padBbox', () => {
+  it('grows every side by the given km at the central latitude', () => {
+    const b = padBbox([103.07, 53.615, 103.07, 53.615], 0.1875);
+    const { widthKm, heightKm } = bboxSizeKm(b);
+    expect(widthKm).toBeCloseTo(0.375, 2);
+    expect(heightKm).toBeCloseTo(0.375, 2);
+    expect((b[0] + b[2]) / 2).toBeCloseTo(103.07, 5);
   });
 });
