@@ -83,7 +83,54 @@ describe('kept /api/monitoring endpoints', () => {
     const [sql, params] = mockQuery.mock.calls[0];
     expect(sql).toContain('change_type = $1');
     expect(sql).not.toContain("'1'='1");
-    expect(params).toEqual(["fire' OR '1'='1"]);
+    expect(params).toEqual(["fire' OR '1'='1", 500]);
+  });
+
+  it('GET /forest-changes/geojson applies start_date and static_sources as the feed does', async () => {
+    mockQuery.mockResolvedValue({
+      rows: [{
+        id: 7, change_type: 'fire', detected_date: '2026-09-20', center_lat: '52.2', center_lng: '104.2',
+        bbox_min_lat: '52.1', bbox_min_lng: '104.1', bbox_max_lat: '52.3', bbox_max_lng: '104.3',
+        method: 'firms-cluster-v1', status: 'inactive', hotspot_count: '3', region: 'Иркутская область',
+      }],
+    });
+    await withServer(async base => {
+      const res = await fetch(`${base}/forest-changes/geojson?change_type=fire&start_date=2026-08-28&static_sources=only`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.type).toBe('FeatureCollection');
+      expect(body.features[0]).toMatchObject({
+        id: 7,
+        geometry: { type: 'Point', coordinates: [104.2, 52.2] },
+        properties: { status: 'inactive', hotspot_count: 3, bbox: [104.1, 52.1, 104.3, 52.3], region: 'Иркутская область' },
+      });
+    });
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("fc.metadata->>'status' = 'static_source'");
+    expect(sql).toContain('fc.detected_date >= $2');
+    expect(params).toEqual(['fire', '2026-08-28', 500]);
+  });
+
+  it('GET /forest-changes/geojson hides static sources by default and drops a bad start_date', async () => {
+    mockQuery.mockResolvedValue({ rows: [] });
+    await withServer(async base => {
+      const res = await fetch(`${base}/forest-changes/geojson?start_date=${encodeURIComponent("1' OR '1'='1")}&static_sources=all`);
+      expect(res.status).toBe(200);
+    });
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("<> 'static_source'");
+    expect(sql).not.toContain('detected_date >=');
+    expect(params).toEqual([500]);
+  });
+
+  it('GET /forest-changes/geojson answers 500 without data on a database error', async () => {
+    mockQuery.mockRejectedValue(new Error('down'));
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    await withServer(async base => {
+      const res = await fetch(`${base}/forest-changes/geojson`);
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ success: false, error: 'Database error' });
+    });
   });
 
   it('GET /gfw/tree-cover-loss clamps years instead of looping over them', async () => {

@@ -12,8 +12,8 @@ import { scanDirectory, scanSource, type Allowlist } from './sqlGuard';
 const ROOT = path.resolve(__dirname, '../..');
 
 export const ALLOWLIST: Allowlist = {
-  // Deprecated GeoJSON feed: the alias argument is a literal
-  'backend/routes/monitoring.ts': ["notStaticSourceSql('forest_changes')"],
+  // Map layer GeoJSON reuses the feed's query builder: WHERE with placeholders, constant columns
+  'backend/services/forestChangesGeojson.ts': ['GEOJSON_COLUMNS', 'REGION_EXPR', 'FOREST_CHANGES_FROM', 'built.where'],
   // Export reuses the feed's query builder: WHERE with placeholders, ORDER BY from the sort whitelist
   'backend/services/export/incidentsExport.ts': ['REGION_EXPR', 'FOREST_CHANGES_FROM', 'built.where', 'built.orderBy'],
   // Constant column lists, placeholders computed from row/column indexes
