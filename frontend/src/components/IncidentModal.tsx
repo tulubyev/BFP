@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
 import { getIncidentStatus, incidentTypeOf } from './IncidentCard';
 import IncidentImagery from './IncidentImagery';
+import NdviSeries from './NdviSeries';
 import { canRequestImagery } from '../utils/imagery';
 import {
   FIRMS_AREA_NOTE, STATIC_SOURCE_LABEL, detectedDateLabel, firmsIncidentInfo, formatDateTime, serializeIncident, staticSourceNote,
@@ -70,6 +71,8 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
             {rows.map(([label, value]) => <div key={label}><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-slate-200">{value}</dd></div>)}
           </dl>
           {canRequestImagery(incident) && <IncidentImagery incidentId={incident.id} />}
+          {/* The series needs an incident outline: FIRMS incidents only */}
+          {firms && canRequestImagery(incident) && <NdviSeries incidentId={incident.id} />}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <button onClick={showOnMap} disabled={incident.center_lat == null || incident.center_lng == null} className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">Показать на карте</button>
             <button onClick={download} className="rounded-lg border border-slate-600 px-4 py-2 hover:bg-slate-700">Скачать данные (JSON)</button>

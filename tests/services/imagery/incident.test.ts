@@ -11,19 +11,19 @@ const firms = {
 describe('incidentGeoFromRow', () => {
   it('uses the bbox and first/last seen of a FIRMS incident', () => {
     expect(incidentGeoFromRow(firms)).toEqual({
-      id: 12, bbox: [103.05, 53.6, 103.09, 53.63], firstSeen: '2025-07-20T05:00:00.000Z', lastSeen: '2025-07-22T18:30:00.000Z',
+      id: 12, bbox: [103.05, 53.6, 103.09, 53.63], firstSeen: '2025-07-20T05:00:00.000Z', lastSeen: '2025-07-22T18:30:00.000Z', hasBbox: true,
     });
   });
 
   it('falls back to the centre point and detected_date', () => {
     const row = { id: 3, center_lat: '52.1', center_lng: '104.2', detected_date: '2024-06-01' };
     expect(incidentGeoFromRow(row)).toEqual({
-      id: 3, bbox: [104.2, 52.1, 104.2, 52.1], firstSeen: '2024-06-01T00:00:00.000Z', lastSeen: '2024-06-01T00:00:00.000Z',
+      id: 3, bbox: [104.2, 52.1, 104.2, 52.1], firstSeen: '2024-06-01T00:00:00.000Z', lastSeen: '2024-06-01T00:00:00.000Z', hasBbox: false,
     });
   });
 
   it('ignores an inverted bbox and uses the centre', () => {
-    expect(incidentGeoFromRow({ ...firms, bbox_min_lat: 54, bbox_max_lat: 53 })).toMatchObject({ bbox: [103.07, 53.615, 103.07, 53.615] });
+    expect(incidentGeoFromRow({ ...firms, bbox_min_lat: 54, bbox_max_lat: 53 })).toMatchObject({ bbox: [103.07, 53.615, 103.07, 53.615], hasBbox: false });
   });
 
   it.each([

@@ -87,6 +87,11 @@ export interface SclStats {
   saturated: number;
 }
 
+/** Whether one SCL class counts as clear (the same rule as the scene check; class 2 is clear). */
+export function isClearScl(v: number): boolean {
+  return v !== SCL_NODATA && v !== SCL_SATURATED && v !== SCL_CLOUD_SHADOW && v !== SCL_SNOW && !SCL_CLOUD.includes(v);
+}
+
 export function sclStats(values: ArrayLike<number>): SclStats {
   const s: SclStats = { total: values.length, clear: 0, nodata: 0, cloud: 0, shadow: 0, snow: 0, saturated: 0 };
   for (let i = 0; i < values.length; i++) {

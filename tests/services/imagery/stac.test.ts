@@ -106,6 +106,15 @@ describe('searchBody', () => {
   });
 });
 
+describe('searchBody sorted by cloud cover (NDVI series)', () => {
+  it('least cloudy first, then by date', () => {
+    expect(searchBody({ bbox: [1, 2, 3, 4], datetime: 'a/b', sort: 'asc', sortBy: 'cloud', limit: 6, maxCloudCover: 80 }).sortby).toEqual([
+      { field: 'properties.eo:cloud_cover', direction: 'asc' },
+      { field: 'properties.datetime', direction: 'asc' },
+    ]);
+  });
+});
+
 describe('createStacClient', () => {
   it('search posts to /search and slims the features', async () => {
     const fetchJson = jest.fn(async () => ({ features: [rawItem(), { id: 'junk' }] }));

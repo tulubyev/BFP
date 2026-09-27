@@ -33,7 +33,11 @@ describe('parseImageRequest', () => {
     expect(parseImageRequest('S2C_T05VNK_20250101T220000_L2A', 'swir', BBOX).ok).toBe(true);
   });
 
-  it.each(['ndvi', 'TRUECOLOR', '', 'visual'])('rejects render %p', render => {
+  it('accepts the ndvi render', () => {
+    expect(parseImageRequest(ID, 'ndvi', BBOX)).toMatchObject({ ok: true, value: { render: 'ndvi' } });
+  });
+
+  it.each(['evi', 'NDVI', 'TRUECOLOR', '', 'visual'])('rejects render %p', render => {
     expect(parseImageRequest(ID, render, BBOX).ok).toBe(false);
   });
 
@@ -69,7 +73,7 @@ describe('parseImageRequest', () => {
 
 describe('cache keys', () => {
   it('are versioned and specific', () => {
-    expect(incidentImageryKey(42, '2025-07-22T18:30:00.000Z')).toBe('imagery:incident:v1:42:2025-07-22T18:30:00.000Z');
+    expect(incidentImageryKey(42, '2025-07-22T18:30:00.000Z')).toBe('imagery:incident:v2:42:2025-07-22T18:30:00.000Z');
     expect(sceneItemKey(ID)).toBe(`imagery:s2:item:v1:${ID}`);
     const parsed = parseImageRequest(ID, 'swir', BBOX);
     if (!parsed.ok) throw new Error('expected ok');

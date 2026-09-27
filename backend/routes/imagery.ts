@@ -3,11 +3,14 @@
  *
  * - GET /imagery/s2/v1/<sceneId>/<render>/<bbox>.png — the rendered PNG; immutable for a year
  *   (browser + Beget CDN), since the URL fully determines the picture. Errors are never cacheable.
- * - GET /api/monitoring/forest-changes/:id/imagery — the scenes picked for an incident
- *   (handler built here, mounted in routes/monitoring.ts).
+ * - GET /api/monitoring/forest-changes/:id/imagery — the scenes picked for an incident and their
+ *   indices (handler built here, mounted in routes/monitoring.ts).
+ * - GET /api/monitoring/forest-changes/:id/ndvi-series — summer NDVI by year; answers at once with
+ *   `pending` + progress while the series is computed in the background (mounted in monitoring.ts).
  */
 import { Router, type Request, type Response } from 'express';
 import type { IncidentGeo, IncidentImagery } from '../services/imagery/service';
+import type { NdviSeriesResponse } from '../services/imagery/ndviSeries';
 import { parseImageRequest, type ImageRequest } from '../services/imagery/request';
 import type { S2Scene } from '../services/imagery/stac';
 import { QueueFullError, TimeoutError, withTimeout } from '../utils/limiter';
@@ -76,28 +79,61 @@ export interface IncidentImageryDeps {
   timeoutMs?: number;
 }
 
+/** Parses :id and loads the incident; sends the error response and returns null when it cannot. */
+async function incidentFor(
+  req: Request, res: Response, loadIncident: (id: number) => Promise<IncidentGeo | 'no-geometry' | null>,
+): Promise<IncidentGeo | null> {
+  const raw = req.params.id;
+  const id = /^\d{1,10}$/.test(raw) ? Number(raw) : NaN;
+  if (!Number.isSafeInteger(id) || id <= 0) { fail(res, 400, 'invalid incident id'); return null; }
+
+  let incident: IncidentGeo | 'no-geometry' | null;
+  try {
+    incident = await loadIncident(id);
+  } catch (err) {
+    console.error('imagery: incident lookup failed:', (err as Error)?.message);
+    fail(res, 503, 'База данных недоступна');
+    return null;
+  }
+  if (!incident) { fail(res, 404, 'Событие не найдено'); return null; }
+  if (incident === 'no-geometry') { fail(res, 422, 'У события нет координат или даты — снимки подобрать нельзя'); return null; }
+  return incident;
+}
+
 export function createIncidentImageryHandler(deps: IncidentImageryDeps) {
   const timeoutMs = deps.timeoutMs ?? REQUEST_TIMEOUT_MS;
   return async function incidentImageryHandler(req: Request, res: Response): Promise<void> {
-    const raw = req.params.id;
-    const id = /^\d{1,10}$/.test(raw) ? Number(raw) : NaN;
-    if (!Number.isSafeInteger(id) || id <= 0) return fail(res, 400, 'invalid incident id');
-
-    let incident: IncidentGeo | 'no-geometry' | null;
-    try {
-      incident = await deps.loadIncident(id);
-    } catch (err) {
-      console.error('imagery: incident lookup failed:', (err as Error)?.message);
-      return fail(res, 503, 'База данных недоступна');
-    }
-    if (!incident) return fail(res, 404, 'Событие не найдено');
-    if (incident === 'no-geometry') return fail(res, 422, 'У события нет координат или даты — снимки подобрать нельзя');
+    const incident = await incidentFor(req, res, deps.loadIncident);
+    if (!incident) return;
 
     try {
       const imagery = await withTimeout(deps.getImagery(incident), timeoutMs, 'imagery selection');
       res.set('Cache-Control', 'no-cache').json(imagery);
     } catch (err) {
       sendFailure(res, err, 'Подбор снимков');
+    }
+  };
+}
+
+export interface NdviSeriesRouteDeps {
+  loadIncident(id: number): Promise<IncidentGeo | 'no-geometry' | null>;
+  /** Ready years and progress; never waits for the computation. QueueFullError when too many are queued. */
+  getSeries(incident: IncidentGeo): Promise<NdviSeriesResponse>;
+  timeoutMs?: number;
+}
+
+export function createNdviSeriesHandler(deps: NdviSeriesRouteDeps) {
+  const timeoutMs = deps.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  return async function ndviSeriesHandler(req: Request, res: Response): Promise<void> {
+    const incident = await incidentFor(req, res, deps.loadIncident);
+    if (!incident) return;
+    if (!incident.hasBbox) return fail(res, 422, 'Ряд NDVI строится только для событий с контуром (инциденты FIRMS)');
+    try {
+      const series = await withTimeout(deps.getSeries(incident), timeoutMs, 'ndvi series');
+      res.set('Cache-Control', 'no-cache').json(series);
+    } catch (err) {
+      if (err instanceof QueueFullError) return fail(res, 503, 'Слишком много запросов, попробуйте позже');
+      sendFailure(res, err, 'Ряд NDVI');
     }
   };
 }

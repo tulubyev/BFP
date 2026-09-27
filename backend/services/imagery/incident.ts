@@ -25,8 +25,10 @@ export function incidentGeoFromRow(row: Record<string, unknown>): IncidentGeo | 
   const maxLat = num(row.bbox_max_lat); const maxLon = num(row.bbox_max_lng);
   const lat = num(row.center_lat); const lon = num(row.center_lng);
   let bbox: Bbox | null = null;
+  let hasBbox = false;
   if (minLat != null && minLon != null && maxLat != null && maxLon != null && minLat <= maxLat && minLon <= maxLon) {
     bbox = [minLon, minLat, maxLon, maxLat];
+    hasBbox = true;
   } else if (lat != null && lon != null) {
     bbox = [lon, lat, lon, lat];
   }
@@ -36,5 +38,5 @@ export function incidentGeoFromRow(row: Record<string, unknown>): IncidentGeo | 
   const firstSeen = validDate(row.first_seen) ?? detected;
   const lastSeen = validDate(row.last_seen) ?? firstSeen;
   if (!firstSeen || !lastSeen) return 'no-geometry';
-  return { id: Number(row.id), bbox, firstSeen, lastSeen };
+  return { id: Number(row.id), bbox, firstSeen, lastSeen, hasBbox };
 }

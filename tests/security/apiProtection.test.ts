@@ -50,12 +50,12 @@ describe('rate limit settings', () => {
     expect(JSON_BODY_LIMIT).toBe('100kb');
   });
 
-  it('marks exports, incident imagery and NDVI series as expensive, not the feed or regions', () => {
+  it('marks exports and incident imagery as expensive, not the feed, regions or NDVI series polling', () => {
     const expensive = (p: string) => EXPENSIVE_API_PATHS.some(m => (typeof m === 'string' ? p === m || p.startsWith(`${m}/`) : m.test(p)));
     expect(expensive('/api/export/incidents.csv')).toBe(true);
     expect(expensive('/api/export/regions.json')).toBe(true);
     expect(expensive('/api/monitoring/forest-changes/42/imagery')).toBe(true);
-    expect(expensive('/api/monitoring/forest-changes/42/ndvi-series')).toBe(true);
+    expect(expensive('/api/monitoring/forest-changes/42/ndvi-series')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/42/IMAGERY')).toBe(true);
     expect(expensive('/api/monitoring/forest-changes')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/geojson')).toBe(false);
@@ -129,11 +129,13 @@ describe('general /api limit', () => {
 });
 
 describe('expensive endpoints limit', () => {
-  it('limits exports, imagery and NDVI series together, per address, below the general limit', async () => {
+  it('limits exports and imagery together, per address, below the general limit', async () => {
     await withServer(buildApp({ apiLimit: 100, expensiveLimit: 2 }), async base => {
       expect(await hit(base, '/api/export/incidents.csv', 1)).toEqual([200]);
       expect(await hit(base, '/api/monitoring/forest-changes/5/imagery', 1)).toEqual([200]);
-      const limited = await get(base, '/api/monitoring/forest-changes/5/ndvi-series');
+      // NDVI series polling is not in the expensive budget
+      expect(await hit(base, '/api/monitoring/forest-changes/5/ndvi-series', 3)).toEqual([200, 200, 200]);
+      const limited = await get(base, '/api/monitoring/forest-changes/5/imagery');
       expect(limited.status).toBe(429);
       expect(await limited.json()).toEqual({ success: false, error: RATE_LIMIT_MESSAGE });
       expect(limited.headers.get('retry-after')).not.toBeNull();

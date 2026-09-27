@@ -1,7 +1,8 @@
 import express from 'express';
 import type { AddressInfo } from 'net';
 import {
-  IMAGE_CACHE_CONTROL, createImageryRouter, createIncidentImageryHandler, type ImageRouteDeps, type IncidentImageryDeps,
+  IMAGE_CACHE_CONTROL, createImageryRouter, createIncidentImageryHandler, createNdviSeriesHandler, type ImageRouteDeps,
+  type IncidentImageryDeps, type NdviSeriesRouteDeps,
 } from '../../backend/routes/imagery';
 import { SPA_FALLBACK_RE } from '../../backend/utils/spaFallback';
 import { QueueFullError } from '../../backend/utils/limiter';
@@ -50,7 +51,7 @@ describe('GET /imagery/s2/v1/:sceneId/:render/:bbox.png', () => {
 
   it.each([
     ['a bad scene id', `S2A_BAD/swir/${BBOX}.png`],
-    ['an unknown render', `${ID}/ndvi/${BBOX}.png`],
+    ['an unknown render', `${ID}/evi/${BBOX}.png`],
     ['a non-canonical bbox', `${ID}/swir/103.05,53.6,103.09,53.63.png`],
     ['an oversized bbox', `${ID}/swir/103.00000,53.60000,103.50000,53.63000.png`],
   ])('answers 400 for %s, never cacheable', async (_label, path) => {
@@ -183,6 +184,71 @@ describe('GET /api/monitoring/forest-changes/:id/imagery', () => {
     });
     await withIncident(incidentDeps({ getImagery: () => new Promise(() => {}), timeoutMs: 50 }), async base => {
       expect((await fetch(`${base}/api/monitoring/forest-changes/5/imagery`)).status).toBe(504);
+    });
+  });
+});
+
+const series = {
+  incidentId: 5, status: 'pending', years: [], progress: { done: 0, total: 10 }, aoi: [1, 2, 3, 4], site: [1, 2, 3, 4],
+  window: { start: '07-01', end: '08-31' }, source: { name: 'n', url: 'u', license: 'l', attribution: 'a' },
+  generatedAt: '2026-09-27T00:00:00.000Z',
+} as any;
+
+const seriesDeps = (overrides: Partial<NdviSeriesRouteDeps> = {}): NdviSeriesRouteDeps => ({
+  loadIncident: jest.fn(async () => ({ ...geo, hasBbox: true })),
+  getSeries: jest.fn(async () => series),
+  ...overrides,
+});
+
+const withSeries = (deps: NdviSeriesRouteDeps, fn: (base: string) => Promise<void>) =>
+  withApp(app => app.get('/api/monitoring/forest-changes/:id/ndvi-series', createNdviSeriesHandler(deps)), fn);
+
+describe('GET /api/monitoring/forest-changes/:id/ndvi-series', () => {
+  const url = (base: string, id: string | number = 5) => `${base}/api/monitoring/forest-changes/${id}/ndvi-series`;
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('returns the series state (pending or ready), never cached by the browser', async () => {
+    const deps = seriesDeps();
+    await withSeries(deps, async base => {
+      const res = await fetch(url(base));
+      expect(res.status).toBe(200);
+      expect(res.headers.get('cache-control')).toBe('no-cache');
+      expect(await res.json()).toEqual(series);
+      expect(deps.getSeries).toHaveBeenCalledWith({ ...geo, hasBbox: true });
+    });
+  });
+
+  it('422 for an incident without an outline (centre point only)', async () => {
+    const deps = seriesDeps({ loadIncident: async () => ({ ...geo, hasBbox: false }) });
+    await withSeries(deps, async base => {
+      const res = await fetch(url(base));
+      expect(res.status).toBe(422);
+      expect((await res.json()).error).toContain('только для событий с контуром');
+      expect(deps.getSeries).not.toHaveBeenCalled();
+    });
+  });
+
+  it('400 / 404 / 503 like the imagery endpoint', async () => {
+    await withSeries(seriesDeps(), async base => expect((await fetch(url(base, 'x'))).status).toBe(400));
+    await withSeries(seriesDeps({ loadIncident: async () => null }), async base => expect((await fetch(url(base))).status).toBe(404));
+    await withSeries(seriesDeps({ loadIncident: async () => { throw new Error('db'); } }), async base => {
+      expect((await fetch(url(base))).status).toBe(503);
+    });
+  });
+
+  it('503 «слишком много запросов» when the series queue is full, 502 on other failures', async () => {
+    await withSeries(seriesDeps({ getSeries: async () => { throw new QueueFullError(); } }), async base => {
+      const res = await fetch(url(base));
+      expect(res.status).toBe(503);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect((await res.json()).error).toBe('Слишком много запросов, попробуйте позже');
+    });
+    await withSeries(seriesDeps({ getSeries: async () => { throw new Error('redis'); } }), async base => {
+      expect((await fetch(url(base))).status).toBe(502);
     });
   });
 });

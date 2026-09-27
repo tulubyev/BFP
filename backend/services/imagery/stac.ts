@@ -3,6 +3,7 @@
  * Only the fields the imagery code needs are kept (`slimItem`), so an item cached in Redis is small.
  */
 import type { Bbox } from './geometry';
+import { readJsonWithLimit, RESPONSE_LIMITS } from '../../utils/responseLimits';
 
 export const STAC_API_URL = 'https://earth-search.aws.element84.com/v1';
 export const S2_COLLECTION = 'sentinel-2-c1-l2a';
@@ -96,6 +97,8 @@ export interface SearchParams {
   sort: 'asc' | 'desc';
   limit: number;
   maxCloudCover: number;
+  /** Order of the results: by acquisition date (default) or by tile cloud cover, least cloudy first. */
+  sortBy?: 'datetime' | 'cloud';
 }
 
 export function searchBody(p: SearchParams): Record<string, unknown> {
@@ -104,7 +107,9 @@ export function searchBody(p: SearchParams): Record<string, unknown> {
     bbox: p.bbox,
     datetime: p.datetime,
     query: { 'eo:cloud_cover': { lt: p.maxCloudCover } },
-    sortby: [{ field: 'properties.datetime', direction: p.sort }],
+    sortby: p.sortBy === 'cloud'
+      ? [{ field: 'properties.eo:cloud_cover', direction: 'asc' }, { field: 'properties.datetime', direction: p.sort }]
+      : [{ field: 'properties.datetime', direction: p.sort }],
     limit: p.limit,
   };
 }
@@ -127,7 +132,7 @@ export const fetchJson: FetchJson = async (url, init = {}) => {
     signal: AbortSignal.timeout(init.timeoutMs ?? 15_000),
   });
   if (!res.ok) throw new HttpStatusError(res.status, url);
-  return res.json();
+  return readJsonWithLimit(res, RESPONSE_LIMITS.stacJson);
 };
 
 export interface StacClient {
