@@ -16,22 +16,19 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 ├── backend/                    # Backend (Express + TypeScript)
 │   ├── server.ts               # Main Express server (port 3000)
 │   ├── config/
-│   │   ├── database.ts         # PostgreSQL connection pool
-│   │   └── titiler.ts          # TiTiler service config
+│   │   └── database.ts         # PostgreSQL connection pool
 │   ├── models/
 │   │   └── forestArea.ts       # Forest area & change interfaces
 │   ├── routes/
 │   │   ├── analytics.ts        # Forest analytics endpoints
 │   │   ├── monitoring.ts       # Monitoring data endpoints
-│   │   ├── stac.ts             # STAC API proxy endpoints
-│   │   └── titiler.ts          # TiTiler proxy endpoints
+│   │   └── imagery.ts          # Sentinel-2 before/after PNGs (/imagery/s2/v1/...)
 │   ├── services/
 │   │   ├── databaseService.ts  # Database operations
 │   │   ├── spectralIndices.ts  # NDVI, NBR, EVI calculators
 │   │   ├── firmsService.ts     # NASA FIRMS integration
 │   │   ├── globalForestWatch.ts # GFW API integration
-│   │   ├── stacService.ts      # STAC API client
-│   │   └── titilerService.ts   # TiTiler API client
+│   │   └── imagery/            # Sentinel-2 scene selection and COG rendering (geotiff + proj4 + sharp)
 │   └── utils/
 │       ├── devAlerts.ts        # Development alerts/warnings system
 │       └── stubs.ts            # Stub functions for unimplemented features
@@ -102,8 +99,8 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 - `POST /api/monitoring/spectral-indices/calculate` - Calculate index
 - `GET /api/monitoring/gfw/tree-cover-loss` - GFW deforestation data
 - `GET /api/monitoring/lookup/:table` - Lookup table data
-- `GET /api/titiler/*` - TiTiler proxy endpoints
-- `GET /api/stac/*` - STAC API proxy endpoints
+- `GET /api/monitoring/forest-changes/:id/imagery` - Sentinel-2 before/after scenes for an incident
+- `GET /imagery/s2/v1/:sceneId/:render/:bbox.png` - rendered scene (`truecolor` | `swir`), immutable
 
 ## Spectral Indices
 Implemented in `src/services/spectralIndices.ts`:
@@ -118,16 +115,13 @@ Implemented in `src/services/spectralIndices.ts`:
 ## External Integrations
 - **NASA FIRMS** - Fire hotspot data (VIIRS/MODIS)
 - **Global Forest Watch** - Tree cover loss data
-- **TiTiler** - COG tile server (pending external service)
-- **STAC API** - Satellite catalog (pending external service)
+- **Sentinel-2 L2A** - before/after images: Earth Search STAC + COGs on AWS, rendered in Node
 
 ## Environment Variables
 - `DATABASE_URL` - PostgreSQL connection (VPS: `postgresql://tulubyev:PASSWORD@172.28.0.1:5432/forest_db`)
 - `EXTERNAL_DATABASE_URL` - optional remote PostgreSQL (takes precedence, enables SSL)
 - `NASA_FIRMS_API_KEY` - NASA FIRMS API key (optional)
 - `GFW_API_KEY` - Global Forest Watch API key (optional)
-- `STAC_API_URL` - STAC API endpoint
-- `TITILER_URL` - TiTiler service endpoint
 
 ## Deployment
 Production: https://forestwatch.ru — Docker container behind Traefik on VPS 90.156.168.149 (`/var/www/forestwatch`).
@@ -167,8 +161,6 @@ See `docs/` folder for detailed documentation:
 - [x] TypeScript migration (React frontend)
 
 ## TODO Areas
-- [ ] TiTiler COG preview (requires external TiTiler)
-- [ ] STAC API search (requires external STAC catalog)
 - [ ] Export functionality (PDF, Excel reports)
 - [ ] ML predictions for fire risk
 - [ ] Real-time alert notifications

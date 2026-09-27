@@ -7,16 +7,17 @@ import path from 'path';
 
 dotenv.config();
 
-import titilerRoutes from './routes/titiler';
-import stacRoutes from './routes/stac';
 import analyticsRoutes from './routes/analytics';
 import monitoringRoutes from './routes/monitoring';
 import externalRoutes from './routes/external';
 import sourcesRoutes from './routes/sources';
 import tileRoutes from './routes/tiles';
+import { createImageryRouter } from './routes/imagery';
+import { imageRouteDeps } from './services/imagery';
 import { createRegionsRouter } from './routes/regions';
 import { regionsService } from './services/regions';
 import { startRefreshJobs } from './jobs/refresh';
+import { SPA_FALLBACK_RE } from './utils/spaFallback';
 
 /** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
 function cdnOrigin(url: string | undefined): string[] {
@@ -86,14 +87,14 @@ class Server {
   }
 
   private initializeRoutes(): void {
-    this.app.use('/api/titiler', titilerRoutes);
-    this.app.use('/api/stac', stacRoutes);
     this.app.use('/api/analytics', analyticsRoutes);
     this.app.use('/api/monitoring', monitoringRoutes);
     this.app.use('/api/external', externalRoutes);
     this.app.use('/api/sources', sourcesRoutes);
     this.app.use('/api/regions', createRegionsRouter(regionsService));
     this.app.use('/tiles', tileRoutes);
+    // Sentinel-2 before/after images (same origin or CDN, immutable URLs)
+    this.app.use('/imagery', createImageryRouter(imageRouteDeps));
     
     this.app.get('/', (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
@@ -103,8 +104,8 @@ class Server {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
-    // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html
-    this.app.get(/^\/(?!api\/|tiles\/).*/, (req: Request, res: Response) => {
+    // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html (see SPA_FALLBACK_RE)
+    this.app.get(SPA_FALLBACK_RE, (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
   }

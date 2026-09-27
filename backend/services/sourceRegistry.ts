@@ -11,6 +11,7 @@ export type SourceId =
   | 'gfw_dist'
   | 'gfw_cover'
   | 'osm_boundaries'
+  | 'sentinel2'
   | 'postgis';
 
 export interface SourceLicense {
@@ -141,6 +142,26 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     limitations: [
       'Собираются офлайн из выгрузки Geofabrik, а не запросом в реальном времени — свежесть ограничена частотой пересборки',
       'Крым, Севастополь и регионы 2022 года не включены (решение владельца)',
+    ],
+    monitored: false,
+  },
+  {
+    id: 'sentinel2',
+    name: 'Copernicus Sentinel-2 L2A — снимки «до/после» инцидентов',
+    owner: 'ЕС / ЕКА (программа Copernicus); каталог Earth Search — Element 84; хранение — AWS Open Data',
+    license: {
+      name: 'Copernicus Sentinel data — свободная и открытая лицензия; подпись «Contains modified Copernicus Sentinel data <год>»',
+      url: 'https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice',
+    },
+    homepage: 'https://earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a',
+    updateFrequency: 'Повторная съёмка каждые ~5 суток (Sentinel-2A/B/C); снимки подбираются по запросу и кэшируются на сутки',
+    spatialResolution: '10 м (естественные цвета), 20 м (SWIR: B12/B8A/B04, маска SCL)',
+    coverage: 'Коллекция sentinel-2-c1-l2a (Collection 1), участок инцидента 3–20 км; «до» — 60 суток до первой термоточки, «после» — после последней',
+    limitations: [
+      'Облака и дым: снимок берётся, только если над участком ≥ 80 % чистых пикселей по маске SCL — иначе «нет данных»',
+      'Снег (класс SCL 11) не считается чистым: зимой и весной снимков может не быть',
+      'Повторная съёмка раз в ~5 суток, поэтому снимок «после» может быть сделан через несколько дней после пожара или во время активности',
+      'Изображение в проекции UTM сцены (север вверху), без трансформации в WGS84; контур — прямоугольник инцидента, а не граница гари',
     ],
     monitored: false,
   },
