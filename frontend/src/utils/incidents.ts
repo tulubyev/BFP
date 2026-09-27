@@ -114,3 +114,36 @@ export function detectedDateLabel(incident: Incident): string {
   const d = new Date(firstSeen ?? incident.detected_date);
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU');
 }
+
+/** dd.mm.yyyy in the viewer's time zone, or null. */
+function shortDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export const FIRMS_TITLE = 'Термоточки NASA FIRMS';
+
+/**
+ * Neutral title (future.md §3, §7): a FIRMS cluster is "hotspots", not "a fire" — the type is a
+ * guess. «Термоточки NASA FIRMS, Иркутская область, 25.09.2026» (region and date when known).
+ * Other incidents keep their type label.
+ */
+export function incidentTitle(incident: Incident, typeLabel: string): string {
+  const firms = firmsIncidentInfo(incident);
+  if (!firms) return typeLabel;
+  const parts = [FIRMS_TITLE];
+  if (incident.region) parts.push(incident.region);
+  const date = shortDate(firms.firstSeen ?? incident.detected_date);
+  if (date) parts.push(date);
+  return parts.join(', ');
+}
+
+/** «Вероятная причина» of a FIRMS cluster by its status; null for other incidents. */
+export function probableCause(incident: Incident): string | null {
+  const firms = firmsIncidentInfo(incident);
+  if (!firms) return null;
+  return firms.staticSource
+    ? 'вероятная причина: постоянный источник тепла (факел, промышленность)'
+    : 'вероятная причина: пожар растительности (не подтверждён)';
+}

@@ -1,5 +1,5 @@
 import type { Incident } from '../api/incidents';
-import { FIRMS_AREA_NOTE, detectedDateLabel, firmsIncidentInfo, formatDateTime } from '../utils/incidents';
+import { FIRMS_AREA_NOTE, FIRMS_TITLE, detectedDateLabel, firmsIncidentInfo, formatDateTime } from '../utils/incidents';
 
 export const incidentTypes: Record<string, { label: string; icon: string; color: string }> = {
   fire: { label: 'Пожар', icon: '🔥', color: 'border-red-500/50 bg-red-500/10' },
@@ -48,7 +48,7 @@ export default function IncidentCard({ incident, onClick }: { incident: Incident
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl" aria-hidden>{type.icon}</span>
-          <div><p className="font-semibold text-white">{type.label}</p><p className="text-xs text-slate-400">Событие #{incident.id}</p></div>
+          <div><p className="font-semibold text-white">{firms ? FIRMS_TITLE : type.label}</p><p className="text-xs text-slate-400">Событие #{incident.id}</p></div>
         </div>
         <span className={`rounded-full px-2.5 py-1 text-xs ${status.style}`}>{status.label}</span>
       </div>
@@ -62,7 +62,10 @@ export default function IncidentCard({ incident, onClick }: { incident: Incident
         </div>
         <div className={firms ? 'col-span-2' : undefined}><dt className="text-xs text-slate-500">Источник</dt><dd className="mt-1 text-slate-200">{firms ? firms.sourceLabel : incident.source || incident.satellite || 'БД'}</dd></div>
         {firms ? (
-          <div className="col-span-2"><dt className="text-xs text-slate-500">Первая / последняя точка</dt><dd className="mt-1 text-slate-200">{formatDateTime(firms.firstSeen)} — {formatDateTime(firms.lastSeen)}</dd></div>
+          <>
+            <div className="col-span-2"><dt className="text-xs text-slate-500">Первая / последняя точка</dt><dd className="mt-1 text-slate-200">{formatDateTime(firms.firstSeen)} — {formatDateTime(firms.lastSeen)}</dd></div>
+            <div className="col-span-2"><dt className="text-xs text-slate-500">Точки высокой достоверности</dt><dd className="mt-1 text-slate-200">{confidence == null ? '—' : `${Math.round(confidence * 100)}%`}</dd></div>
+          </>
         ) : (
           <div><dt className="text-xs text-slate-500">Уверенность</dt><dd className="mt-1 text-slate-200">{confidence == null ? '—' : `${Math.round(confidence * 100)}%`}</dd></div>
         )}

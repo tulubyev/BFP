@@ -111,6 +111,18 @@ describe('incidents export query', () => {
     expect(q.filters).toEqual({ ...feed.filters, sort: 'area_desc' });
   });
 
+  it('gets the new feed filters and sort too (one query builder)', () => {
+    const raw = { status: 'inactive', source: 'firms', start_date: '2026-09-20', sort: 'confidence_desc' };
+    const feed = buildForestChangesQuery(raw);
+    const q = buildIncidentsExportQuery(raw);
+    expect(q.params).toEqual(['inactive', 'firms', '2026-09-20']);
+    expect(q.params).toEqual(feed.params);
+    expect(q.dataQuery).toContain(feed.where);
+    expect(q.dataQuery).toContain("fc.metadata->>'status' = $1");
+    expect(q.dataQuery).toMatch(/ORDER BY fc\.confidence DESC NULLS LAST, fc\.detected_date DESC, fc\.id DESC LIMIT \$4$/);
+    expect(q.filters).toEqual({ ...feed.filters, sort: 'confidence_desc' });
+  });
+
   it('hides static sources by default, like the feed', () => {
     const q = buildIncidentsExportQuery({});
     expect(q.dataQuery).toContain("<> 'static_source'");

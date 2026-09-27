@@ -12,6 +12,8 @@ export interface ForestChangesResult {
   limit: number;
   offset: number;
   regions: string[];
+  /** Distinct `source` values for the source filter. */
+  sources: string[];
   data: any[];
 }
 
@@ -26,14 +28,21 @@ export const REGIONS_QUERY = `SELECT DISTINCT region FROM (`
   + ` UNION SELECT metadata->>'region' AS region FROM gis.forest_changes WHERE metadata ? 'region'`
   + `) r WHERE region IS NOT NULL ORDER BY region`;
 
-/** Runs the three forest-changes queries (page, total count, region list) against `pool`. */
+/** Sources for the filter: the values actually stored (e.g. `firms`), not a hard-coded list. */
+export const SOURCES_QUERY = `SELECT DISTINCT source FROM gis.forest_changes WHERE source IS NOT NULL ORDER BY source`;
+
+const strings = (rows: any[], column: string): string[] =>
+  rows.map(row => row[column]).filter((v): v is string => typeof v === 'string' && v !== '');
+
+/** Runs the forest-changes queries (page, total count, region and source lists) against `pool`. */
 export async function fetchForestChanges(pool: QueryablePool, rawQuery: ForestChangesRawQuery): Promise<ForestChangesResult> {
   const built = buildForestChangesQuery(rawQuery);
 
-  const [result, totalResult, regionsResult] = await Promise.all([
+  const [result, totalResult, regionsResult, sourcesResult] = await Promise.all([
     pool.query(built.dataQuery, built.dataParams),
     pool.query(built.countQuery, built.params),
     pool.query(REGIONS_QUERY),
+    pool.query(SOURCES_QUERY),
   ]);
 
   return {
@@ -43,6 +52,7 @@ export async function fetchForestChanges(pool: QueryablePool, rawQuery: ForestCh
     limit: built.limit,
     offset: built.offset,
     regions: regionsResult.rows.map(row => row.region),
+    sources: strings(sourcesResult.rows, 'source'),
     data: result.rows,
   };
 }

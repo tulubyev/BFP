@@ -8,6 +8,8 @@ import { buildForestChangesGeojsonQuery, toGeojsonFeature } from '../services/fo
 import { createIncidentImageryHandler, createNdviSeriesHandler } from './imagery';
 import { createIncidentImageryDeps, createNdviSeriesDeps } from '../services/imagery';
 import { parseYear } from '../utils/queryParams';
+import { createIncidentHotspotsHandler } from './incidentHotspots';
+import { createIncidentHotspotsDeps } from '../services/incidentHotspotsDeps';
 
 const router = Router();
 
@@ -17,6 +19,8 @@ router.get('/forest-changes', createForestChangesHandler(pool, incidentsCache));
 router.get('/forest-changes/:id/imagery', createIncidentImageryHandler(createIncidentImageryDeps(pool)));
 // Summer NDVI by year, computed in the background: `pending` + progress until ready
 router.get('/forest-changes/:id/ndvi-series', createNdviSeriesHandler(createNdviSeriesDeps(pool)));
+// FIRMS hotspots of one FIRMS incident (≤ 500) and its OOPT relation (cached 10 min per last_seen)
+router.get('/forest-changes/:id/hotspots', createIncidentHotspotsHandler(createIncidentHotspotsDeps(pool)));
 
 // Map layer «Инциденты»: the feed's filters (change_type, region, start_date, end_date,
 // static_sources — static heat sources hidden by default), newest first, at most GEOJSON_LIMIT rows

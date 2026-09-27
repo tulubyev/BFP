@@ -1,19 +1,21 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
 import { getIncidentStatus, incidentTypeOf } from './IncidentCard';
 import IncidentImagery from './IncidentImagery';
 import NdviSeries from './NdviSeries';
+import IncidentLocation from './IncidentLocation';
 import { canRequestImagery } from '../utils/imagery';
 import {
-  FIRMS_AREA_NOTE, STATIC_SOURCE_LABEL, detectedDateLabel, firmsIncidentInfo, formatDateTime, serializeIncident, staticSourceNote,
+  FIRMS_AREA_NOTE, STATIC_SOURCE_LABEL, detectedDateLabel, firmsIncidentInfo, formatDateTime, incidentTitle, probableCause,
+  serializeIncident, staticSourceNote,
 } from '../utils/incidents';
 
 export default function IncidentModal({ incident, onClose }: { incident: Incident; onClose: () => void }) {
-  const navigate = useNavigate();
   const type = incidentTypeOf(incident);
   const status = getIncidentStatus(incident);
   const firms = firmsIncidentInfo(incident);
+  const title = incidentTitle(incident, type.label);
+  const cause = probableCause(incident);
   const rows: [string, string][] = firms ? [
     ['Регион', incident.region || 'Не определён'],
     ['Дата обнаружения', detectedDateLabel(incident)],
@@ -50,19 +52,12 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
     link.href = url; link.download = `incident-${incident.id}.json`; link.click();
     URL.revokeObjectURL(url);
   };
-  const showOnMap = () => {
-    const params = new URLSearchParams();
-    if (incident.center_lat != null) params.set('lat', String(incident.center_lat));
-    if (incident.center_lng != null) params.set('lng', String(incident.center_lng));
-    params.set('incident', String(incident.id));
-    navigate(`/?${params}`);
-  };
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/80 p-4" onMouseDown={e => e.target === e.currentTarget && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="incident-title" className="card max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
         <header className={`flex items-start justify-between border-b border-slate-700 p-6 ${type.color}`}>
-          <div className="flex gap-3"><span className="text-3xl">{type.icon}</span><div><h2 id="incident-title" className="text-xl font-bold">{type.label}</h2><p className="text-sm text-slate-400">Событие #{incident.id}</p></div></div>
+          <div className="flex gap-3"><span className="text-3xl">{type.icon}</span><div><h2 id="incident-title" className="text-xl font-bold">{title}</h2><p className="text-sm text-slate-400">Событие #{incident.id}{cause && <> · {cause}</>}</p></div></div>
           <button onClick={onClose} aria-label="Закрыть" className="text-2xl text-slate-400 hover:text-white">×</button>
         </header>
         <div className="p-6">
@@ -70,13 +65,17 @@ export default function IncidentModal({ incident, onClose }: { incident: Inciden
           <dl className="grid gap-5 sm:grid-cols-2">
             {rows.map(([label, value]) => <div key={label}><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-slate-200">{value}</dd></div>)}
           </dl>
+          <IncidentLocation incident={incident} />
           {canRequestImagery(incident) && <IncidentImagery incidentId={incident.id} />}
           {/* The series needs an incident outline: FIRMS incidents only */}
           {firms && canRequestImagery(incident) && <NdviSeries incidentId={incident.id} />}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <button onClick={showOnMap} disabled={incident.center_lat == null || incident.center_lng == null} className="btn-primary disabled:cursor-not-allowed disabled:opacity-40">Показать на карте</button>
             <button onClick={download} className="rounded-lg border border-slate-600 px-4 py-2 hover:bg-slate-700">Скачать данные (JSON)</button>
           </div>
+          <details className="mt-6 rounded-lg border border-slate-700">
+            <summary className="cursor-pointer px-4 py-3 text-sm text-slate-300 hover:text-white">Исходные данные (JSON)</summary>
+            <pre className="max-h-80 overflow-auto border-t border-slate-700 p-4 text-xs text-slate-300">{serializeIncident(incident)}</pre>
+          </details>
         </div>
       </section>
     </div>
