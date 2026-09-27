@@ -31,7 +31,12 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   the Beget panel (DNS, CDN purge), `authorized_keys`, repo secrets. Ask the owner.
 - Database migrations on `forest_db` only after the owner agrees — there is no staging database.
   There is no migrations table: applied on production = 001–011 (011 on 2026-09-25). Apply a new
-  one before merging the code that needs it, in a transaction, via `docker exec forestwatch-app`.
+  one before merging the code that needs it, in a transaction, as the table owner `tulubyev`.
+- DB roles: the app is meant to connect as `forestwatch_app` (`database/admin/001_app_role.sql`:
+  SELECT/INSERT on `fire_hotspots`, SELECT/INSERT/UPDATE on `forest_changes`, SELECT on
+  `forest_areas`, no DELETE/DDL). Once the owner has switched `DATABASE_URL`, `docker exec
+  forestwatch-app` cannot run migrations or deletes. A migration that adds a table the app writes
+  must GRANT it to `forestwatch_app`, and the same GRANT goes into `001_app_role.sql`.
 - Do not prune Docker images or build cache on the VPS (shared by other projects).
 - `Проект_карты_убыли_лесов_Байкала.md` is the owner's local document — never commit it.
 
