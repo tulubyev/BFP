@@ -16,6 +16,10 @@ import sourcesRoutes from './routes/sources';
 import tileRoutes from './routes/tiles';
 import { createRegionsRouter } from './routes/regions';
 import { regionsService } from './services/regions';
+import { createExportRouter } from './routes/export';
+import pool from './config/database';
+import { readJournal } from './utils/journal';
+import { loadArchiveStaticCells } from './services/firmsHistory/staticSources';
 import { startRefreshJobs } from './jobs/refresh';
 
 /** Origin of the CDN serving built assets, as a CSP source list (empty when unset). */
@@ -93,6 +97,16 @@ class Server {
     this.app.use('/api/external', externalRoutes);
     this.app.use('/api/sources', sourcesRoutes);
     this.app.use('/api/regions', createRegionsRouter(regionsService));
+    this.app.use('/api/export', createExportRouter({
+      pool,
+      regions: regionsService,
+      readJournal,
+      archiveCellsVersion: () => {
+        const cells = loadArchiveStaticCells();
+        return cells.keys.size ? cells.version : null;
+      },
+      now: () => new Date(),
+    }));
     this.app.use('/tiles', tileRoutes);
     
     this.app.get('/', (req: Request, res: Response) => {
@@ -103,7 +117,7 @@ class Server {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
-    // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html
+    // SPA fallback: client-side routes (/analytics, /wiki, /incidents, /methodology) → index.html
     this.app.get(/^\/(?!api\/|tiles\/).*/, (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
