@@ -17,14 +17,10 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 │   ├── server.ts               # Main Express server (port 3000)
 │   ├── config/
 │   │   └── database.ts         # PostgreSQL connection pool
-│   ├── models/
-│   │   └── forestArea.ts       # Forest area & change interfaces
 │   ├── routes/
-│   │   ├── analytics.ts        # Forest analytics endpoints
 │   │   ├── monitoring.ts       # Monitoring data endpoints
 │   │   └── imagery.ts          # Sentinel-2 before/after PNGs (/imagery/s2/v1/...)
 │   ├── services/
-│   │   ├── databaseService.ts  # Database operations
 │   │   ├── spectralIndices.ts  # NDVI, NBR, EVI calculators
 │   │   ├── firmsService.ts     # NASA FIRMS integration
 │   │   ├── globalForestWatch.ts # GFW API integration
