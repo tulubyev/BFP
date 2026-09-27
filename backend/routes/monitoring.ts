@@ -8,6 +8,7 @@ import { incidentsCache } from '../utils/incidentsCache';
 import { notStaticSourceSql } from '../services/forestChangesQuery';
 import { createIncidentImageryHandler } from './imagery';
 import { createIncidentImageryDeps } from '../services/imagery';
+import { HOTSPOT_GEOJSON_LIMIT, parseDays } from '../utils/queryParams';
 
 const router = Router();
 
@@ -136,14 +137,15 @@ router.get('/forest-changes/geojson', async (req: Request, res: Response) => {
 
 router.get('/fire-hotspots', async (req: Request, res: Response) => {
   try {
-    const { days = 7, source } = req.query;
-    
-    let query = `SELECT * FROM gis.fire_hotspots 
-                 WHERE acquisition_date >= CURRENT_DATE - INTERVAL '${days} days'`;
-    const params: any[] = [];
+    const days = parseDays(req.query.days);
+    const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+
+    let query = `SELECT * FROM gis.fire_hotspots
+                 WHERE acquisition_date >= CURRENT_DATE - $1::int`;
+    const params: any[] = [days];
 
     if (source) {
-      query += ' AND source = $1';
+      query += ' AND source = $2';
       params.push(source);
     }
 
@@ -163,14 +165,16 @@ router.get('/fire-hotspots', async (req: Request, res: Response) => {
 
 router.get('/fire-hotspots/geojson', async (req: Request, res: Response) => {
   try {
-    const { days = 7 } = req.query;
-    
+    const days = parseDays(req.query.days);
+
     const result = await pool.query(
-      `SELECT id, latitude, longitude, brightness, frp, acquisition_date, 
-              acquisition_time, satellite, confidence, daynight 
-       FROM gis.fire_hotspots 
-       WHERE acquisition_date >= CURRENT_DATE - INTERVAL '${days} days'
-       ORDER BY acquisition_date DESC`
+      `SELECT id, latitude, longitude, brightness, frp, acquisition_date,
+              acquisition_time, satellite, confidence, daynight
+       FROM gis.fire_hotspots
+       WHERE acquisition_date >= CURRENT_DATE - $1::int
+       ORDER BY acquisition_date DESC, acquisition_time DESC
+       LIMIT $2`,
+      [days, HOTSPOT_GEOJSON_LIMIT]
     );
 
     const features = result.rows.map(row => ({
