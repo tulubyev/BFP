@@ -57,7 +57,7 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 │   └── tailwind.config.js
 ├── database/                   # Database migrations
 │   ├── migrations/             # SQL migration files
-│   └── seeds/                  # Seed data
+│   └── seeds/                  # Lookup dictionaries only (no demo data)
 ├── docs/                       # Documentation
 ├── tests/                      # Jest test files
 ├── jest.config.js
@@ -68,7 +68,7 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 - **Backend**: `npm run dev` - Express API on port 3000
 - **Frontend**: `npm run dev:client` - Vite React dev server on port 5000
 - **Tests**: `npm test` - Run Jest tests
-- **Database**: `npm run db:setup` - Run migrations and seeds
+- **Database**: `npm run db:setup` - Run migrations and lookup seeds
 - **Both**: Two workflows run simultaneously
 
 ## Frontend Routes (React Router)
