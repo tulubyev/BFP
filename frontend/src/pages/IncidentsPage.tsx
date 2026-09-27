@@ -4,6 +4,8 @@ import { getIncidents, IncidentsApiError, type Incident } from '../api/incidents
 import { formatCacheBanner, parsePage, parseStaticSources } from '../utils/incidents';
 import IncidentCard from '../components/IncidentCard';
 import IncidentModal from '../components/IncidentModal';
+import ExportButtons from '../components/ExportButtons';
+import { EXPORT_LIMIT, INCIDENT_EXPORT_FORMATS, incidentsExportUrl, type IncidentsExportFormat } from '../api/export';
 
 const PAGE_SIZE = 12;
 
@@ -59,6 +61,16 @@ export default function IncidentsPage() {
       </div>
       {cachedAt && <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">{formatCacheBanner(cachedAt)}</div>}
       <div className="mb-4 flex items-center justify-between"><p className="text-sm text-slate-400">Найдено событий: <span className="font-semibold text-white">{total}</span></p>{(type || region || staticSources) && <button onClick={() => setParams({})} className="text-sm text-green-400 hover:text-green-300">Сбросить фильтры</button>}</div>
+      <div className="mb-6">
+        <ExportButtons
+          label="Скачать"
+          formats={INCIDENT_EXPORT_FORMATS}
+          url={format => incidentsExportUrl(format as IncidentsExportFormat, { type, region, sort, staticSources })}
+          fileBase="forestwatch-incidents"
+          hint={`по текущим фильтрам, до ${EXPORT_LIMIT} записей; с источниками и лицензиями`}
+          disabledReason={!error && total > EXPORT_LIMIT ? `Под фильтры попадает ${total} записей — сузьте фильтры, выгрузка не больше ${EXPORT_LIMIT}.` : undefined}
+        />
+      </div>
       {error ? <div className="card text-center"><p className="text-red-300">{unavailable ? 'База данных недоступна' : 'Ошибка загрузки'}</p><p className="mt-1 text-sm text-slate-400">{error}</p><button onClick={load} className="mt-4 text-green-400">Попробовать снова</button></div> :
        loading ? <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="h-64 animate-pulse rounded-xl bg-slate-800" />)}</div> :
        incidents.length ? <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{incidents.map(item => <IncidentCard key={item.id} incident={item} onClick={() => setSelected(item)} />)}</div> :

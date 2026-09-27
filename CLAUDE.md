@@ -40,6 +40,8 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - `/assets/*` (hashed), `/data/boundaries/*.<YYYY-MM>.geojson` (versioned) and `/tiles/gfw/*` are
   cached for a long time by browsers **and Beget CDN** (`cdn.forestwatch.ru`). Never change such a
   file in place: new content needs a new name (boundaries: new version + `boundariesVersion.ts`).
+- Sentinel-2 images `/imagery/s2/v1/<scene>/<render>/<bbox>.png` are immutable too (browser + CDN):
+  a change in how a render looks → bump `RENDER_VERSION` in `backend/services/imagery/render.ts` (`v2`).
 - Redis (`backend/utils/cache.ts`): `cached()` / `warm()` keep `key:last-good`; an empty or invalid
   result must never replace good data. When a cached value changes shape, bump the key
   (`oopt:ru` → `oopt:ru:v2`). Background refresh lives in `backend/jobs/refresh.ts`.
@@ -78,5 +80,10 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   The history rule needs ≥ 8 days of history; cells in the newest
   `frontend/public/data/regional/firms-static-cells.<year>.json` (FIRMS archive `type = 2`,
   `scripts/regional/build-firms-archive.sh`) are masked at once. The 24 h hotspot map layer is not masked.
+- `geotiff` 3.x: plain `import { fromUrl } from 'geotiff'` resolves to its CommonJS build (works in
+  tsc/ts-node), but that build `require()`s the ESM-only `quick-lru` — fine on Node ≥ 20.19 (Docker
+  `node:20-slim`, CI Node 20), impossible in jest, so `jest.config.js` maps `quick-lru` to
+  `tests/mocks/quick-lru.js`. `writeArrayBuffer` (tests) needs a flat pixel-interleaved typed array.
+  Before/after imagery (`backend/services/imagery/`) reads Sentinel-2 COGs from AWS itself — no TiTiler.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.

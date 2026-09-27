@@ -33,6 +33,9 @@ export function notStaticSourceSql(alias = 'fc'): string {
   return `COALESCE(${alias}.metadata->>'status', '') <> 'static_source'`;
 }
 
+/** FROM clause shared by the feed and the export (the region filter needs the forest-area join). */
+export const FOREST_CHANGES_FROM = ` FROM gis.forest_changes fc LEFT JOIN gis.forest_areas fa ON fa.id = fc.forest_area_id`;
+
 export const DEFAULT_SORT = 'date_desc';
 export const DEFAULT_LIMIT = 12;
 export const MAX_LIMIT = 100;
@@ -134,7 +137,7 @@ export function buildForestChangesQuery(query: ForestChangesRawQuery): BuiltFore
     where += ` AND fc.detected_date <= $${params.length}`;
   }
 
-  const from = ` FROM gis.forest_changes fc LEFT JOIN gis.forest_areas fa ON fa.id = fc.forest_area_id`;
+  const from = FOREST_CHANGES_FROM;
   const dataParams = [...params, limit, offset];
   const dataQuery = `SELECT fc.*, ${REGION_EXPR} AS region, fa.name AS forest_area_name${from}${where}`
     + ` ORDER BY ${orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;

@@ -4,8 +4,9 @@ module.exports = {
   roots: ['<rootDir>/backend', '<rootDir>/tests'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
   transform: {
-    // tests import frontend modules, which need DOM types (fetch Response etc.)
-    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { lib: ['ES2020', 'DOM', 'DOM.Iterable'] } }],
+    // tests import frontend modules, which need DOM types (fetch Response etc.) and JSX (components
+    // rendered with react-dom/server)
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { lib: ['ES2020', 'DOM', 'DOM.Iterable'], jsx: 'react-jsx' } }],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [
@@ -16,6 +17,8 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   moduleNameMapper: {
+    // geotiff's CommonJS build require()s the ESM-only quick-lru: fine in Node ≥ 20.19, not in jest
+    '^quick-lru$': '<rootDir>/tests/mocks/quick-lru.js',
     '^@/(.*)$': '<rootDir>/backend/$1',
     '^@services/(.*)$': '<rootDir>/backend/services/$1',
     '^@routes/(.*)$': '<rootDir>/backend/routes/$1',
