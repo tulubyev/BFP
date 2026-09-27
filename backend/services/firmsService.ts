@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { cached, warm } from '../utils/cache';
+import { RESPONSE_LIMITS } from '../utils/responseLimits';
 
 export interface FIRMSHotspot {
   latitude: number;
@@ -104,7 +105,7 @@ export class FIRMSService {
       const mapKey = this.config.apiKey;
       const bbox = `${area.west},${area.south},${area.east},${area.north}`;
       const url = `${this.config.baseUrl}/area/csv/${mapKey}/${source}/${bbox}/${dayRange}`;
-      const response = await axios.get(url, { timeout: 30000 });
+      const response = await axios.get(url, { timeout: 30000, maxContentLength: RESPONSE_LIMITS.firmsCsv });
       return this.parseCSV(response.data);
     } catch (error) {
       console.error('FIRMS API error:', error);
@@ -138,7 +139,7 @@ export class FIRMSService {
     ];
 
     const results = await Promise.allSettled(
-      urls.map(url => axios.get(url, { timeout: 25000, responseType: 'text' }))
+      urls.map(url => axios.get(url, { timeout: 25000, responseType: 'text', maxContentLength: RESPONSE_LIMITS.firmsCsv }))
     );
 
     const all: FIRMSHotspot[] = [];

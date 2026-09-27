@@ -14,6 +14,7 @@ import {
   gfwUpstreamUrl,
   type TileRequest,
 } from './gfwTileLayers';
+import { RESPONSE_LIMITS } from '../utils/responseLimits';
 
 export const TRANSPARENT_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -26,6 +27,7 @@ async function distVersion(): Promise<string> {
     const res = await axios.get(`${GFW_TILES_BASE}/umd_glad_dist_alerts/latest/dynamic/0/0/0.png?implementation=default`, {
       maxRedirects: 0,
       timeout: 15000,
+      maxContentLength: RESPONSE_LIMITS.gfwRedirect,
       validateStatus: s => s >= 300 && s < 400,
     });
     const match = /\/(v\d{8})\//.exec(String(res.headers.location ?? ''));
@@ -70,6 +72,7 @@ export async function renderGfwTile(t: TileRequest): Promise<Buffer> {
   const res = await axios.get<ArrayBuffer>(gfwUpstreamUrl(t, version), {
     responseType: 'arraybuffer',
     timeout: 20000,
+    maxContentLength: RESPONSE_LIMITS.gfwTile,
     maxRedirects: 3,
     validateStatus: s => s === 200 || s === 404,
   });

@@ -81,20 +81,16 @@ A GIS monitoring system for Baikal region forests using satellite data. Full-sta
 - `forest_types`, `change_types`, `satellites` - Lookup tables
 
 ## API Endpoints
+`/api/*` is rate limited per IP: 300 requests/min, 20/min for `/api/export/*` and incident
+imagery / NDVI series (429 JSON with `Retry-After`). JSON bodies ≤ 100 KB.
+
 - `GET /health` - Health check
-- `GET /api/monitoring/forest-areas` - Forest areas list
-- `GET /api/monitoring/forest-areas/geojson` - Forest areas as GeoJSON
 - `GET /api/monitoring/forest-changes` - Forest change events
 - `GET /api/monitoring/forest-changes/geojson` - Changes as GeoJSON
-- `GET /api/monitoring/fire-hotspots` - Fire hotspot data
 - `GET /api/monitoring/fire-hotspots/firms` - NASA FIRMS live data
-- `GET /api/monitoring/monitoring-zones` - Monitoring zones
-- `GET /api/monitoring/alerts` - System alerts
-- `GET /api/monitoring/statistics` - Summary statistics
-- `GET /api/monitoring/spectral-indices/info` - Index formulas
-- `POST /api/monitoring/spectral-indices/calculate` - Calculate index
+- `GET /api/monitoring/fire-hotspots/stats` - Monthly hotspot counts
 - `GET /api/monitoring/gfw/tree-cover-loss` - GFW deforestation data
-- `GET /api/monitoring/lookup/:table` - Lookup table data
+- `GET /api/monitoring/gfw/regions` - Regions for the GFW loss chart
 - `GET /api/monitoring/forest-changes/:id/imagery` - Sentinel-2 before/after scenes for an incident
 - `GET /imagery/s2/v1/:sceneId/:render/:bbox.png` - rendered scene (`truecolor` | `swir`), immutable
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { cached, readLastGood } from '../utils/cache';
+import { RESPONSE_LIMITS } from '../utils/responseLimits';
 
 export interface GFWTreeCoverLoss {
   year: number;
@@ -221,6 +222,9 @@ export class GlobalForestWatchService {
   }
 
   private async fetchAdm1LossFromGFW(adm1: number, startYear: number, endYear: number): Promise<GFWTreeCoverLoss[]> {
+    // Interpolated into GFW's SQL below: integers only (adm1 comes from RUSSIAN_FOREST_REGIONS,
+    // years from parseYear())
+    if (![adm1, startYear, endYear].every(Number.isInteger)) throw new Error('GFW query: adm1 and years must be integers');
     const sql = [
       'SELECT umd_tree_cover_loss__year AS year,',
       '       SUM(area__ha) AS area_ha,',
@@ -241,6 +245,7 @@ export class GlobalForestWatchService {
       {
         headers: { 'x-api-key': this.config.apiKey!, 'Content-Type': 'application/json' },
         timeout: 30000,
+        maxContentLength: RESPONSE_LIMITS.gfwQuery,
       }
     );
 
@@ -308,7 +313,8 @@ export class GlobalForestWatchService {
           'x-api-key': this.config.apiKey!,
           'Content-Type': 'application/json'
         },
-        timeout: 30000
+        timeout: 30000,
+        maxContentLength: RESPONSE_LIMITS.gfwQuery
       }
     );
 
