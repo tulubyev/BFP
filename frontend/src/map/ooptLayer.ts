@@ -61,10 +61,10 @@ function labelMarker(p: OoptProps): L.Marker {
  * ООПТ — заповедники и нацпарки: polygons (fetched once, added to the layer control) plus a
  * small label marker per feature, shown only below zoom 6 where a reserve's polygon can be a
  * few pixels wide. A degraded relation without enough geometry to form a ring arrives as a
- * Point (see overpassService.ts) and is rendered as a marker only.
+ * Point (see overpassService.ts) and is rendered as a marker only. The caller switches it on.
  */
-export function addOoptLayer(map: L.Map, control: L.Control.Layers, onCount?: (n: number) => void): void {
-  const group = L.layerGroup().addTo(map);
+export function addOoptLayer(map: L.Map, control: L.Control.Layers, onCount?: (n: number) => void): L.LayerGroup {
+  const group = L.layerGroup();
   const shapes = L.geoJSON(undefined, {
     style: feature => ooptStyle(feature!.properties as OoptProps),
     onEachFeature: (feature, layer) => layer.bindPopup(() => ooptPopup(feature.properties as OoptProps)),
@@ -96,4 +96,5 @@ export function addOoptLayer(map: L.Map, control: L.Control.Layers, onCount?: (n
 
   map.on('zoomend', sync);
   sync();
+  return group;
 }

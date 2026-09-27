@@ -33,10 +33,14 @@ function hotspotOverlay(region: FirmsRegion): L.LayerGroup {
   return group;
 }
 
-/** NASA FIRMS VIIRS hotspots (24 h): Baikal regions on by default, all of Russia on demand. */
-export function addFirmsLayers(map: L.Map, control: L.Control.Layers): void {
-  const baikal = hotspotOverlay('baikal').addTo(map);
+/**
+ * NASA FIRMS VIIRS hotspots (24 h), added to the layer control; the caller switches them on
+ * (Baikal regions by default, all of Russia on demand).
+ */
+export function addFirmsLayers(control: L.Control.Layers): { baikal: L.LayerGroup; russia: L.LayerGroup } {
+  const baikal = hotspotOverlay('baikal');
   const russia = hotspotOverlay('russia');
   control.addOverlay(baikal, 'Термоточки FIRMS 24ч — Байкальский регион');
   control.addOverlay(russia, 'Термоточки FIRMS 24ч — вся Россия');
+  return { baikal, russia };
 }

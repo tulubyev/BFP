@@ -2,7 +2,7 @@
 export function popupElement(
   title: string,
   rows: Array<[string, string]>,
-  opts: { titleColor?: string; link?: { href: string; text: string } | null } = {},
+  opts: { titleColor?: string; link?: { href: string; text: string; newTab?: boolean } | null } = {},
 ): HTMLElement {
   const root = document.createElement('div');
   root.style.minWidth = '200px';
@@ -20,8 +20,11 @@ export function popupElement(
   if (opts.link) {
     const a = document.createElement('a');
     a.href = opts.link.href;
-    a.target = '_blank';
-    a.rel = 'noopener';
+    // external sources open in a new tab; our own pages (newTab: false) in the same one
+    if (opts.link.newTab !== false) {
+      a.target = '_blank';
+      a.rel = 'noopener';
+    }
     a.style.cssText = 'color:#60a5fa;font-size:11px';
     a.textContent = opts.link.text;
     const p = document.createElement('p');

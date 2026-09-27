@@ -89,11 +89,15 @@ function boundaryOverlay(map: L.Map, kind: BoundaryKind, file: BoundaryFile): L.
   return overlay;
 }
 
-/** Adds region and Baikal-district boundaries to the map (visible by default) and the layer control. */
-export function addBoundaryLayers(map: L.Map, control: L.Control.Layers): void {
+/**
+ * Adds region and Baikal-district boundaries to the layer control; the caller switches them on
+ * (map state from the URL, both on by default).
+ */
+export function addBoundaryLayers(map: L.Map, control: L.Control.Layers): { regions: L.LayerGroup; districts: L.LayerGroup } {
   ensurePanes(map);
-  const regions = boundaryOverlay(map, 'region', 'ru-regions').addTo(map);
-  const districts = boundaryOverlay(map, 'district', 'baikal-districts').addTo(map);
+  const regions = boundaryOverlay(map, 'region', 'ru-regions');
+  const districts = boundaryOverlay(map, 'district', 'baikal-districts');
   control.addOverlay(regions, 'Границы субъектов РФ (OSM)');
   control.addOverlay(districts, 'Муниципальные районы — Байкал (OSM)');
+  return { regions, districts };
 }
