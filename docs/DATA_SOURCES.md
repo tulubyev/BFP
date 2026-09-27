@@ -82,6 +82,25 @@ Cache 1h server-side. Deduplicate by 0.01° grid.
   новые файлы `*.2025.json` рядом со старыми (опубликованный файл не менять — новое имя). Бэкенд берёт
   новейший `firms-static-cells.*.json`.
 
+## Sentinel-2 L2A — снимки «до/после» инцидентов
+
+- Каталог: Element 84 Earth Search v1 (`https://earth-search.aws.element84.com/v1`), коллекция
+  `sentinel-2-c1-l2a` (Collection 1). COG лежат в открытом бакете
+  `e84-earth-search-sentinel-data` (AWS Open Data, без ключа); там же рядом с каждой сценой копия
+  элемента STAC (`<id>/<id>.json`) — запасной путь, если каталог недоступен.
+- Ассеты: `visual` (TCI, 8 бит, 10 м), `red` B04 (10 м), `nir08` B8A, `swir22` B12, `scl` (20 м).
+  Отражение = DN × `scale` + `offset` из `raster:bands` (в C1 0,0001 и −0,1).
+- Лицензия: Copernicus Sentinel data — свободная и открытая; подпись
+  «Contains modified Copernicus Sentinel data <год>».
+- Выбор сцен (`backend/services/imagery/selection.ts`): участок = bbox инцидента ×1,2, сторона
+  ≥ 3 км, не больше квадрата 20 км; «до» — 60 суток до первой термоточки (от новых к старым),
+  «после» — после последней (от ранних), иначе — самый новый снимок во время активности.
+  Поиск `eo:cloud_cover < 80`, до 6 кандидатов; снимок берётся при ≥ 80 % чистых пикселей SCL над
+  участком и ≤ 5 % «нет данных». Класс 2 (тёмные участки, часто гари) — чистый, снег (11) — нет.
+- Рендер в нашем Node (`geotiff` + `proj4` + `sharp`), в UTM сцены, ≤ 512 px; не более 2 рендеров
+  одновременно. Кэш: элемент STAC 30 сут, подбор 24 ч (ключ с `last_seen`), PNG — сутки в Redis,
+  дальше — браузер и Beget CDN (URL неизменяемые, версия рендера `v1` в пути).
+
 ## Global Forest Watch — авторизация и данные по России
 
 The GFW Data API (data-api.globalforestwatch.org) requires an API key for ALL query endpoints. No public unauthenticated path exists.
