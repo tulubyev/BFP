@@ -4,8 +4,9 @@ module.exports = {
   roots: ['<rootDir>/backend', '<rootDir>/tests'],
   testMatch: ['**/*.test.ts', '**/*.spec.ts'],
   transform: {
-    // tests import frontend modules, which need DOM types (fetch Response etc.)
-    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { lib: ['ES2020', 'DOM', 'DOM.Iterable'] } }],
+    // tests import frontend modules, which need DOM types (fetch Response etc.) and JSX (components
+    // rendered with react-dom/server)
+    '^.+\\.tsx?$': ['ts-jest', { tsconfig: { lib: ['ES2020', 'DOM', 'DOM.Iterable'], jsx: 'react-jsx' } }],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   collectCoverageFrom: [

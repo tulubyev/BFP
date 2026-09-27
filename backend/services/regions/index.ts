@@ -8,17 +8,13 @@ import { datasetModified, getDatasetRows } from '../rosleskhozService';
 import { getOOPT } from '../overpassService';
 import { gfwService } from '../globalForestWatch';
 import { loadFirmsArchive, type FirmsArchive } from './firmsArchive';
+import { GFW_CODE_TO_ISO } from './gfwRegions';
 import type { GfwLossInput } from './indicators';
 import { loadNrtCells } from './nrtHotspots';
 import { loadRegionRegistry } from './registry';
 import { createRegionsService, type RegionsDeps } from './service';
 
-/** GFW region codes (globalForestWatch.ts) → ISO; only these 14 have a loss share. */
-export const GFW_CODE_TO_ISO: Record<string, string> = {
-  irkutsk: 'RU-IRK', buryatia: 'RU-BU', zabaikalye: 'RU-ZAB', krasnoyarsk: 'RU-KYA', yakutia: 'RU-SA',
-  khabarovsk: 'RU-KHA', primorye: 'RU-PRI', amur: 'RU-AMU', tomsk: 'RU-TOM', tyumen: 'RU-TYU',
-  komi: 'RU-KO', arkhangelsk: 'RU-ARK', vologda: 'RU-VLG', karelia: 'RU-KR',
-};
+export { GFW_CODE_TO_ISO };
 
 async function gfwLoss(): Promise<GfwLossInput> {
   const byIso: GfwLossInput['byIso'] = {};

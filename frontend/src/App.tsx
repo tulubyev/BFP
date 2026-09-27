@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const WikiPage = lazy(() => import('./pages/WikiPage'));
 const IncidentsPage = lazy(() => import('./pages/IncidentsPage'));
+const MethodologyPage = lazy(() => import('./pages/MethodologyPage'));
 
 const pageFallback = <div className="px-4 py-8 text-sm text-slate-400">Загрузка…</div>;
 
@@ -19,6 +20,7 @@ function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="wiki" element={<WikiPage />} />
           <Route path="incidents" element={<IncidentsPage />} />
+          <Route path="methodology" element={<MethodologyPage />} />
         </Route>
       </Routes>
     </Suspense>

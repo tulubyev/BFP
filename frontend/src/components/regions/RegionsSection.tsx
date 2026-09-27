@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchRegionsList, type RegionsListResponse } from '../../api/regions';
+import { REGION_EXPORT_FORMATS, regionsExportUrl, type RegionsExportFormat } from '../../api/export';
+import ExportButtons from '../ExportButtons';
 import KindBadge from './KindBadge';
 import RegionCard from './RegionCard';
 import RegionsTable from './RegionsTable';
@@ -48,6 +50,15 @@ export default function RegionsSection() {
             история сайта с 25.09.2026, с годовым архивом не сравнимы. Площадь субъектов — по границам OSM
             ({state.data.boundariesFile}); Крым, Севастополь и регионы 2022 г. не включены.
           </p>
+          <div className="mt-3">
+            <ExportButtons
+              label="Скачать таблицу"
+              formats={REGION_EXPORT_FORMATS}
+              url={format => regionsExportUrl(format as RegionsExportFormat)}
+              fileBase="forestwatch-regions"
+              hint="строка на субъект и показатель; пустая ячейка — нет данных, не ноль"
+            />
+          </div>
         </>
       )}
 

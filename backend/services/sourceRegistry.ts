@@ -63,8 +63,8 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     license: { name: 'ODbL 1.0', url: 'https://www.openstreetmap.org/copyright' },
     homepage: 'https://overpass-api.de/',
     updateFrequency: 'OSM меняется непрерывно; фон приложения запрашивает Overpass раз в сутки',
-    spatialResolution: 'Точки (центроиды границ)',
-    coverage: '~150 заповедников и национальных парков России (area-запрос по ISO3166-1=RU)',
+    spatialResolution: 'Полигоны границ из OSM, упрощённые для браузера (адаптивный Douglas-Peucker, координаты до 5 знаков)',
+    coverage: 'Около 130 заповедников и национальных парков России (area-запрос по ISO3166-1=RU; без Крыма — решение владельца)',
     limitations: [
       'overpass-api.de часто перегружен и отвечает 504 — фон делает до 3 попыток с задержкой 20с',
       'Пустой ответ Overpass никогда не заменяет последний удачный список',

@@ -16,6 +16,10 @@ import { createImageryRouter } from './routes/imagery';
 import { imageRouteDeps } from './services/imagery';
 import { createRegionsRouter } from './routes/regions';
 import { regionsService } from './services/regions';
+import { createExportRouter } from './routes/export';
+import pool from './config/database';
+import { readJournal } from './utils/journal';
+import { loadArchiveStaticCells } from './services/firmsHistory/staticSources';
 import { startRefreshJobs } from './jobs/refresh';
 import { SPA_FALLBACK_RE } from './utils/spaFallback';
 
@@ -92,6 +96,16 @@ class Server {
     this.app.use('/api/external', externalRoutes);
     this.app.use('/api/sources', sourcesRoutes);
     this.app.use('/api/regions', createRegionsRouter(regionsService));
+    this.app.use('/api/export', createExportRouter({
+      pool,
+      regions: regionsService,
+      readJournal,
+      archiveCellsVersion: () => {
+        const cells = loadArchiveStaticCells();
+        return cells.keys.size ? cells.version : null;
+      },
+      now: () => new Date(),
+    }));
     this.app.use('/tiles', tileRoutes);
     // Sentinel-2 before/after images (same origin or CDN, immutable URLs)
     this.app.use('/imagery', createImageryRouter(imageRouteDeps));
@@ -104,7 +118,7 @@ class Server {
       res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
     });
 
-    // SPA fallback: client-side routes (/analytics, /wiki, /incidents) → index.html (see SPA_FALLBACK_RE)
+    // SPA fallback: client-side routes (/analytics, /wiki, /incidents, /methodology) → index.html (see SPA_FALLBACK_RE)
     this.app.get(SPA_FALLBACK_RE, (req: Request, res: Response) => {
       res.sendFile(path.join(__dirname, '../public/index.html'), { headers: { 'Cache-Control': 'no-cache' } });
     });
