@@ -96,6 +96,8 @@ export interface SearchParams {
   sort: 'asc' | 'desc';
   limit: number;
   maxCloudCover: number;
+  /** Order of the results: by acquisition date (default) or by tile cloud cover, least cloudy first. */
+  sortBy?: 'datetime' | 'cloud';
 }
 
 export function searchBody(p: SearchParams): Record<string, unknown> {
@@ -104,7 +106,9 @@ export function searchBody(p: SearchParams): Record<string, unknown> {
     bbox: p.bbox,
     datetime: p.datetime,
     query: { 'eo:cloud_cover': { lt: p.maxCloudCover } },
-    sortby: [{ field: 'properties.datetime', direction: p.sort }],
+    sortby: p.sortBy === 'cloud'
+      ? [{ field: 'properties.eo:cloud_cover', direction: 'asc' }, { field: 'properties.datetime', direction: p.sort }]
+      : [{ field: 'properties.datetime', direction: p.sort }],
     limit: p.limit,
   };
 }

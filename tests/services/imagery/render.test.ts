@@ -1,8 +1,9 @@
 import sharp from 'sharp';
 import {
-  MIN_OUTLINE_PX, OUTLINE_COLOR, SWIR_GAMMA, composeRgba, encodePng, outlineSvg, reflectanceScale, stretchSwir, swirRgba,
-  truecolorRgba,
+  MIN_OUTLINE_PX, OUTLINE_COLOR, RENDERS, RENDER_VERSION, SWIR_GAMMA, composeRgba, encodePng, ndviRgba, outlineSvg, reflectanceScale,
+  stretchSwir, swirRgba, truecolorRgba,
 } from '../../../backend/services/imagery/render';
+import { NDVI_STOPS } from '../../../backend/services/imagery/indices';
 
 const C1 = { scale: 0.0001, offset: -0.1 };
 
@@ -94,5 +95,28 @@ describe('encodePng', () => {
     const px = (x: number, y: number) => Array.from(data.subarray((y * w + x) * 4, (y * w + x) * 4 + 4));
     expect(px(0, 0)).toEqual([0, 100, 0, 255]); // background untouched
     expect(px(10, 2)[0]).toBeGreaterThan(150); // yellow line: strong red channel
+  });
+});
+
+describe('ndvi render', () => {
+  it('is a third render; the render version of existing images is unchanged', () => {
+    expect(RENDERS).toEqual(['truecolor', 'swir', 'ndvi']);
+    expect(RENDER_VERSION).toBe('v1');
+  });
+
+  it('colours clear pixels on the palette, clouds/snow/nodata transparent', () => {
+    // forest (NDVI ≈ 0.82), bare (NDVI ≈ −0.2 or lower), cloud, snow, band nodata, dark-area class 2
+    const red = [1400, 3000, 1400, 1400, 0, 1400];
+    const nir = [4100, 2000, 4100, 4100, 4100, 4100];
+    const scl = [4, 5, 9, 11, 4, 2];
+    const rgba = ndviRgba(red, nir, scl, [C1, C1]);
+    const px = (i: number) => Array.from(rgba.subarray(i * 4, i * 4 + 4));
+    expect(px(0)[1]).toBeGreaterThan(px(0)[0]); // green
+    expect(px(0)[3]).toBe(255);
+    expect(px(1)).toEqual([...NDVI_STOPS[0][1], 255]); // clamped to the brown end
+    expect(px(2)).toEqual([0, 0, 0, 0]);
+    expect(px(3)).toEqual([0, 0, 0, 0]);
+    expect(px(4)).toEqual([0, 0, 0, 0]);
+    expect(px(5)[3]).toBe(255); // class 2 counts as clear, like the scene check
   });
 });

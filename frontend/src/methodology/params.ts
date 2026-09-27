@@ -1,8 +1,8 @@
 /**
  * Numbers quoted on the methodology page. The frontend cannot import backend modules, so they are
  * copied here — tests/methodology.test.ts checks every one against the backend constants
- * (firmsHistory/, regions/, export/provenance.ts), so a change in the code fails CI until the text
- * follows.
+ * (firmsHistory/, regions/, export/provenance.ts, imagery/), so a change in the code fails CI until
+ * the text follows.
  */
 export const METHODOLOGY = {
   firms: {
@@ -38,6 +38,29 @@ export const METHODOLOGY = {
   export: {
     limit: 5000,
   },
+  imagery: {
+    /** Scene selection (imagery/selection.ts, geometry.ts). */
+    beforeDays: 60,
+    maxSearchCloudPct: 80,
+    maxCandidates: 6,
+    minClearPct: 80,
+    maxNodataPct: 5,
+    aoiMinKm: 3,
+    aoiMaxKm: 20,
+    /** SWIR render: reflectance 0…swirMax stretched to the full brightness range. */
+    swirMax: 0.4,
+    /** Indices (imagery/indices.ts). */
+    indexPixelM: 20,
+    minValidPct: 50,
+    dnbr: { low: 0.1, moderateLow: 0.27, moderateHigh: 0.44, high: 0.66 },
+    ndviMin: -0.2,
+    ndviMax: 0.9,
+    /** Summer series (imagery/series.ts). */
+    seriesFirstYear: 2017,
+    seriesWindow: '1 июля – 31 августа',
+    yearCachePastDays: 365,
+    yearCacheCurrentDays: 7,
+  },
 } as const;
 
 /** Days of our own history the flare rule needs: first and last day ≥ minSpanDays apart. */
@@ -48,7 +71,12 @@ export function formatInt(n: number): string {
   return n.toLocaleString('ru-RU');
 }
 
-/** «14,06» — Russian decimal comma. */
+/** «14,06» — Russian decimal comma; negative numbers with a true minus. */
 export function formatDecimal(n: number): string {
-  return String(n).replace('.', ',');
+  return String(n).replace('.', ',').replace(/^-/, '−');
+}
+
+/** «0,10» — index thresholds always with two decimals, as in the USGS table. */
+export function formatIndexValue(n: number): string {
+  return n.toFixed(2).replace('.', ',').replace(/^-/, '−');
 }

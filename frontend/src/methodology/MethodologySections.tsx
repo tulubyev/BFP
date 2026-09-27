@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { formatDecimal, formatInt, METHODOLOGY, STATIC_HISTORY_DAYS } from './params';
+import { formatDecimal, formatIndexValue, formatInt, METHODOLOGY, STATIC_HISTORY_DAYS } from './params';
 
-const { firms, staticMask, regions } = METHODOLOGY;
+const { firms, staticMask, regions, imagery } = METHODOLOGY;
+const dnbr = imagery.dnbr;
 
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
@@ -113,8 +114,61 @@ export default function MethodologySections() {
         </p>
       </Section>
 
-      <Section id="imagery" title="Снимки Sentinel-2">
-        <p>Снимки до/после в карточке инцидента — раздел будет дополнен.</p>
+      <Section id="imagery" title="Снимки и индексы Sentinel-2">
+        <p>
+          Для инцидентов FIRMS карточка показывает снимки Sentinel-2 L2A (Collection 1, каталог Earth Search, AWS Open Data)
+          «до» и «после» пожара. <strong>Участок снимка</strong> — прямоугольник инцидента с запасом, каждая сторона не меньше
+          {' '}{imagery.aoiMinKm} км; если он шире {imagery.aoiMaxKm} км — квадрат {imagery.aoiMaxKm} км вокруг центра.
+        </p>
+        <p>
+          <strong>Выбор снимков.</strong> «До» — самый поздний годный снимок за {imagery.beforeDays} дней до первой термоточки;
+          «после» — самый ранний годный снимок после последней. Если после последней точки годных снимков нет, берётся последний
+          снимок во время активности с пометкой «во время активности». В каталоге ищутся снимки с облачностью тайла меньше
+          {' '}{imagery.maxSearchCloudPct} %, до {imagery.maxCandidates} кандидатов на сторону. Годный снимок — над участком
+          не меньше {imagery.minClearPct} % чистых пикселей по маске классификации сцены SCL и не больше {imagery.maxNodataPct} %
+          пикселей без данных. Нечистыми считаются облака, перистые облака, тени облаков, снег, насыщенные пиксели и пиксели
+          без данных; класс SCL «тёмные участки» считается чистым — гари часто попадают в него.
+        </p>
+        <p>
+          <strong>Виды снимка:</strong> естественные цвета; SWIR — каналы B12, B8A, B04 (отражение от нуля
+          до {formatDecimal(imagery.swirMax)} растянуто на всю яркость), гари тёмно-красные, активный огонь ярко-оранжевый;
+          NDVI — шкала от {formatIndexValue(imagery.ndviMin)} (коричневый) через жёлтый до {formatIndexValue(imagery.ndviMax)}
+          (зелёный), облака, тени и снег прозрачные. Жёлтая рамка — прямоугольник инцидента, а не граница гари.
+        </p>
+        <h3 className="pt-2 font-semibold text-white">Индексы NDVI, NBR и dNBR</h3>
+        <ul className="list-disc space-y-1 pl-5">
+          <li><strong>NDVI</strong> = (B8A − B04) / (B8A + B04) — зелёная растительность;</li>
+          <li><strong>NBR</strong> = (B8A − B12) / (B8A + B12) — чувствителен к гарям;</li>
+          <li><strong>ΔNDVI</strong> = NDVI после − NDVI до; <strong>dNBR</strong> = NBR до − NBR после.</li>
+        </ul>
+        <p>
+          Используется узкий ближний ИК-канал B8A вместо B08: оба индекса считаются на одной сетке {imagery.indexPixelM} м.
+          Значение — среднее по чистым пикселям контура события: прямоугольник центров термоточек, расширенный на половину
+          пикселя VIIRS ({firms.pixelM} м), потому что каждая термоточка — целый пиксель. Если чистых пикселей меньше
+          {' '}{imagery.minValidPct} %, индекс не показывается и указывается причина.
+        </p>
+        <p>
+          <strong>Степень выгорания по dNBR</strong> (классы USGS, Key &amp; Benson): меньше {formatIndexValue(dnbr.low)} — не горело
+          или без изменений; {formatIndexValue(dnbr.low)}–{formatIndexValue(dnbr.moderateLow)} — низкая;
+          {' '}{formatIndexValue(dnbr.moderateLow)}–{formatIndexValue(dnbr.moderateHigh)} — умеренно-низкая;
+          {' '}{formatIndexValue(dnbr.moderateHigh)}–{formatIndexValue(dnbr.high)} — умеренно-высокая; {formatIndexValue(dnbr.high)} и
+          больше — высокая. dNBR не считается, если снимок «после» сделан во время активности: дым и огонь искажают NBR.
+          Это оценка по двум снимкам Sentinel-2, не полевое обследование.
+        </p>
+        <h3 className="pt-2 font-semibold text-white">Летний ряд NDVI</h3>
+        <p>
+          Для каждого года с {imagery.seriesFirstYear} по текущий берётся лучший снимок за {imagery.seriesWindow} — пик вегетации без
+          снега: кандидаты от наименее облачного тайла, первый годный по тому же правилу SCL. Считается средний NDVI контура события
+          и <strong>фона</strong> — кольца вокруг него (участок снимка минус контур), чтобы отличать изменение на месте пожара от общего
+          по территории (засуха, поздняя весна). Год без годного снимка остаётся пропуском, значения не интерполируются; текущий год
+          помечается как неполный, пока лето не закончилось. Ряд рассчитывается в фоне; готовые прошлые годы хранятся
+          {' '}{imagery.yearCachePastDays} дней, текущий — {imagery.yearCacheCurrentDays} дней.
+        </p>
+        <p>
+          <strong>Ограничения:</strong> облака, дым и снег скрывают участок; разрешение {imagery.indexPixelM} м не показывает отдельные
+          деревья; снимки остаются в проекции UTM сцены; контур — прямоугольник, а не граница гари, поэтому в среднее попадает
+          и несгоревший лес; NDVI меняется и от сезона, погоды и рубок. Индексы — спутниковая оценка для проверки, а не полевые данные.
+        </p>
       </Section>
 
       <Section id="export" title="Выгрузка данных">
