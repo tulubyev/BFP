@@ -55,6 +55,8 @@ describe('rate limit settings', () => {
     expect(expensive('/api/export/incidents.csv')).toBe(true);
     expect(expensive('/api/export/regions.json')).toBe(true);
     expect(expensive('/api/monitoring/forest-changes/42/imagery')).toBe(true);
+    // Cached 10 min, one bounded query (≤ 501 rows) and an in-memory OOPT list: not in the strict budget
+    expect(expensive('/api/monitoring/forest-changes/42/hotspots')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/42/ndvi-series')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/42/IMAGERY')).toBe(true);
     expect(expensive('/api/monitoring/forest-changes')).toBe(false);

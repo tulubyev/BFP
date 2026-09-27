@@ -16,15 +16,27 @@ export interface Incident {
   scene_id?: string | null;
   center_lat?: number | string | null;
   center_lng?: number | string | null;
+  bbox_min_lat?: number | string | null;
+  bbox_min_lng?: number | string | null;
+  bbox_max_lat?: number | string | null;
+  bbox_max_lng?: number | string | null;
   metadata?: Record<string, unknown>;
 }
+
+export type IncidentSort = 'date_desc' | 'date_asc' | 'area_desc' | 'area_asc' | 'confidence_desc' | 'confidence_asc';
 
 export interface IncidentFilters {
   type?: string;
   region?: string;
   startDate?: string;
   endDate?: string;
-  sort?: 'date_desc' | 'date_asc' | 'area_desc' | 'area_asc';
+  sort?: IncidentSort;
+  /** FIRMS activity status (metadata.status). */
+  status?: 'active' | 'inactive';
+  /** gis.forest_changes.source, one of the response's `sources`. */
+  source?: string;
+  /** One incident by id (a card opened from a link). */
+  id?: number;
   /** Static heat sources (gas flares, industry) are hidden by the API unless 'include' or 'only'. */
   staticSources?: 'include' | 'only';
   page?: number;
@@ -38,6 +50,8 @@ export interface IncidentsResponse {
   limit: number;
   offset: number;
   regions: string[];
+  /** Source values present in the database (older cached answers may lack it). */
+  sources?: string[];
   data: Incident[];
   error?: string;
   /** 'live' = fresh from the database, 'cache' = last known-good result served while the DB is down. */
@@ -62,7 +76,10 @@ export function buildIncidentQuery(filters: IncidentFilters = {}): URLSearchPara
   if (filters.region) params.set('region', filters.region);
   if (filters.startDate) params.set('start_date', filters.startDate);
   if (filters.endDate) params.set('end_date', filters.endDate);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.source) params.set('source', filters.source);
   if (filters.staticSources) params.set('static_sources', filters.staticSources);
+  if (filters.id) params.set('id', String(filters.id));
   params.set('sort', filters.sort || 'date_desc');
   const limit = filters.limit || 12;
   params.set('limit', String(limit));
