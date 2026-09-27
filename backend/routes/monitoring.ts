@@ -4,7 +4,7 @@ import { firmsService } from '../services/firmsService';
 import { gfwService } from '../services/globalForestWatch';
 import { createForestChangesHandler } from '../services/incidentsService';
 import { incidentsCache } from '../utils/incidentsCache';
-import { notStaticSourceSql } from '../services/forestChangesQuery';
+import { buildForestChangesGeojsonQuery, toGeojsonFeature } from '../services/forestChangesGeojson';
 import { createIncidentImageryHandler, createNdviSeriesHandler } from './imagery';
 import { createIncidentImageryDeps, createNdviSeriesDeps } from '../services/imagery';
 import { parseYear } from '../utils/queryParams';
@@ -18,49 +18,13 @@ router.get('/forest-changes/:id/imagery', createIncidentImageryHandler(createInc
 // Summer NDVI by year, computed in the background: `pending` + progress until ready
 router.get('/forest-changes/:id/ndvi-series', createNdviSeriesHandler(createNdviSeriesDeps(pool)));
 
+// Map layer «Инциденты»: the feed's filters (change_type, region, start_date, end_date,
+// static_sources — static heat sources hidden by default), newest first, at most GEOJSON_LIMIT rows
 router.get('/forest-changes/geojson', async (req: Request, res: Response) => {
   try {
-    const { change_type } = req.query;
-    
-    let query = `SELECT id, change_type, severity, detected_date, area_ha, 
-                        confidence, source, satellite, center_lat, center_lng, geojson 
-                 FROM gis.forest_changes`;
-    const params: any[] = [];
-
-    // Static heat sources (gas flares) are not forest events; hidden as in /forest-changes.
-    query += ` WHERE ${notStaticSourceSql('forest_changes')}`;
-    if (change_type) {
-      query += ' AND change_type = $1';
-      params.push(change_type);
-    }
-
-    query += ' ORDER BY detected_date DESC LIMIT 500';
-    
-    const result = await pool.query(query, params);
-
-    const features = result.rows.map(row => ({
-      type: 'Feature',
-      id: row.id,
-      geometry: row.geojson ? JSON.parse(row.geojson) : {
-        type: 'Point',
-        coordinates: [row.center_lng, row.center_lat]
-      },
-      properties: {
-        id: row.id,
-        change_type: row.change_type,
-        severity: row.severity,
-        detected_date: row.detected_date,
-        area_ha: row.area_ha,
-        confidence: row.confidence,
-        source: row.source,
-        satellite: row.satellite
-      }
-    }));
-
-    res.json({
-      type: 'FeatureCollection',
-      features
-    });
+    const { sql, params } = buildForestChangesGeojsonQuery(req.query);
+    const result = await pool.query(sql, params);
+    res.json({ type: 'FeatureCollection', features: result.rows.map(toGeojsonFeature) });
   } catch (error) {
     console.error('Error fetching forest changes GeoJSON:', error);
     res.status(500).json({ success: false, error: 'Database error' });
