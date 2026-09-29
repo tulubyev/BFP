@@ -55,6 +55,9 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - Redis (`backend/utils/cache.ts`): `cached()` / `warm()` keep `key:last-good`; an empty or invalid
   result must never replace good data. When a cached value changes shape, bump the key
   (`oopt:ru` → `oopt:ru:v2`). Background refresh lives in `backend/jobs/refresh.ts`.
+- Quality gates (`backend/services/quality/`, FIRMS: `firmsCsv.ts`) run before data reaches the cache:
+  a refused input throws `QualityError` (last-good stays), results go to `reportQuality()` → the
+  load journal (`qualitySource` of a refresh job) and `quality` in `/api/sources/status`.
 - New external host in the browser → add it to the helmet CSP in `backend/server.ts`
   (`CDN_URL` is added automatically).
 

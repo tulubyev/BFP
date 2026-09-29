@@ -10,7 +10,8 @@ import { loadArchiveStaticCells } from '../services/firmsHistory/staticSources';
 import { createPgFirmsHistoryStore } from '../services/firmsHistory/store';
 import { purgeOldHotspots } from '../services/hotspotRetention';
 import { readLastGood } from '../utils/cache';
-import { recordRun, type JournalOutcome } from '../utils/journal';
+import { recordRun, type JournalEntry, type JournalOutcome } from '../utils/journal';
+import { drainQuality, summarizeForJournal } from '../services/quality/log';
 
 export interface RefreshJob {
   name: string;
@@ -20,6 +21,27 @@ export interface RefreshJob {
   run: () => Promise<boolean>;
   /** Cheap item count for the load journal, read after a run (e.g. cached list length). */
   count?: () => Promise<number | undefined>;
+  /**
+   * Source whose quality gate results (services/quality/) go into the run's journal entry:
+   * dropped items as `rejected`; a rejected input makes the run 'failed' with the reason as `error`
+   * (the cached value was kept, but the source did not give us usable data).
+   */
+  qualitySource?: string;
+}
+
+/** Journal fields from the quality results reported since the previous run of this job. */
+export function qualityFields(
+  source: string | undefined,
+  outcome: JournalOutcome,
+  drain: (source: string) => ReturnType<typeof drainQuality> = drainQuality,
+): Pick<JournalEntry, 'outcome' | 'rejected' | 'error'> {
+  if (!source) return { outcome };
+  const { rejected, failures } = summarizeForJournal(drain(source));
+  return {
+    outcome: failures.length ? 'failed' : outcome,
+    ...(rejected > 0 ? { rejected } : {}),
+    ...(failures.length ? { error: `quality check: ${failures.join('; ')}`.slice(0, 300) } : {}),
+  };
 }
 
 const MIN = 60 * 1000;
@@ -71,13 +93,14 @@ export const DEFAULT_JOBS: RefreshJob[] = [
     run: () => refreshFirmsWithHistory(),
     count: () => readLastGood<unknown[]>(FIRMS_KEY).then(v => v?.length),
   },
-  { name: 'rosleshoz', firstDelayMs: 20 * 1000, everyMs: 12 * 60 * MIN, run: refreshRosleshoz },
+  { name: 'rosleshoz', firstDelayMs: 20 * 1000, everyMs: 12 * 60 * MIN, run: refreshRosleshoz, qualitySource: 'rosleshoz' },
   createHotspotRetentionJob(),
   {
     name: 'oopt',
     firstDelayMs: 60 * 1000,
     everyMs: 24 * 60 * MIN,
     run: refreshOOPT,
+    qualitySource: 'oopt',
     count: () => readLastGood<OOPTResult>(OOPT_KEY).then(v => v?.features?.length),
   },
 ];
@@ -95,21 +118,23 @@ export function startRefreshJobs(jobs: RefreshJob[] = DEFAULT_JOBS): () => void 
       try {
         const ok = await job.run();
         const items = await job.count?.().catch(() => undefined);
-        const outcome: JournalOutcome = ok ? 'updated' : 'kept-cached';
+        const quality = qualityFields(job.qualitySource, ok ? 'updated' : 'kept-cached');
         await recordRun(job.name, {
           startedAt: startedAt.toISOString(),
           finishedAt: new Date().toISOString(),
           durationMs: Date.now() - startedAt.getTime(),
-          outcome,
           items,
+          ...quality,
         });
-        console.log(`[refresh] ${job.name}: ${ok ? 'updated' : 'source failed, kept cached'} (${Date.now() - startedAt.getTime()} ms)`);
+        console.log(`[refresh] ${job.name}: ${quality.error ?? (ok ? 'updated' : 'source failed, kept cached')} (${Date.now() - startedAt.getTime()} ms)`);
       } catch (err: any) {
+        const { rejected } = qualityFields(job.qualitySource, 'failed');
         await recordRun(job.name, {
           startedAt: startedAt.toISOString(),
           finishedAt: new Date().toISOString(),
           durationMs: Date.now() - startedAt.getTime(),
           outcome: 'failed',
+          ...(rejected ? { rejected } : {}),
           error: String(err?.message ?? err).slice(0, 300),
         });
         console.warn(`[refresh] ${job.name} failed:`, err.message);

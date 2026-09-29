@@ -15,6 +15,12 @@ import {
   type TileRequest,
 } from './gfwTileLayers';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
+import { distVersionProblem, tileProblem } from './quality/gfw';
+import { reportQuality } from './quality/log';
+import { failed, passed, QualityError } from './quality/result';
+
+/** Source id per tile layer (sourceRegistry.ts), for the quality log. */
+const LAYER_SOURCE: Record<TileRequest['layer'], string> = { loss: 'gfw_loss', dist: 'gfw_dist', cover: 'gfw_cover' };
 
 export const TRANSPARENT_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -31,9 +37,12 @@ async function distVersion(): Promise<string> {
       validateStatus: s => s >= 300 && s < 400,
     });
     const match = /\/(v\d{8})\//.exec(String(res.headers.location ?? ''));
-    if (!match) throw new Error(`Unexpected DIST-ALERT redirect: ${res.headers.location}`);
-    return match[1];
-  }, { isValid: v => /^v\d{8}$/.test(v) });
+    const problem = match ? distVersionProblem(match[1]) : `unexpected DIST-ALERT redirect: ${String(res.headers.location).slice(0, 120)}`;
+    const result = problem ? failed('gfw_dist', 'dist-version', problem) : passed('gfw_dist', 'dist-version', 1);
+    reportQuality(result);
+    if (problem) throw new QualityError(result);
+    return (match as RegExpExecArray)[1];
+  }, { isValid: v => distVersionProblem(v) === null });
 }
 
 async function readTile(key: string): Promise<Buffer | null> {
@@ -76,7 +85,28 @@ export async function renderGfwTile(t: TileRequest): Promise<Buffer> {
     maxRedirects: 3,
     validateStatus: s => s === 200 || s === 404,
   });
-  const png = res.status === 404 ? TRANSPARENT_PNG : await colorize(t, Buffer.from(res.data));
+  const png = res.status === 404 ? TRANSPARENT_PNG : await checkedTile(t, res.headers['content-type'], Buffer.from(res.data));
   await writeTile(key, png, GFW_TILE_LAYERS[t.layer].cacheSeconds);
+  return png;
+}
+
+/**
+ * Quality gate for a 200 tile (quality/gfw.ts): an HTML page, empty body or broken PNG throws a
+ * QualityError before anything is cached — the tile route answers 502 for it.
+ */
+async function checkedTile(t: TileRequest, contentType: unknown, raw: Buffer): Promise<Buffer> {
+  const source = LAYER_SOURCE[t.layer];
+  let problem = tileProblem(contentType, raw);
+  let png: Buffer | null = null;
+  if (!problem) {
+    try {
+      png = await colorize(t, raw);
+    } catch (err: any) {
+      problem = `PNG cannot be decoded: ${String(err?.message ?? err).slice(0, 100)}`;
+    }
+  }
+  const result = problem ? failed(source, 'tile', `${t.z}/${t.x}/${t.y}: ${problem}`, 1, 1) : passed(source, 'tile', 1);
+  reportQuality(result);
+  if (!png) throw new QualityError(result);
   return png;
 }

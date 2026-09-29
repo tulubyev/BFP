@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { cached, readLastGood } from '../utils/cache';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
+import { checkGfwLossRows, checkGfwStatistics } from './quality/gfw';
+import { reportQuality } from './quality/log';
+import { QualityError } from './quality/result';
 
 export interface GFWTreeCoverLoss {
   year: number;
@@ -249,11 +252,11 @@ export class GlobalForestWatchService {
       }
     );
 
-    return (response.data.data ?? []).map((row: any) => ({
-      year: Number(row.year),
-      area_ha: Number(row.area_ha),
-      emissions_Mg_CO2: Number(row.emissions_Mg_CO2 ?? 0),
-    }));
+    // Quality gate (quality/gfw.ts): bad rows dropped, a changed format throws → published estimate
+    const { rows, result } = checkGfwLossRows(response.data, 'data-api-loss');
+    reportQuality(result);
+    if (!result.ok) throw new QualityError(result);
+    return rows;
   }
 
   /** Redis key holding the last successfully fetched forest-carbon snapshot, with its fetch date. */
@@ -318,15 +321,17 @@ export class GlobalForestWatchService {
       }
     );
 
-    const data = response.data.data?.[0];
-    if (!data) throw new Error('GFW API returned no data rows for this geometry');
+    // Quality gate (quality/gfw.ts): a missing or negative field rejects the answer, never 0
+    const { row, result } = checkGfwStatistics(response.data);
+    reportQuality(result);
+    if (!row) throw new QualityError(result);
     return {
-      area_ha: data.area__ha || 0,
-      tree_cover_extent_ha: data.umd_tree_cover_extent_2000__ha || 0,
-      tree_cover_loss_ha: data.umd_tree_cover_loss__ha || 0,
-      tree_cover_gain_ha: data.umd_tree_cover_gain__ha || 0,
-      primary_forest_loss_ha: data.umd_tree_cover_loss_from_fires__ha || 0,
-      emissions_Mt_CO2: (data.gfw_forest_carbon_gross_emissions__Mg_CO2e || 0) / 1000000
+      area_ha: row.area__ha,
+      tree_cover_extent_ha: row.umd_tree_cover_extent_2000__ha,
+      tree_cover_loss_ha: row.umd_tree_cover_loss__ha,
+      tree_cover_gain_ha: row.umd_tree_cover_gain__ha,
+      primary_forest_loss_ha: row.umd_tree_cover_loss_from_fires__ha,
+      emissions_Mt_CO2: row.gfw_forest_carbon_gross_emissions__Mg_CO2e / 1000000
     };
   }
 
