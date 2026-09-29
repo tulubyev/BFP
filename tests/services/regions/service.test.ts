@@ -118,7 +118,7 @@ describe('createRegionsService', () => {
     const service = createRegionsService({ ...deps, rosleshozRows: spy }, cache.fn);
     await service.list();
     await service.list();
-    expect([...cache.store.keys()]).toEqual([`regions:v1:${registry.file}:firms-archive.2024.json`]);
+    expect([...cache.store.keys()]).toEqual([`regions:v2:${registry.file}:firms-archive.2024.json`]);
     expect(spy).toHaveBeenCalledTimes(3); // one build: one read per dataset
   });
 

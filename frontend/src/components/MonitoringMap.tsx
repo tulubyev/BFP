@@ -6,7 +6,9 @@ import { addBoundaryLayers } from '../map/boundariesLayer';
 import { addFirmsLayers } from '../map/firmsLayer';
 import { addOoptLayer } from '../map/ooptLayer';
 import { addSourcesControl } from '../map/sourcesControl';
-import { isCompactMap } from '../map/mapLayout';
+import { MAP_ZOOM_OPTIONS, wholeZoom } from '../map/mapLayout';
+import { makeCollapsible, makeLayersControlCollapsible } from '../map/collapsiblePanel';
+import { addFullscreenControl, type FullscreenControl } from '../map/fullscreenControl';
 import { createIncidentsLayer, type IncidentsLayer } from '../map/incidentsLayer';
 import { INCIDENT_COLORS, incidentCardUrl } from '../map/incidents';
 import { popupElement } from '../map/popup';
@@ -30,7 +32,7 @@ const TRANSPARENT_TILE =
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: '', shadowUrl: '', iconRetinaUrl: '' });
 
-function addMapLegend(map: L.Map, collapsed: boolean): L.Control {
+function addMapLegend(map: L.Map): L.Control {
   const Legend = L.Control.extend({
     options: { position: 'bottomright' },
     onAdd() {
@@ -42,15 +44,13 @@ function addMapLegend(map: L.Map, collapsed: boolean): L.Control {
         'padding:10px 14px',
         'font-size:12px',
         'color:#cbd5e1',
-        `min-width:${collapsed ? 0 : 225}px`,
+        'min-width:170px',
         'pointer-events:auto',
         'backdrop-filter:blur(4px)',
       ].join(';');
-      // Static markup only (no API data); a <details> so phones can keep it folded
+      // Static markup only (no API data); folded and unfolded by makeCollapsible below
       div.innerHTML = `
-        <details${collapsed ? '' : ' open'}>
-        <summary style="font-weight:700;color:#fff;margin:0;font-size:13px;cursor:pointer">Легенда</summary>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px">
+        <div data-legend-body style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="width:16px;height:6px;background:linear-gradient(90deg,#fbbf24,#dc2626);border-radius:2px;display:inline-block"></span>
             <span>Потери леса 2001 → 2025 (Hansen/UMD)</span>
@@ -91,8 +91,8 @@ function addMapLegend(map: L.Map, collapsed: boolean): L.Control {
           <p style="font-size:10px;color:#64748b;margin:0">
             Hansen/UMD · GFW (CC BY 4.0) · NASA FIRMS · OSM © contributors (ODbL) · Esri · Рослесхоз
           </p>
-        </div>
-        </details>`;
+        </div>`;
+      makeCollapsible(div, div.querySelector('[data-legend-body]') as HTMLElement, 'legend', 'Легенда');
       return div;
     },
   });
@@ -132,7 +132,7 @@ function currentState(h: MapHandle): MapState {
   const center = h.map.getCenter();
   return {
     center: [center.lat, center.lng],
-    zoom: h.map.getZoom(),
+    zoom: wholeZoom(h.map.getZoom()),
     overlays: OVERLAY_IDS.filter(id => h.map.hasLayer(h.overlays[id])),
     base: BASE_IDS.find(id => h.map.hasLayer(h.bases[id])) ?? 'dark',
     incident: h.selectedIncident,
@@ -181,12 +181,17 @@ function MonitoringMap() {
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  /** The map fills the whole window (a fixed overlay); Esc or the button gets back to the page. */
+  const [expanded, setExpanded] = useState(false);
+  const fullscreenRef = useRef<FullscreenControl | null>(null);
+  const toggleExpandedRef = useRef<() => void>(() => undefined);
+  toggleExpandedRef.current = () => setExpanded(v => !v);
 
   useEffect(() => {
     if (!mapRef.current || handleRef.current) return;
 
     const initial = parseMapState(initialParams.current);
-    const map = L.map(mapRef.current).setView(initial.center, initial.zoom);
+    const map = L.map(mapRef.current, MAP_ZOOM_OPTIONS).setView(initial.center, initial.zoom);
 
     // Base layers
     const bases: Record<BaseId, L.TileLayer> = {
@@ -237,8 +242,7 @@ function MonitoringMap() {
       'Лесной покров 2000 (Hansen/UMD)': gfwDensityTiles,
     };
 
-    const compact = isCompactMap(window.innerWidth);
-    const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: compact }).addTo(map);
+    const layerControl = L.control.layers(baseLayers, overlayLayers, { collapsed: false }).addTo(map);
     const boundaries = addBoundaryLayers(map, layerControl);
     const oopt = addOoptLayer(map, layerControl);
     const firms = addFirmsLayers(layerControl);
@@ -298,7 +302,9 @@ function MonitoringMap() {
     writtenRef.current = initialParams.current.toString();
 
     applyLayers(handle, initial);
-    addMapLegend(map, compact);
+    makeLayersControlCollapsible(layerControl);
+    addMapLegend(map);
+    fullscreenRef.current = addFullscreenControl(map, () => toggleExpandedRef.current());
     addSourcesControl(map);
     applySelection(handle, initial);
 
@@ -311,6 +317,22 @@ function MonitoringMap() {
       handleRef.current = null;
     };
   }, []);
+
+  // Expanded map: resize Leaflet to the new box, lock page scroll, close on Esc
+  useEffect(() => {
+    fullscreenRef.current?.setActive(expanded);
+    const timer = window.setTimeout(() => handleRef.current?.map.invalidateSize(), 50);
+    if (!expanded) return () => window.clearTimeout(timer);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setExpanded(false);
+    window.addEventListener('keydown', onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [expanded]);
 
   // A URL change the map did not write itself (link on the same page, back/forward): move the map.
   useEffect(() => {
@@ -350,10 +372,23 @@ function MonitoringMap() {
   }, []);
 
   return (
-    <div id="map" className="card scroll-mt-4 overflow-hidden">
-      <div ref={mapRef} className="h-[420px] w-full sm:h-[520px] lg:h-[620px]" />
+    <div
+      id="map"
+      className={expanded ? 'fixed inset-0 z-[3000] flex flex-col bg-slate-900' : 'card scroll-mt-4 overflow-hidden'}
+    >
+      <div
+        ref={mapRef}
+        className={expanded ? 'min-h-0 w-full flex-1' : 'h-[420px] w-full sm:h-[520px] lg:h-[620px]'}
+      />
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-700 px-3 py-2 text-xs text-slate-400">
         <span>Вид карты (центр, масштаб, слои, выбранный инцидент) сохраняется в адресе страницы.</span>
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-100 transition-colors hover:border-green-500/60 hover:text-white"
+        >
+          {expanded ? 'Свернуть карту (Esc)' : 'Карта на всё окно'}
+        </button>
         <button
           type="button"
           onClick={copyLink}

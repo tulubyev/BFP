@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { makeCollapsible } from './collapsiblePanel';
 import { formatFreshnessLabel, monitoredSources, STATE_COLOR, type SourceStatusEntry, type SourcesStatusResponse } from './sourcesStatus';
 
 function sourceRow(entry: SourceStatusEntry): HTMLElement {
@@ -29,20 +30,17 @@ function panelElement(sources: SourceStatusEntry[]): HTMLElement {
     'backdrop-filter:blur(4px)',
   ].join(';');
 
-  const title = document.createElement('p');
-  title.style.cssText = 'font-weight:700;color:#fff;margin:0 0 6px 0;font-size:12px';
-  title.textContent = 'Источники данных';
-  root.append(title);
-
+  const body = document.createElement('div');
+  root.append(body);
   if (sources.length === 0) {
     const empty = document.createElement('p');
     empty.style.cssText = 'margin:0;color:#64748b';
     empty.textContent = 'Загрузка…';
-    root.append(empty);
-    return root;
+    body.append(empty);
+  } else {
+    for (const source of sources) body.append(sourceRow(source));
   }
-
-  for (const source of sources) root.append(sourceRow(source));
+  makeCollapsible(root, body, 'sources', 'Источники данных');
   return root;
 }
 

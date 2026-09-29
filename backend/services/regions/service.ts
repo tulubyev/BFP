@@ -172,7 +172,7 @@ export function createRegionsService(deps: RegionsDeps, cachedFn: CachedFn = def
 
   async function data(): Promise<RegionsData> {
     // A new boundaries or archive file gets a new key, so it shows up without waiting 12 h
-    const key = `regions:v1:${deps.registry().file}:${deps.archive()?.file ?? 'no-archive'}`;
+    const key = `regions:v2:${deps.registry().file}:${deps.archive()?.file ?? 'no-archive'}`;
     try {
       return await cachedFn(key, REGIONS_TTL_SEC, () => memoBuild(key), { isValid: isCompleteBuild });
     } catch {
