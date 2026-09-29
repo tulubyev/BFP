@@ -29,7 +29,10 @@ export interface SourceDefinition {
   spatialResolution: string;
   coverage: string;
   limitations: string[];
-  /** Has a runtime freshness signal (sourceStatus.ts can compute an age); static sources don't. */
+  /**
+   * Has a runtime signal in sourceStatus.ts: the age of its data (publication date, boundaries
+   * version) and/or whether our requests still reach it (load journal, on-demand access record).
+   */
   monitored: boolean;
   /**
    * Publication cadence, when it's long enough that a plain "age since last publication" reads as
@@ -100,8 +103,9 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     limitations: [
       'Версия набора (v1.13) зашита в коде — переход на новый год требует ручного обновления после публикации GFW',
       'Показывает только годовые потери, без внутригодовой динамики',
+      'Статус — доступность плиток GFW для наших запросов (успехи и сбои записываются не чаще раза в 10 минут): «источник недоступен для нас» после 3 суток сбоев без единого успеха; если плитки никто не запрашивал — «нет данных», а не сбой',
     ],
-    monitored: false,
+    monitored: true,
   },
   {
     id: 'gfw_dist',
@@ -115,6 +119,7 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     limitations: [
       'Хранит только последние ~2 года наблюдений — более старые нарушения этим источником не восстановить',
       'Если GFW не отдаёт редирект на новую версию, прокси продолжает использовать последнюю известную версию',
+      'Статус — худшее из двух сигналов: дата версии DIST-ALERT (устарела через 10 суток) и доступность плиток для наших запросов (недоступен после 3 суток сбоев без успеха)',
     ],
     monitored: true,
   },
@@ -127,8 +132,11 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     updateFrequency: 'Статичный базовый год, не обновляется',
     spatialResolution: '30 м, растровые плитки 512 px',
     coverage: 'Глобально, порог сомкнутости ≥30% (tcd_30), версия v1.8',
-    limitations: ['Показывает состояние 2000 года — используется только как подложка для слоя потерь, не как текущие данные'],
-    monitored: false,
+    limitations: [
+      'Показывает состояние 2000 года — используется только как подложка для слоя потерь, не как текущие данные',
+      'Статус — доступность плиток GFW для наших запросов (успехи и сбои записываются не чаще раза в 10 минут): «источник недоступен для нас» после 3 суток сбоев без единого успеха; если плитки никто не запрашивал — «нет данных», а не сбой',
+    ],
+    monitored: true,
   },
   {
     id: 'osm_boundaries',
@@ -142,8 +150,9 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
     limitations: [
       'Собираются офлайн из выгрузки Geofabrik, а не запросом в реальном времени — свежесть ограничена частотой пересборки',
       'Крым, Севастополь и регионы 2022 года не включены (решение владельца)',
+      'Свежесть — версия файла границ (ru-regions.<ГГГГ-ММ>.geojson): через 18 месяцев после сборки помечается как устаревшая',
     ],
-    monitored: false,
+    monitored: true,
   },
   {
     id: 'sentinel2',
@@ -164,8 +173,9 @@ export const SOURCE_REGISTRY: SourceDefinition[] = [
       'Изображение в проекции UTM сцены (север вверху), без трансформации в WGS84; контур — прямоугольник инцидента, а не граница гари',
       'NDVI, NBR и dNBR — средние по прямоугольнику инцидента по двум снимкам; класс выгорания по USGS — оценка, не полевое обследование',
       'Летний ряд NDVI (1 июля – 31 августа, с 2017 г.): год без безоблачного снимка остаётся пропуском, значения не интерполируются',
+      'Статус — доступность каталога Earth Search для наших запросов (не чаще раза в 10 минут), а не дата последнего снимка: «источник недоступен для нас» после 3 суток сбоев без успеха',
     ],
-    monitored: false,
+    monitored: true,
   },
   {
     id: 'postgis',

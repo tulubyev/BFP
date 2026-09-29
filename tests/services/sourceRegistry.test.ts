@@ -16,6 +16,6 @@ describe('source registry', () => {
     expect(s2!.spatialResolution).toMatch(/20 м/);
     expect(s2!.limitations.join(' ')).toMatch(/Облака/);
     expect(s2!.limitations.join(' ')).toMatch(/Снег/);
-    expect(s2!.monitored).toBe(false);
+    expect(s2!.monitored).toBe(true);
   });
 });

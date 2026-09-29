@@ -108,5 +108,9 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - Imagery indices and NDVI series: `indices.ts` (pure math), `series.ts` (one year), `ndviSeries.ts` (background
   queue, in-process — lost on restart, the next request re-queues). The `/imagery` response is cached under
   `imagery:incident:v2:*`; a new render (`ndvi`) was added under `RENDER_VERSION` v1 because its URLs are new.
+- Source status (`/api/sources/status`) = worst of signals: data age (`THRESHOLDS`), our downloads
+  (`DOWNLOAD_THRESHOLDS`) and, for on-demand sources (GFW tiles, Earth Search), access records
+  (`backend/services/sourceAccess.ts` → Redis `access:<id>`, ≤ 1 write per source and outcome per
+  10 min). No requests = `unknown`, never `failed`. `osm_boundaries` age = boundaries file version.
 - Boundaries: `scripts/boundaries/build.sh` (Geofabrik + osmium + mapshaper); 83 regions
   without Crimea, Sevastopol and the 2022 regions — the owner's decision.

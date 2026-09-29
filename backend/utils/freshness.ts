@@ -33,3 +33,38 @@ export function worseState(a: FreshnessState, b: FreshnessState): FreshnessState
   if (b === 'unknown') return a;
   return SEVERITY[a] >= SEVERITY[b] ? a : b;
 }
+
+/** The access fields computeAccessState reads (utils/journal.ts AccessSummary). */
+export interface AccessTimes {
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  failingSince: string | null;
+}
+
+function parseTime(iso: string | null): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : t;
+}
+
+/**
+ * "Can we still reach the source" for sources fetched on demand. The outage is measured between
+ * the first and the last failure since the last success — the span we actually observed failing —
+ * not up to now: a source nobody asked for since one failed request is not proven down, and a
+ * source nobody asked for at all is 'unknown', never 'failed'.
+ *   no records at all                  → unknown
+ *   last recorded access succeeded      → fresh
+ *   failing for ≤ staleAfterMs          → fresh (a hiccup)
+ *   failing for ≤ failedAfterMs         → stale
+ *   failing for longer, no success      → failed
+ */
+export function computeAccessState(access: AccessTimes | null, thresholds: FreshnessThresholds): FreshnessState {
+  if (!access) return 'unknown';
+  const success = parseTime(access.lastSuccessAt);
+  const failure = parseTime(access.lastFailureAt);
+  const since = parseTime(access.failingSince);
+  if (success === null && failure === null) return 'unknown';
+  if (since === null || failure === null) return success !== null ? 'fresh' : 'unknown';
+  if (success !== null && success >= failure) return 'fresh';
+  return computeState(Math.max(0, failure - since), thresholds);
+}
