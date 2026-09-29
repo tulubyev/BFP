@@ -9,6 +9,8 @@ COPY frontend ./frontend
 COPY tests ./tests
 # tests/regional imports the FIRMS archive aggregation from scripts/regional
 COPY scripts ./scripts
+# tests/services/hotspotRetention.test.ts checks the retention migration file
+COPY database ./database
 # Optional: serve built assets from a CDN (see docker-compose.prod.yml)
 ARG CDN_URL=""
 ENV CDN_URL=$CDN_URL
