@@ -104,13 +104,26 @@ describe('checkRosleshozCsv — per-region tables', () => {
   });
 });
 
+describe('checkRosleshozCsv — one-column tables (real FireCover, MineralizedStrips, ForesFundFiresArea)', () => {
+  it('a dataset without a schema may have a single column', () => {
+    const { rows, result } = checkRosleshozCsv('fireCover', 'area\n"1,5"\n');
+    expect(result.ok).toBe(true);
+    expect(rows).toHaveLength(1);
+  });
+
+  it('a dataset the app reads by column is still rejected when its columns are missing', () => {
+    const { result } = checkRosleshozCsv('woodVolume', 'region\nИркутская область\n');
+    expect(result.ok).toBe(false);
+  });
+});
+
 describe('checkRosleshozCsv — any dataset', () => {
   it.each([
     ['HTML page', '<!DOCTYPE html><html><body>Сайт на реконструкции</body></html>', /HTML page instead of CSV/],
     ['empty body', '   \n', /empty response/],
     ['JSON object (axios parsed an error answer)', { error: 'Not found' }, /not CSV text/],
     ['header only', 'region,volume\n', /header only/],
-    ['one-column header', 'region\nИркутская область\n', /bad header/],
+    ['an unnamed column in the header', 'region,\nИркутская область,1\n', /bad header/],
   ])('rejects %s', (_label, body, reason) => {
     const { rows, result } = checkRosleshozCsv('woodChecks', body);
     expect(rows).toEqual([]);

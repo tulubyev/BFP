@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('GFW tiles', () => {
   it('a tile fetched from GFW records a success for its layer source', async () => {
-    get.mockResolvedValue({ status: 200, data: TRANSPARENT_PNG });
+    get.mockResolvedValue({ status: 200, data: TRANSPARENT_PNG, headers: { 'content-type': 'image/png' } });
     await renderGfwTile({ layer: 'cover', z: 3, x: 1, y: 1 });
     expect(record).toHaveBeenCalledWith('gfw_cover', 'ok');
   });

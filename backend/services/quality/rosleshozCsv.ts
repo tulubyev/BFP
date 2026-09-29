@@ -1,7 +1,7 @@
 /**
  * Quality gate for Rosleshoz open-data CSV (future.md §5, pattern: firmsCsv.ts).
  *
- * Every dataset: the body must be CSV text (not an HTML page), with a header of ≥ 2 columns and at
+ * Every dataset: the body must be CSV text (not an HTML page), with a header of named columns (real tables such as FireCover have just one) and at
  * least one data row; a row with more fields than the header (broken quoting) is dropped.
  * Datasets the app reads by column (SCHEMAS) also get:
  * - the header must still contain the columns we read (each group lists accepted alternatives —
@@ -135,7 +135,7 @@ export function checkRosleshozCsv(dataset: string, body: unknown): CheckedCsv {
 
   const lines = text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim() !== '');
   const headers = parseCsvLine(lines[0]).map(h => h.trim());
-  if (headers.length < 2 || headers.some(h => h === '')) return reject(`bad header: ${excerpt(lines[0])}`);
+  if (headers.some(h => h === '')) return reject(`bad header: ${excerpt(lines[0])}`);
   if (lines.length < 2) return reject('header only, no data rows');
 
   const schema = SCHEMAS[dataset];
