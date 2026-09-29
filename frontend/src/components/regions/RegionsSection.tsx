@@ -20,13 +20,20 @@ export default function RegionsSection() {
       .catch(err => setState({ status: 'error', message: err instanceof Error ? err.message : String(err) }));
   }, []);
 
+  // «К таблице регионов» from the report links to /analytics#regions; the router does not scroll to hashes
+  const ready = state.status === 'ready';
+  useEffect(() => {
+    if (ready && window.location.hash === '#regions') document.getElementById('regions')?.scrollIntoView();
+  }, [ready]);
+
   return (
-    <section className="card min-w-0 p-4 sm:p-6" aria-labelledby="regions-title">
+    <section id="regions" className="card min-w-0 scroll-mt-20 p-4 sm:p-6" aria-labelledby="regions-title">
       <div className="mb-4 space-y-2">
         <h3 id="regions-title" className="text-xl font-bold">Регионы</h3>
         <p className="text-sm text-gray-400">
           83 субъекта РФ, байкальские — сверху. Официальные, спутниковые и оценочные показатели разделены и помечены;
-          под каждым числом — его период. Нажмите на субъект, чтобы открыть карточку с рядом по годам, определениями и источниками.
+          под каждым числом — его период. Нажмите на субъект, чтобы открыть карточку с рядом по годам, определениями и источниками;
+          «Отчёт для печати» — та же сводка на листе A4 (можно сохранить в PDF).
         </p>
         <div className="flex flex-wrap gap-2 text-xs text-gray-400">
           <span className="flex items-center gap-1"><KindBadge kind="official" /> Рослесхоз</span>

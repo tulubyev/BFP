@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { RegionSummary } from '../../api/regions';
+import { regionReportPath } from '../../utils/regionReport';
 import {
   REGION_COLUMNS, columnKind, findIndicator, formatIndicatorNumber, nextSort, sortRegionRows, type SortState,
 } from '../../utils/regions';
@@ -57,6 +59,13 @@ export default function RegionsTable({ regions, onSelect }: { regions: RegionSum
                   {region.name}
                 </button>
                 {region.baikal && <span className="ml-1 text-[10px] uppercase text-emerald-400">Байкал</span>}
+                <Link
+                  to={regionReportPath(region.iso)}
+                  onClick={e => e.stopPropagation()}
+                  className="block text-[11px] font-normal text-gray-400 underline decoration-dotted hover:text-green-400"
+                >
+                  Отчёт для печати
+                </Link>
               </th>
               {REGION_COLUMNS.map(col => {
                 const indicator = findIndicator(region, col.id);

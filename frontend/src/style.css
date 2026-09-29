@@ -57,3 +57,65 @@
   font-size: 10px;
   color: #cbd5e1;
 }
+
+/* Region report /regions/:iso/report (frontend/src/components/regions/RegionReport.tsx): a white
+   A4 sheet on screen, the sheet alone in print. Scoped with :has() so other pages print as before. */
+.report-sheet {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.report-sheet .report-row,
+.report-sheet .report-badge {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-sheet .report-h2,
+.report-sheet .report-h3 {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+  }
+
+  html:has(.report-sheet),
+  body:has(.report-sheet),
+  body:has(.report-sheet) #root > div {
+    background: #fff !important;
+    color: #000 !important;
+    min-height: 0 !important;
+  }
+
+  /* Site header and footer (components/Header.tsx, Footer.tsx) */
+  body:has(.report-sheet) #root > div > header,
+  body:has(.report-sheet) #root > div > footer {
+    display: none !important;
+  }
+
+  .report-sheet {
+    font-size: 10pt;
+  }
+
+  .report-sheet thead {
+    display: table-header-group;
+  }
+
+  .report-sheet .report-keep {
+    break-inside: avoid-page;
+  }
+
+  .report-sheet figure,
+  .report-sheet svg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-sheet a.report-link {
+    color: #000 !important;
+  }
+}
