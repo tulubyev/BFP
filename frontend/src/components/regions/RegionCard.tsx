@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fetchRegionDetail, type Indicator, type RegionDetailResponse } from '../../api/regions';
+import { regionReportPath } from '../../utils/regionReport';
 import { NO_DATA, formatIndicatorValue, groupByKind } from '../../utils/regions';
 import KindBadge from './KindBadge';
 
@@ -89,6 +91,9 @@ export default function RegionCard({ iso, onClose }: { iso: string; onClose: () 
                 {detail.iso} · площадь {detail.areaKm2.toLocaleString('ru-RU')} км² (по границам OSM) · данные собраны {new Date(detail.generatedAt).toLocaleString('ru-RU')}
               </p>
             )}
+            <Link to={regionReportPath(iso)} className="mt-1 inline-block text-sm text-green-400 underline hover:text-green-300">
+              Отчёт для печати
+            </Link>
           </div>
           <button type="button" onClick={onClose} className="rounded-lg px-2 py-1 text-gray-400 hover:bg-slate-700 hover:text-white" aria-label="Закрыть">✕</button>
         </div>

@@ -56,9 +56,21 @@ export interface RegionDetailResponse extends RegionSummary {
   boundariesFile: string;
 }
 
+/** Failed API call: HTTP status plus the backend's own message (`{ error }`) when it sent one. */
+export class RegionsApiError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = 'RegionsApiError';
+  }
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const message = typeof body?.error === 'string' && body.error ? body.error : `HTTP ${res.status}`;
+    throw new RegionsApiError(res.status, message);
+  }
   return res.json() as Promise<T>;
 }
 
