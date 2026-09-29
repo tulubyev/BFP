@@ -8,6 +8,7 @@ import { buildForestChangesGeojsonQuery, toGeojsonFeature } from '../services/fo
 import { createIncidentImageryHandler, createNdviSeriesHandler } from './imagery';
 import { createIncidentImageryDeps, createNdviSeriesDeps } from '../services/imagery';
 import { parseYear } from '../utils/queryParams';
+import { HOTSPOT_RETENTION_DAYS } from '../services/hotspotRetention';
 import { createIncidentHotspotsHandler } from './incidentHotspots';
 import { createIncidentHotspotsDeps } from '../services/incidentHotspotsDeps';
 
@@ -100,18 +101,17 @@ router.get('/gfw/regions', (_req: Request, res: Response) => {
 
 router.get('/fire-hotspots/stats', async (req: Request, res: Response) => {
   try {
+    // The history keeps the last HOTSPOT_RETENTION_DAYS days (hotspotRetention.ts): daily counts
     const result = await pool.query(`
       SELECT
-        EXTRACT(YEAR FROM acquisition_date)::int AS year,
-        EXTRACT(MONTH FROM acquisition_date)::int AS month,
-        COUNT(*) AS count,
-        AVG(brightness) AS avg_brightness,
-        AVG(frp) AS avg_frp
+        to_char(acquisition_date, 'YYYY-MM-DD') AS date,
+        COUNT(*)::int AS count,
+        AVG(frp)::float8 AS avg_frp
       FROM gis.fire_hotspots
-      GROUP BY year, month
-      ORDER BY year, month
+      GROUP BY acquisition_date
+      ORDER BY acquisition_date
     `);
-    res.json({ success: true, data: result.rows });
+    res.json({ success: true, retention_days: HOTSPOT_RETENTION_DAYS, data: result.rows });
   } catch (error) {
     console.error('Error fetching fire stats:', error);
     res.status(500).json({ success: false, error: 'Database error' });

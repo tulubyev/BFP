@@ -87,6 +87,17 @@ export function ooptLine(oopt: OoptProximity | null | undefined, error?: string)
 }
 
 /** «Термоточек: 42» or «Показаны первые 500 термоточек» when the list was cut. */
+/**
+ * Note when part or all of the incident's hotspot window is older than the history that is kept
+ * (dates are YYYY-MM-DD, UTC), so an empty map is not read as "no hotspots were detected".
+ */
+export function retentionNote(windowFrom: string, retainedSince: string | undefined, count: number): string | null {
+  if (!retainedSince || !/^\d{4}-\d{2}-\d{2}$/.test(windowFrom) || windowFrom >= retainedSince) return null;
+  return count === 0
+    ? `Термоточки этого события старше срока хранения (с ${retainedSince}) и удалены из базы`
+    : `Часть термоточек старше срока хранения (до ${retainedSince}) удалена из базы — показаны сохранившиеся`;
+}
+
 export function hotspotsCaption(count: number, truncated: boolean, limit: number): string {
   if (truncated) return `Показаны первые ${limit} термоточек (по времени)`;
   return count ? `Термоточек на карте: ${count}` : 'Термоточек в пределах контура не найдено';

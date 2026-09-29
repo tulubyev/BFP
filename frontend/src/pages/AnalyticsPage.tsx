@@ -14,7 +14,6 @@ import {
 } from '../api/analytics';
 import RegionsSection from '../components/regions/RegionsSection';
 
-const MONTH_NAMES = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
 const CHANGE_TYPE_LABELS: Record<string, string> = {
   fire: 'Пожар',
@@ -102,6 +101,7 @@ function AnalyticsPage() {
   const [dataType, setDataType] = useState<'published' | 'estimated'>('published');
   const [dataSource, setDataSource] = useState('Hansen/UMD/Google/USGS/NASA via Global Forest Watch — national totals (tcd≥30%)');
   const [fireStats, setFireStats] = useState<FireStat[]>([]);
+  const [retentionDays, setRetentionDays] = useState(30);
   const [changes, setChanges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lossLoading, setLossLoading] = useState(false);
@@ -111,7 +111,8 @@ function AnalyticsPage() {
     Promise.all([fetchRegions(), fetchFireStats(), fetchForestChanges()])
       .then(([r, f, c]) => {
         setRegions(r);
-        setFireStats(f);
+        setFireStats(f.data);
+        setRetentionDays(f.retentionDays);
         setChanges(c);
       })
       .catch(e => setError(e.message))
@@ -144,11 +145,7 @@ function AnalyticsPage() {
 
   const selectedRegionInfo = regions.find(r => r.code === selectedRegion);
 
-  const monthlyFireData = MONTH_NAMES.map((name, i) => {
-    const month = i + 1;
-    const total = fireStats.filter(f => f.month === month).reduce((s, f) => s + Number(f.count), 0);
-    return { name, count: total };
-  });
+  const dailyFireData = fireStats.map(f => ({ name: `${f.date.slice(8, 10)}.${f.date.slice(5, 7)}`, count: f.count }));
 
   const changesByType = changes.reduce((acc: Record<string, number>, c) => {
     acc[c.change_type] = (acc[c.change_type] || 0) + 1;
@@ -289,8 +286,11 @@ function AnalyticsPage() {
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="card p-6">
             <h3 className="text-xl font-bold mb-1">Пожарная активность</h3>
-            <p className="text-gray-500 text-sm mb-6">Термоточки из БД по месяцам (NASA FIRMS)</p>
-            {monthlyFireData.every(d => d.count === 0) ? (
+            <p className="text-gray-500 text-sm mb-6">
+              Термоточки NASA FIRMS по дням за последние {retentionDays} дней: вся Россия, три спутника (одна точка может быть видна нескольким).
+              Старше {retentionDays} дней данные не хранятся; сегодняшний день неполный.
+            </p>
+            {dailyFireData.every(d => d.count === 0) ? (
               <div className="flex flex-col items-center justify-center h-48 text-gray-500">
                 <svg className="w-10 h-10 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.985-7C14 5 14.985 8 15 10c2 0 3-1 3-1 0 1-1 5-1 5s.007 3.332-1.343 4.657z" />
@@ -300,7 +300,7 @@ function AnalyticsPage() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={monthlyFireData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <BarChart data={dailyFireData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />

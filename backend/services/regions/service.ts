@@ -11,7 +11,7 @@ import {
   buildRegionDetail, type AssemblyInputs, type GfwLossInput, type NrtInput, type OoptInput, type RegionDetail,
   type RegionSummary, type RosleshozInput,
 } from './indicators';
-import { countNrtByRegion, NRT_HISTORY_SINCE, type NrtCell } from './nrtHotspots';
+import { countNrtByRegion, nrtSince, type NrtCell } from './nrtHotspots';
 import { ooptAreaByRegion, type OoptGeometryLike } from './ooptShare';
 import { BAIKAL_ISOS, EXPECTED_REGION_COUNT, ISO_RE, type RegionRegistry } from './registry';
 import { extractRegional, ROSLESHOZ_SPECS, type ExtractSpec } from './rosleshozRegional';
@@ -88,6 +88,7 @@ export async function buildRegionsData(deps: RegionsDeps): Promise<RegionsData> 
   const registry = deps.registry();
   const archive = deps.archive();
   const shapes = registry.regions.map(r => r.shape);
+  const since = nrtSince(deps.now());
   const errors: string[] = [];
   const unmapped = new Set<string>();
 
@@ -112,11 +113,11 @@ export async function buildRegionsData(deps: RegionsDeps): Promise<RegionsData> 
         return { areaKm2: null, fetchedAt: null, error: 'источник недоступен' };
       },
     ),
-    deps.nrtCells(NRT_HISTORY_SINCE).then(
-      (cells): NrtInput => ({ ...countNrtByRegion(cells, shapes), since: NRT_HISTORY_SINCE }),
+    deps.nrtCells(since).then(
+      (cells): NrtInput => ({ ...countNrtByRegion(cells, shapes), since }),
       (err): NrtInput => {
         errors.push(`nrt: ${errorText(err)}`);
-        return { counts: null, since: NRT_HISTORY_SINCE, lastDate: null, error: 'база данных недоступна' };
+        return { counts: null, since, lastDate: null, error: 'база данных недоступна' };
       },
     ),
     deps.gfwLoss().catch<GfwLossInput>(err => {

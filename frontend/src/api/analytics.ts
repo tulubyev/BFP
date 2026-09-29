@@ -10,12 +10,16 @@ export interface RegionInfo {
   forestArea_ha: number;
 }
 
+/** One day of the hotspot history (the DB keeps the last `retention_days` days). */
 export interface FireStat {
-  year: number;
-  month: number;
-  count: string;
-  avg_brightness: string;
-  avg_frp: string;
+  date: string;
+  count: number;
+  avg_frp: number | null;
+}
+
+export interface FireStatsResponse {
+  retentionDays: number;
+  data: FireStat[];
 }
 
 export interface DeforestationResponse {
@@ -50,11 +54,11 @@ export async function fetchRegions(): Promise<RegionInfo[]> {
   return json.data as RegionInfo[];
 }
 
-export async function fetchFireStats(): Promise<FireStat[]> {
+export async function fetchFireStats(): Promise<FireStatsResponse> {
   const res = await fetch('/api/monitoring/fire-hotspots/stats');
   if (!res.ok) throw new Error('Fire stats API error');
   const json = await res.json();
-  return json.data as FireStat[];
+  return { retentionDays: Number(json.retention_days) || 30, data: json.data as FireStat[] };
 }
 
 export async function fetchForestChanges(): Promise<any[]> {

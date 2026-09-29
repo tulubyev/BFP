@@ -8,6 +8,7 @@ import { runFirmsHistory } from '../services/firmsHistory/ingest';
 import { loadBaikalRegions } from '../services/firmsHistory/regions';
 import { loadArchiveStaticCells } from '../services/firmsHistory/staticSources';
 import { createPgFirmsHistoryStore } from '../services/firmsHistory/store';
+import { purgeOldHotspots } from '../services/hotspotRetention';
 import { readLastGood } from '../utils/cache';
 import { recordRun, type JournalOutcome } from '../utils/journal';
 
@@ -44,6 +45,24 @@ export async function refreshFirmsWithHistory(
   return ok;
 }
 
+/** Daily hotspot retention (see hotspotRetention.ts); the deleted count goes to the journal as `items`. */
+export function createHotspotRetentionJob(
+  purge: () => Promise<number> = async () => purgeOldHotspots((await import('../config/database')).default),
+): RefreshJob {
+  let lastDeleted: number | undefined;
+  return {
+    name: 'hotspot_retention',
+    firstDelayMs: 10 * MIN,
+    everyMs: 24 * 60 * MIN,
+    run: async () => {
+      lastDeleted = await purge();
+      if (lastDeleted > 0) console.log(`[hotspot_retention] deleted ${lastDeleted} hotspots older than the window`);
+      return true;
+    },
+    count: async () => lastDeleted,
+  };
+}
+
 export const DEFAULT_JOBS: RefreshJob[] = [
   {
     name: 'firms',
@@ -53,6 +72,7 @@ export const DEFAULT_JOBS: RefreshJob[] = [
     count: () => readLastGood<unknown[]>(FIRMS_KEY).then(v => v?.length),
   },
   { name: 'rosleshoz', firstDelayMs: 20 * 1000, everyMs: 12 * 60 * MIN, run: refreshRosleshoz },
+  createHotspotRetentionJob(),
   {
     name: 'oopt',
     firstDelayMs: 60 * 1000,

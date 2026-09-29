@@ -37,6 +37,11 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
   `forest_areas`, no DELETE/DDL). Once the owner has switched `DATABASE_URL`, `docker exec
   forestwatch-app` cannot run migrations or deletes. A migration that adds a table the app writes
   must GRANT it to `forestwatch_app`, and the same GRANT goes into `001_app_role.sql`.
+  Applied on production = 001–011; **012 (hotspot retention) waits for the owner** — the daily job
+  `hotspot_retention` fails harmlessly (journal: «migration 012 not applied») until it is run.
+- Hotspot history (`gis.fire_hotspots`) keeps the last 30 days (`HOTSPOT_RETENTION_DAYS`); deletion
+  is only via `gis.purge_old_hotspots()` (the app role has no DELETE). Code that needs older
+  hotspots must not assume they exist.
 - Do not prune Docker images or build cache on the VPS (shared by other projects).
 - `Проект_карты_убыли_лесов_Байкала.md` is the owner's local document — never commit it.
 

@@ -20,7 +20,7 @@ export const REGION_COLUMNS: { id: string; header: string }[] = [
   { id: 'hotspots_vegetation', header: 'Термоточки за год' },
   { id: 'hotspots_per_10k_km2', header: 'Термоточки на 10 тыс. км²' },
   { id: 'hotspots_deviation_5y', header: 'Откл. от среднего за 5 лет, %' },
-  { id: 'hotspots_nrt_season', header: 'Термоточки сезона (NRT)' },
+  { id: 'hotspots_nrt_season', header: 'Термоточки 30 дней (NRT)' },
   { id: 'oopt_share', header: 'Доля ООПТ, %' },
   { id: 'loss_per_100k_ha', header: 'Потери на 100 тыс. га лесфонда' },
 ];

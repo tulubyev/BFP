@@ -64,11 +64,13 @@ describe('kept /api/monitoring endpoints', () => {
   });
 
   it('GET /fire-hotspots/stats runs its fixed query', async () => {
-    mockQuery.mockResolvedValue({ rows: [{ year: 2026, month: 7, count: '5' }] });
+    mockQuery.mockResolvedValue({ rows: [{ date: '2026-09-27', count: 5, avg_frp: 3.2 }] });
     await withServer(async base => {
       const res = await fetch(`${base}/fire-hotspots/stats`);
       expect(res.status).toBe(200);
-      expect((await res.json()).data).toHaveLength(1);
+      const body = await res.json();
+      expect(body.data).toHaveLength(1);
+      expect(body.retention_days).toBe(30);
     });
     expect(mockQuery).toHaveBeenCalledTimes(1);
     expect(mockQuery.mock.calls[0]).toHaveLength(1);

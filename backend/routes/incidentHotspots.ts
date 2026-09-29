@@ -6,6 +6,7 @@
  * OOPT lookup (Overpass down, nothing cached) does not fail the answer: `oopt` is null and
  * `oopt_error` says why — the card shows «нет данных», never a guess.
  */
+import { retentionCutoff } from '../services/hotspotRetention';
 import type { Request, Response } from 'express';
 import {
   HOTSPOTS_DATASET, HOTSPOTS_LICENSE, HOTSPOTS_TTL_SEC, BUFFER_M, hotspotsCacheKey, hotspotWindow, ooptCacheKey,
@@ -32,6 +33,8 @@ export interface IncidentHotspotsResponse {
   limit: number;
   buffer_m: number;
   window: { from: string; to: string };
+  /** Hotspots older than this date are no longer stored (retention window). */
+  retained_since: string;
   source: string;
   license: string;
   hotspots: IncidentHotspotList['hotspots'];
@@ -96,6 +99,7 @@ export function createIncidentHotspotsHandler(deps: IncidentHotspotsDeps) {
       limit: list.limit,
       buffer_m: BUFFER_M,
       window: { from: list.window.from, to: list.window.to },
+      retained_since: retentionCutoff(new Date()),
       source: HOTSPOTS_DATASET,
       license: HOTSPOTS_LICENSE,
       hotspots: list.hotspots,

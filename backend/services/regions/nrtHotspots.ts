@@ -6,9 +6,19 @@
  */
 import { findRegion, type RegionShape } from '../firmsHistory/regions';
 import { HOTSPOT_SOURCE } from '../firmsHistory/hotspotRows';
+import { retentionCutoff } from '../hotspotRetention';
 
 /** First day of the NRT history (the history job went live on 2026-09-25). */
 export const NRT_HISTORY_SINCE = '2026-09-25';
+
+/**
+ * Start of the NRT window: the history only exists from NRT_HISTORY_SINCE and only the last
+ * HOTSPOT_RETENTION_DAYS days are kept, so the window is the later of the two.
+ */
+export function nrtSince(now: Date): string {
+  const cutoff = retentionCutoff(now);
+  return cutoff > NRT_HISTORY_SINCE ? cutoff : NRT_HISTORY_SINCE;
+}
 
 export interface NrtCell {
   lat: number;

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Incident } from '../api/incidents';
 import { getIncidentHotspots, type IncidentHotspotsResponse } from '../api/incidentHotspots';
 import { firmsIncidentInfo } from '../utils/incidents';
-import { bigMapUrl, hotspotsCaption, incidentCenter, ooptLine } from '../utils/incidentHotspots';
+import { bigMapUrl, hotspotsCaption, incidentCenter, ooptLine, retentionNote } from '../utils/incidentHotspots';
 import IncidentMiniMap from './IncidentMiniMap';
 
 type State =
@@ -49,6 +49,9 @@ export default function IncidentLocation({ incident }: { incident: Incident }) {
             <p className="text-slate-400">
               {hotspotsCaption(data.count, data.truncated, data.limit)}. Контур + {data.buffer_m} м, {data.window.from} — {data.window.to} (UTC); {data.source}, {data.license}.
             </p>
+          )}
+          {data && retentionNote(data.window.from, data.retained_since, data.count) && (
+            <p className="text-amber-300">{retentionNote(data.window.from, data.retained_since, data.count)}</p>
           )}
           {oopt && (
             <div>

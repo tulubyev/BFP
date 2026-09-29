@@ -40,6 +40,7 @@ export interface IncidentHotspotsResponse {
   limit: number;
   buffer_m: number;
   window: { from: string; to: string };
+  retained_since: string;
   source: string;
   license: string;
   hotspots: IncidentHotspot[];
