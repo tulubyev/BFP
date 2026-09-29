@@ -1,0 +1,69 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.5 1bd436f1",
+  "osm3s": {
+    "timestamp_osm_base": "2026-09-28T21:14:03Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+    {
+      "type": "way", "id": 1001,
+      "bounds": { "minlat": 52.28, "minlon": 104.23, "maxlat": 52.33, "maxlon": 104.23 },
+      "geometry": [{ "lat": 52.28, "lon": 104.23 }, { "lat": 52.33, "lon": 104.23 }],
+      "tags": { "highway": "tertiary", "name": "Ключевская", "surface": "gravel" }
+    },
+    {
+      "type": "way", "id": 1002,
+      "bounds": { "minlat": 52.36, "minlon": 104.1, "maxlat": 52.36, "maxlon": 104.35 },
+      "geometry": [{ "lat": 52.36, "lon": 104.1 }, { "lat": 52.36, "lon": 104.22 }, { "lat": 52.36, "lon": 104.35 }],
+      "tags": { "highway": "trunk", "ref": "Р-255", "name": "Сибирь", "surface": "asphalt", "maxspeed": "90" }
+    },
+    {
+      "type": "way", "id": 1003,
+      "bounds": { "minlat": 52.245, "minlon": 104.05, "maxlat": 52.245, "maxlon": 104.4 },
+      "geometry": [{ "lat": 52.245, "lon": 104.05 }, { "lat": 52.245, "lon": 104.4 }],
+      "tags": { "highway": "primary", "ref": "25К-011" }
+    },
+    {
+      "type": "way", "id": 1004,
+      "bounds": { "minlat": 52.29, "minlon": 104.195, "maxlat": 52.31, "maxlon": 104.195 },
+      "geometry": [{ "lat": 52.29, "lon": 104.195 }, { "lat": 52.31, "lon": 104.195 }],
+      "tags": { "highway": "track", "tracktype": "grade4", "surface": "ground" }
+    },
+    {
+      "type": "way", "id": 1005,
+      "bounds": { "minlat": 52.299, "minlon": 104.199, "maxlat": 52.301, "maxlon": 104.199 },
+      "geometry": [{ "lat": 52.299, "lon": 104.199 }, { "lat": 52.301, "lon": 104.199 }],
+      "tags": { "highway": "footway" }
+    },
+    {
+      "type": "way", "id": 1006,
+      "bounds": { "minlat": 52.3005, "minlon": 104.199, "maxlat": 52.3005, "maxlon": 104.201 },
+      "geometry": [{ "lat": 52.3005, "lon": 104.199 }, { "lat": 52.3005, "lon": 104.201 }],
+      "tags": { "highway": "service", "service": "driveway" }
+    },
+    {
+      "type": "way", "id": 1007,
+      "geometry": [{ "lat": 95.1, "lon": 104.2 }, null],
+      "tags": { "highway": "residential", "name": "Сломанная" }
+    },
+    {
+      "type": "node", "id": 2001, "lat": 52.33, "lon": 104.25,
+      "tags": { "place": "village", "name": "Ключи", "name:ru": "Ключи", "population": "812" }
+    },
+    {
+      "type": "node", "id": 2002, "lat": 52.301, "lon": 104.201,
+      "tags": { "place": "isolated_dwelling", "name": "Заимка" }
+    },
+    {
+      "type": "relation", "id": 3001,
+      "center": { "lat": 52.2, "lon": 104.0 },
+      "tags": { "place": "town", "name": "Дальний", "type": "multipolygon" }
+    },
+    {
+      "type": "way", "id": 3002,
+      "center": { "lat": 52.34, "lon": 104.13 },
+      "tags": { "place": "hamlet" }
+    }
+  ]
+}

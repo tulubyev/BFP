@@ -11,6 +11,8 @@ import { parseYear } from '../utils/queryParams';
 import { HOTSPOT_RETENTION_DAYS } from '../services/hotspotRetention';
 import { createIncidentHotspotsHandler } from './incidentHotspots';
 import { createIncidentHotspotsDeps } from '../services/incidentHotspotsDeps';
+import { createIncidentContextHandler } from './incidentContext';
+import { createIncidentContextDeps } from '../services/incidentContext/deps';
 
 const router = Router();
 
@@ -22,6 +24,8 @@ router.get('/forest-changes/:id/imagery', createIncidentImageryHandler(createInc
 router.get('/forest-changes/:id/ndvi-series', createNdviSeriesHandler(createNdviSeriesDeps(pool)));
 // FIRMS hotspots of one FIRMS incident (≤ 500) and its OOPT relation (cached 10 min per last_seen)
 router.get('/forest-changes/:id/hotspots', createIncidentHotspotsHandler(createIncidentHotspotsDeps(pool)));
+// Nearest road / settlement from OSM (Overpass, one request at a time; cached 7 days per centre)
+router.get('/forest-changes/:id/context', createIncidentContextHandler(createIncidentContextDeps(pool)));
 
 // Map layer «Инциденты»: the feed's filters (change_type, region, start_date, end_date,
 // static_sources — static heat sources hidden by default), newest first, at most GEOJSON_LIMIT rows

@@ -9,6 +9,8 @@
  *   is a few hundred thousand detections → up to ~30–40 MB per file. Limit 100 MB.
  * - Overpass OOPT (overpassService): all Russian national parks and zapovedniks with full geometry
  *   (`out geom`), tens of MB of JSON. Limit 256 MB.
+ * - Overpass incident context (incidentContext/overpass.ts): roads and settlements within 15 km of
+ *   a point; a few MB near a city (every street with geometry), KB in the taiga. Limit 64 MB.
  * - Rosleshoz open-data CSV (rosleskhozService): per-subject tables, KB to a few MB. Limit 50 MB;
  *   meta.csv is a handful of lines. Limit 1 MB.
  * - GFW tiles (gfwTiles): one 256/512 px PNG, tens to hundreds of KB. Limit 10 MB; the DIST-ALERT
@@ -21,6 +23,7 @@ const MB = 1024 * 1024;
 export const RESPONSE_LIMITS = {
   firmsCsv: 100 * MB,
   overpass: 256 * MB,
+  overpassContext: 64 * MB,
   rosleshozCsv: 50 * MB,
   rosleshozMeta: 1 * MB,
   gfwTile: 10 * MB,

@@ -20,14 +20,17 @@ export const EXPENSIVE_RATE_LIMIT = 20;
 
 /**
  * Expensive endpoints: exports read the database live, incident imagery searches STAC and reads
- * Sentinel-2 COGs. Not here: /api/regions* (served from the cache) and /ndvi-series — the incident
- * card polls it every 5 s while a series is computed (12 requests/min per open card), the answer
- * is cheap job state, and the work behind it is bounded by its own queue (ndviSeries.ts).
+ * Sentinel-2 COGs, incident context queries Overpass (roads and settlements within 15 km; cached,
+ * one Overpass request at a time). Not here: /api/regions* (served from the cache) and
+ * /ndvi-series — the incident card polls it every 5 s while a series is computed (12 requests/min
+ * per open card), the answer is cheap job state, and the work behind it is bounded by its own
+ * queue (ndviSeries.ts).
  */
 export const EXPENSIVE_API_PATHS: (string | RegExp)[] = [
   '/api/export',
   // case-insensitive like Express routing, so /IMAGERY cannot skip the limit
   /^\/api\/monitoring\/forest-changes\/[^/]+\/imagery\/?$/i,
+  /^\/api\/monitoring\/forest-changes\/[^/]+\/context\/?$/i,
 ];
 
 export const RATE_LIMIT_MESSAGE = 'Слишком много запросов, попробуйте через минуту';
