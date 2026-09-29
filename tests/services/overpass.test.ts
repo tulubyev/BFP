@@ -5,6 +5,7 @@
  * `members` where way members carry `geometry: [{lat, lon}, ...]` inline.
  */
 import axios from 'axios';
+import { drainQuality } from '../../backend/services/quality/log';
 import {
   filterToRegions,
   getOOPT,
@@ -70,8 +71,22 @@ const crimeanReserve = {
   members: [way([[34.2, 44.7], [34.3, 44.7], [34.3, 44.8], [34.2, 44.8], [34.2, 44.7]])],
 };
 
+// The quality gate (quality/overpassOopt.ts) refuses fewer than 20 protected areas as a truncated
+// answer, so every answer below is padded with 20 small valid parks around Lake Baikal (ids 2000+).
+const fillerParks = Array.from({ length: 20 }, (_, i) => {
+  const lon = 103 + (i % 5) * 0.4;
+  const lat = 52.2 + Math.floor(i / 5) * 0.4;
+  return {
+    type: 'relation',
+    id: 2000 + i,
+    tags: { name: `Парк ${i}`, boundary: 'national_park' },
+    members: [way([[lon, lat], [lon + 0.2, lat], [lon + 0.2, lat + 0.2], [lon, lat + 0.2], [lon, lat]])],
+  };
+});
+const tested = (features: OOPTFeature[]) => features.filter(f => f.id < 2000);
+
 function mockOverpassResponse(elements: unknown[]) {
-  mockedAxios.post.mockResolvedValue({ data: { elements } });
+  mockedAxios.post.mockResolvedValue({ data: { elements: [...elements, ...fillerParks] } });
 }
 
 describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixture)', () => {
@@ -82,8 +97,9 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
   it('returns polygons for relations, a Point fallback for degraded data, and filters non-Russian results', async () => {
     mockOverpassResponse([nationalPark, reserveWithHole, degraded, georgianPark]);
 
-    const { features, source } = await getOOPT();
-    expect(source).toBe('https://overpass-api.de/api/interpreter');
+    const result = await getOOPT();
+    const features = tested(result.features);
+    expect(result.source).toBe('https://overpass-api.de/api/interpreter');
     expect(features.map(f => f.id).sort()).toEqual([1001, 1002, 1003]);
 
     const park = features.find(f => f.id === 1001)!;
@@ -107,7 +123,7 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
 
   it('builds a GeoJSON FeatureCollection whose feature geometry matches and properties omit it', async () => {
     mockOverpassResponse([nationalPark]);
-    const { features } = await getOOPT();
+    const features = tested((await getOOPT()).features);
     const geojson = ooptToGeoJSON(features);
     expect(geojson.type).toBe('FeatureCollection');
     expect(geojson.features).toHaveLength(1);
@@ -117,7 +133,7 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
   });
 
   it('rejects an all-filtered/empty Overpass answer instead of returning an empty feature list', async () => {
-    mockOverpassResponse([georgianPark]);
+    mockedAxios.post.mockResolvedValue({ data: { elements: [georgianPark] } });
     await expect(getOOPT()).rejects.toThrow();
   });
 
@@ -125,7 +141,7 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
     // Exercises the real, checked-in frontend/public/data/boundaries/ru-regions.*.geojson — this
     // relation sits well outside all 83 mapped regions, unlike nationalPark (inside Irkutsk/Buryatia).
     mockOverpassResponse([nationalPark, crimeanReserve]);
-    const { features } = await getOOPT();
+    const features = tested((await getOOPT()).features);
     expect(features.map(f => f.id)).toEqual([1001]);
   });
 
@@ -140,6 +156,46 @@ describe('getOOPT / refreshOOPT (parsing + shaping against a recorded-style fixt
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe('Overpass quality gate (quality/overpassOopt.ts) inside getOOPT / refreshOOPT', () => {
+  beforeEach(() => {
+    mockedAxios.post.mockReset();
+    drainQuality('oopt');
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('drops objects with invalid geometry, counts them and keeps the rest', async () => {
+    const openRing = { ...nationalPark, id: 1101, members: [way([[104, 53], [105, 53], [105, 54], [104, 54], [104, 53.5]])] };
+    const flat = { ...nationalPark, id: 1102, members: [way([[104, 53], [104.5, 53], [105, 53], [104, 53]])] };
+    const outside = { ...nationalPark, id: 1103, members: [way([[104, 95]])] };
+    mockOverpassResponse([nationalPark, openRing, flat, outside]);
+    const { features } = await getOOPT();
+    // The open ring is force-closed by osmRings (kept); the flat one has zero area; the point is outside WGS84
+    expect(tested(features).map(f => f.id).sort()).toEqual([1001, 1101]);
+    const [result] = drainQuality('oopt');
+    expect(result).toMatchObject({ source: 'oopt', check: 'overpass', ok: true, rejected: 2 });
+    expect(result.reason).toMatch(/zero area/);
+    expect(result.reason).toMatch(/point outside WGS84/);
+  });
+
+  it.each([
+    ['an HTML error page', '<html><body>The server is probably too busy</body></html>', /HTML page instead of JSON/],
+    ['truncated JSON', '{"version":0.6,"elements":[{"type":"relation",', /truncated/],
+    ['a timeout remark with partial elements', { elements: [nationalPark], remark: 'runtime error: Query timed out' }, /reported an error/],
+  ])('rejects %s and logs the reason', async (_label, data, reason) => {
+    mockedAxios.post.mockResolvedValue({ data });
+    await expect(getOOPT()).rejects.toThrow(reason);
+    const [result] = drainQuality('oopt');
+    expect(result.ok).toBe(false);
+    expect(result.reason).toMatch(reason);
+  });
+
+  it('rejects an answer with fewer than 20 protected areas as truncated', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { elements: fillerParks.slice(0, 19) } });
+    await expect(getOOPT()).rejects.toThrow(/only 19 protected areas \(< 20\)/);
   });
 });
 

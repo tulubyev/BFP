@@ -111,3 +111,53 @@ describe('GlobalForestWatchService.getForestStatistics', () => {
     expect(result.data).toBeNull();
   });
 });
+
+describe('GFW Data API quality gate (quality/gfw.ts)', () => {
+  let redis: FakeRedis;
+
+  beforeEach(() => {
+    redis = new FakeRedis();
+    (getRedis as jest.Mock).mockReturnValue(redis);
+    mockedAxios.post.mockReset();
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it('live loss rows pass, a bad row is dropped', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { data: [
+      { year: 2019, area_ha: 85000, emissions_Mg_CO2: 1 },
+      { year: 2020, area_ha: 90000, emissions_Mg_CO2: 2 },
+      { year: 2021, area_ha: 95000, emissions_Mg_CO2: 3 },
+      { year: 2022, area_ha: 70000, emissions_Mg_CO2: 4 },
+      { year: 2023, area_ha: 60000, emissions_Mg_CO2: 5 },
+      { year: 2024, area_ha: 50000, emissions_Mg_CO2: 6 },
+      { year: 2025, area_ha: 40000, emissions_Mg_CO2: 7 },
+      { year: 2026, area_ha: 30000, emissions_Mg_CO2: 8 },
+      { year: 2016, area_ha: 20000, emissions_Mg_CO2: 9 },
+      { year: 2017, area_ha: 10000, emissions_Mg_CO2: 10 },
+      { year: 2018, area_ha: -1, emissions_Mg_CO2: 11 },
+    ] } });
+    const service = new GlobalForestWatchService({ apiKey: 'test-key' });
+    const result = await service.getRegionalTreeCoverLoss('irkutsk', 2016, 2026);
+    expect(result.data_type).toBe('live');
+    expect(result.data).toHaveLength(10);
+    expect(result.data.some(r => r.year === 2018)).toBe(false);
+  });
+
+  it('a changed answer format falls back to the labelled estimate instead of NaN rows', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { rows: [{ loss_year: 2020, ha: 5 }] } });
+    const service = new GlobalForestWatchService({ apiKey: 'test-key' });
+    const result = await service.getRegionalTreeCoverLoss('irkutsk', 2020, 2021);
+    expect(result.data_type).toBe('estimated');
+    expect(result.data.every(r => Number.isFinite(r.area_ha))).toBe(true);
+  });
+
+  it('statistics with a missing field are rejected, not shown with 0', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { data: [{ area__ha: 100, umd_tree_cover_extent_2000__ha: 90 }] } });
+    const service = new GlobalForestWatchService({ apiKey: 'test-key' });
+    const result = await service.getForestStatistics();
+    expect(result.status).toBe('source_unavailable');
+    expect(result.data).toBeNull();
+  });
+});

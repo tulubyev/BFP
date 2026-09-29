@@ -6,6 +6,9 @@
 import axios from 'axios';
 import { cached, warm } from '../utils/cache';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
+import { reportQuality } from './quality/log';
+import { QualityError } from './quality/result';
+import { checkRosleshozCsv } from './quality/rosleshozCsv';
 
 const BASE = 'https://rosleshoz.gov.ru';
 
@@ -28,37 +31,6 @@ export const DATASETS = {
 
 // Refreshed in the background every 12h (jobs/refresh.ts); TTL outlives several missed runs
 const TTL_SEC = 3 * 24 * 60 * 60;
-
-function parseCSV(raw: string): Record<string, string>[] {
-  const lines = raw.trim().split('\n').filter(l => l.trim());
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]);
-  return lines.slice(1).map(line => {
-    const values = parseCSVLine(line);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, i) => { obj[h.trim()] = (values[i] ?? '').trim(); });
-    return obj;
-  });
-}
-
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  result.push(current);
-  return result;
-}
 
 const HTTP_HEADERS = { 'User-Agent': 'Mozilla/5.0 ForestMonitor/1.0' };
 
@@ -117,11 +89,19 @@ export function latestDatasetModified(): Date | null {
 
 const isNonEmpty = (data: unknown) => data != null && (!Array.isArray(data) || data.length > 0);
 
+/**
+ * Downloads a dataset and passes it through the quality gate (quality/rosleshozCsv.ts): a dataset
+ * whose structure changed throws, so cached()/warm() keep `rosleshoz:*:last-good`, and the reason
+ * goes to the quality log and the `rosleshoz` load journal.
+ */
 async function loadDataset<T>(key: keyof typeof DATASETS, transform: (rows: Record<string, string>[]) => T): Promise<T> {
   const response = await axios.get(BASE + (await resolveDatasetPath(key)), {
-    timeout: 15000, headers: HTTP_HEADERS, maxContentLength: RESPONSE_LIMITS.rosleshozCsv,
+    timeout: 15000, headers: HTTP_HEADERS, responseType: 'text', maxContentLength: RESPONSE_LIMITS.rosleshozCsv,
   });
-  return transform(parseCSV(response.data));
+  const { rows, result } = checkRosleshozCsv(key, response.data);
+  reportQuality(result);
+  if (!result.ok) throw new QualityError(result);
+  return transform(rows);
 }
 
 type Transform = (rows: Record<string, string>[]) => unknown;
