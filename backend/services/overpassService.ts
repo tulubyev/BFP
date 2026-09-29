@@ -11,13 +11,16 @@
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-import { cached, warm } from '../utils/cache';
+import { cached, readLastGood, warm } from '../utils/cache';
 import { buildMultiPolygon, type WayGeometryMember } from '../utils/osmRings';
 import { simplifyFeatureGeometry } from '../utils/geoSimplify';
 import area from '@turf/area';
 import pointOnFeature from '@turf/point-on-feature';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
+import { reportQuality } from './quality/log';
+import { geometryProblem, overpassAnswerProblem, ooptVerdict, SOURCE as OOPT_SOURCE, CHECK as OOPT_CHECK } from './quality/overpassOopt';
+import { failed, QualityError } from './quality/result';
 
 // overpass.openstreetmap.fr answers 403 or empty results; the bbox query pulled in non-Russian parks
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
@@ -181,19 +184,42 @@ function areaHaFromGeometry(geometry: OOPTFeature['geometry']): number | null {
   }
 }
 
-function parseFeatures(elements: any[]): OOPTFeature[] {
+/** Positive finite `area:ha` tag, else null (the area is then computed from the geometry). */
+function taggedAreaHa(raw: string | undefined): number | null {
+  const n = raw ? parseFloat(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Relations → features. A geometry that fails the quality check (quality/overpassOopt.ts: WGS84
+ * coordinates, closed rings, area > 0) is dropped and its reason collected in `problems`.
+ */
+export function parseFeatures(elements: any[]): { features: OOPTFeature[]; checked: number; problems: string[] } {
   const features: OOPTFeature[] = [];
+  const problems: string[] = [];
+  let checked = 0;
   for (const e of elements) {
     if (e?.type !== 'relation' || !e.tags || !Array.isArray(e.members)) continue;
 
     const geometry = buildGeometry(e.members);
     if (!geometry) continue;
+    checked++;
+    const rawProblem = geometryProblem(geometry);
+    if (rawProblem) {
+      problems.push(rawProblem);
+      continue;
+    }
 
     const { lat, lon } = labelPoint(geometry);
     const t: Record<string, string> = e.tags;
     if (!isLikelyRussia(lat, lon, t)) continue;
 
     const shaped = geometry.type === 'Point' ? geometry : simplifyFeatureGeometry(geometry, MAX_VERTICES_PER_RING);
+    const shapedProblem = geometryProblem(shaped);
+    if (shapedProblem) {
+      problems.push(`${shapedProblem} after simplification`);
+      continue;
+    }
     features.push({
       id: e.id,
       name: t['name:ru'] || t.name || 'Без названия',
@@ -204,12 +230,12 @@ function parseFeatures(elements: any[]): OOPTFeature[] {
       lon,
       wikidata: t.wikidata || null,
       website: t.website || t.url || null,
-      area_ha: t['area:ha'] ? parseFloat(t['area:ha']) : areaHaFromGeometry(shaped),
+      area_ha: taggedAreaHa(t['area:ha']) ?? areaHaFromGeometry(shaped),
       osm_url: `https://www.openstreetmap.org/relation/${e.id}`,
       geometry: shaped,
     });
   }
-  return features;
+  return { features, checked, problems };
 }
 
 /** Keeps only features whose label point falls inside at least one of the mapped region polygons. */
@@ -245,11 +271,20 @@ async function fetchOOPT(attempts: number): Promise<OOPTResult> {
           'User-Agent': 'forestwatch.ru/1.0 (+https://forestwatch.ru)',
         },
       });
-      if (typeof res.data === 'string' || res.data?.elements === undefined) throw new Error('Unexpected response format');
+      // Quality gate (quality/overpassOopt.ts): a refused answer throws, the last good list stays
+      const answerProblem = overpassAnswerProblem(res.data);
+      if (answerProblem) {
+        const result = failed(OOPT_SOURCE, OOPT_CHECK, answerProblem);
+        reportQuality(result);
+        throw new QualityError(result);
+      }
       const parsed = parseFeatures(res.data.elements);
       const regions = loadRegionPolygons();
-      const features = regions ? filterToRegions(parsed, regions) : parsed;
-      if (features.length === 0) throw new Error('empty result');
+      const features = regions ? filterToRegions(parsed.features, regions) : parsed.features;
+      const lastGood = await readLastGood<OOPTResult>(OOPT_KEY);
+      const verdict = ooptVerdict(parsed.checked, parsed.problems, features.length, lastGood?.features?.length);
+      reportQuality(verdict);
+      if (!verdict.ok) throw new QualityError(verdict);
       return { features, source: OVERPASS_ENDPOINT, fetchedAt: new Date().toISOString() };
     } catch (err: any) {
       lastErr = err;

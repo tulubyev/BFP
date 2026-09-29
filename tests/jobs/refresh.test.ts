@@ -1,4 +1,7 @@
-import { refreshFirmsWithHistory, startRefreshJobs } from '../../backend/jobs/refresh';
+import { qualityFields, refreshFirmsWithHistory, startRefreshJobs } from '../../backend/jobs/refresh';
+import * as journal from '../../backend/utils/journal';
+import { reportQuality } from '../../backend/services/quality/log';
+import { failed, passed } from '../../backend/services/quality/result';
 
 describe('startRefreshJobs', () => {
   beforeEach(() => jest.useFakeTimers());
@@ -51,5 +54,40 @@ describe('refreshFirmsWithHistory', () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     await expect(refreshFirmsWithHistory(async () => true, async () => { throw new Error('db down'); })).resolves.toBe(true);
     warn.mockRestore();
+  });
+});
+
+describe('quality results in the load journal', () => {
+  it('qualityFields: dropped items become `rejected`, a rejected input makes the run failed with the reason', () => {
+    const drain = () => [passed('rosleshoz', 'woodVolume', 98, 2), failed('rosleshoz', 'forestFund', 'header lacks column(s) woodiness')];
+    expect(qualityFields('rosleshoz', 'kept-cached', drain)).toEqual({
+      outcome: 'failed', rejected: 2, error: 'quality check: forestFund: header lacks column(s) woodiness',
+    });
+    expect(qualityFields('rosleshoz', 'updated', () => [passed('rosleshoz', 'woodVolume', 98)])).toEqual({ outcome: 'updated' });
+    expect(qualityFields(undefined, 'updated', () => { throw new Error('not called'); })).toEqual({ outcome: 'updated' });
+  });
+
+  it('startRefreshJobs records the gate results reported during the run', async () => {
+    jest.useFakeTimers();
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const record = jest.spyOn(journal, 'recordRun').mockResolvedValue(undefined);
+    try {
+      const run = jest.fn(async () => {
+        reportQuality(failed('oopt', 'overpass', 'only 12 protected areas (< 20) — truncated answer?', 12, 3));
+        return false;
+      });
+      const stop = startRefreshJobs([{ name: 'oopt', firstDelayMs: 0, everyMs: 60000, run, qualitySource: 'oopt' }]);
+      await jest.advanceTimersByTimeAsync(10);
+      stop();
+      expect(record).toHaveBeenCalledWith('oopt', expect.objectContaining({
+        outcome: 'failed', rejected: 3, error: 'quality check: overpass: only 12 protected areas (< 20) — truncated answer?',
+      }));
+    } finally {
+      record.mockRestore();
+      warn.mockRestore();
+      log.mockRestore();
+      jest.useRealTimers();
+    }
   });
 });
