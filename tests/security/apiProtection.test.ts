@@ -18,6 +18,7 @@ function buildApp(options?: ApiProtectionOptions): Application {
   app.get('/api/monitoring/forest-changes', (_req, res) => { res.json({ ok: true }); });
   app.get('/api/monitoring/forest-changes/:id/imagery', (_req, res) => { res.json({ ok: true }); });
   app.get('/api/monitoring/forest-changes/:id/ndvi-series', (_req, res) => { res.json({ ok: true }); });
+  app.get('/api/monitoring/forest-changes/:id/context', (_req, res) => { res.json({ ok: true }); });
   for (const p of ['/health', '/tiles/gfw/loss/1/2/3.png', '/imagery/s2/v1/a/b/c.png', '/assets/index-abc.js', '/data/boundaries/ru.geojson', '/']) {
     app.get(p, (_req, res) => { res.send('ok'); });
   }
@@ -50,7 +51,7 @@ describe('rate limit settings', () => {
     expect(JSON_BODY_LIMIT).toBe('100kb');
   });
 
-  it('marks exports and incident imagery as expensive, not the feed, regions or NDVI series polling', () => {
+  it('marks exports, incident imagery and incident context as expensive, not the feed, regions or NDVI series polling', () => {
     const expensive = (p: string) => EXPENSIVE_API_PATHS.some(m => (typeof m === 'string' ? p === m || p.startsWith(`${m}/`) : m.test(p)));
     expect(expensive('/api/export/incidents.csv')).toBe(true);
     expect(expensive('/api/export/regions.json')).toBe(true);
@@ -59,6 +60,10 @@ describe('rate limit settings', () => {
     expect(expensive('/api/monitoring/forest-changes/42/hotspots')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/42/ndvi-series')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/42/IMAGERY')).toBe(true);
+    // Overpass behind it (roads and settlements within 15 km), even if cached 7 days
+    expect(expensive('/api/monitoring/forest-changes/42/context')).toBe(true);
+    expect(expensive('/api/monitoring/forest-changes/42/context/')).toBe(true);
+    expect(expensive('/api/monitoring/forest-changes/42/CONTEXT')).toBe(true);
     expect(expensive('/api/monitoring/forest-changes')).toBe(false);
     expect(expensive('/api/monitoring/forest-changes/geojson')).toBe(false);
     expect(expensive('/api/regions/RU-IRK')).toBe(false);
@@ -141,6 +146,8 @@ describe('expensive endpoints limit', () => {
       expect(limited.status).toBe(429);
       expect(await limited.json()).toEqual({ success: false, error: RATE_LIMIT_MESSAGE });
       expect(limited.headers.get('retry-after')).not.toBeNull();
+      // incident context (Overpass) shares the same budget
+      expect(await hit(base, '/api/monitoring/forest-changes/5/context', 1)).toEqual([429]);
       // Cheap endpoints still answer
       expect(await hit(base, '/api/monitoring/forest-changes', 3)).toEqual([200, 200, 200]);
       // Another address has its own budget

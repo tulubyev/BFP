@@ -5,6 +5,7 @@ import { getIncidentHotspots, type IncidentHotspotsResponse } from '../api/incid
 import { firmsIncidentInfo } from '../utils/incidents';
 import { bigMapUrl, hotspotsCaption, incidentCenter, ooptLine, retentionNote } from '../utils/incidentHotspots';
 import IncidentMiniMap from './IncidentMiniMap';
+import IncidentContext from './IncidentContext';
 
 type State =
   | { status: 'loading' }
@@ -64,6 +65,7 @@ export default function IncidentLocation({ incident }: { incident: Incident }) {
               <p className="text-xs text-slate-500">{oopt.note}</p>
             </div>
           )}
+          <IncidentContext incidentId={incident.id} />
         </div>
       )}
     </section>

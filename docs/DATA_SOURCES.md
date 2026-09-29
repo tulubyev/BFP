@@ -166,6 +166,41 @@ from `public/data/boundaries/` (Docker image) or `frontend/public/data/boundarie
 is found first, picking the newest `ru-regions.*.geojson` by its version suffix. Redis key bumped
 `oopt:ru:v2` → `oopt:ru:v3` so an unfiltered cache entry is never served as if it were scoped.
 
+## Дороги и населённые пункты у инцидента — Overpass (2026-09-29)
+
+`GET /api/monitoring/forest-changes/:id/context` (FIRMS incidents only): nearest road, nearest
+paved road, nearest track and nearest settlement within 15 km of the incident centre, with the
+distance and the direction in words. Code: `backend/services/incidentContext/` (`geo.ts` —
+spherical math, `context.ts` — query, tag classification, parsing, choice of the nearest,
+`overpass.ts` — the request), route `backend/routes/incidentContext.ts`, card rows
+`frontend/src/components/IncidentContext.tsx`. `overpassService.ts` (OOPT) is not used.
+
+One query per point (`out tags geom` for roads, `out tags center` for settlements):
+```
+[out:json][timeout:60];
+way(around:15000,LAT,LON)["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|road|motorway_link|trunk_link|primary_link|secondary_link|tertiary_link|track)$"];
+out tags geom;
+nwr(around:15000,LAT,LON)["place"~"^(city|town|village|hamlet)$"];
+out tags center;
+```
+- Roads are an allow-list of car-road classes, so footway/path/steps/cycleway/service (and
+  construction, proposed, platforms…) are never reported; `track` is its own row.
+- Paved: by `surface`; without it motorway…secondary count as paved by class (`paved_by_class`,
+  the card says «покрытие в OSM не указано — принято по классу дороги»).
+- Distances: great-circle to each segment of the way (not to vertices), to the node / centre for
+  settlements; from the centre rounded to 3 decimals (≈ 100 m — the cache key), shown with 0.1 km.
+- Data date = Overpass `osm3s.timestamp_osm_base`. Licence: © OpenStreetMap contributors, ODbL 1.0.
+- An answer with a `remark` about a runtime error/timeout, HTML or no `elements` is an error, not
+  "nothing nearby". Errors are never cached (`cached()`); a good answer is cached 7 days under
+  `incident:context:v1:15:<lat>:<lon>`, and its last-good copy is served while Overpass is down.
+- One Overpass request at a time for the whole process (`createLimiter(1, 20)`), one retry after
+  5 s on 429/502/503/504 or a dropped connection, 75 s HTTP timeout, 180 s total wait → 503 with
+  the reason. Rate limited as an expensive endpoint (20/min per IP).
+
+**Not verified live:** outbound network to `overpass-api.de` is blocked in the sandbox this was
+written in; the parser is tested on a hand-built fixture of the documented response shape
+(`tests/fixtures/overpass/incident-context.json`). Check on production after deploy.
+
 ## GFW tile layers (потери леса, DIST-ALERT, лесной покров) — итоговый набор (задача #2)
 
 Separate from the national/regional loss numbers above: `/tiles/gfw/{loss,dist,cover}/{z}/{x}/{y}.png`

@@ -18,6 +18,8 @@ describe('RESPONSE_LIMITS', () => {
     expect(RESPONSE_LIMITS.firmsCsv).toBeGreaterThanOrEqual(100 * MB);
     // Overpass OOPT with full geometry: tens of MB
     expect(RESPONSE_LIMITS.overpass).toBeGreaterThanOrEqual(200 * MB);
+    // Overpass roads and settlements within 15 km of an incident: a few MB near a city
+    expect(RESPONSE_LIMITS.overpassContext).toBeGreaterThanOrEqual(16 * MB);
     expect(RESPONSE_LIMITS.rosleshozCsv).toBeGreaterThanOrEqual(20 * MB);
     expect(RESPONSE_LIMITS.gfwTile).toBeGreaterThanOrEqual(5 * MB);
     for (const value of Object.values(RESPONSE_LIMITS)) {
