@@ -30,15 +30,15 @@ frontend must run from its own dir (Tailwind config): `cd frontend && npx vite` 
 - Never touch: the server `.env` (DB password, `CDN_URL`), anything needing `sudo` on the VPS,
   the Beget panel (DNS, CDN purge), `authorized_keys`, repo secrets. Ask the owner.
 - Database migrations on `forest_db` only after the owner agrees — there is no staging database.
-  There is no migrations table: applied on production = 001–011 (011 on 2026-09-25). Apply a new
+  There is no migrations table: applied on production = 001–012 (011 on 2026-09-25, 012 on 2026-09-29). Apply a new
   one before merging the code that needs it, in a transaction, as the table owner `tulubyev`.
 - DB roles: the app is meant to connect as `forestwatch_app` (`database/admin/001_app_role.sql`:
   SELECT/INSERT on `fire_hotspots`, SELECT/INSERT/UPDATE on `forest_changes`, SELECT on
   `forest_areas`, no DELETE/DDL). Once the owner has switched `DATABASE_URL`, `docker exec
   forestwatch-app` cannot run migrations or deletes. A migration that adds a table the app writes
   must GRANT it to `forestwatch_app`, and the same GRANT goes into `001_app_role.sql`.
-  Applied on production = 001–011; **012 (hotspot retention) waits for the owner** — the daily job
-  `hotspot_retention` fails harmlessly (journal: «migration 012 not applied») until it is run.
+  Applied on production = 001–012 (012, hotspot retention, on 2026-09-29; the daily job
+  `hotspot_retention` journals «migration 012 not applied» if it is ever missing).
 - Hotspot history (`gis.fire_hotspots`) keeps the last 30 days (`HOTSPOT_RETENTION_DAYS`); deletion
   is only via `gis.purge_old_hotspots()` (the app role has no DELETE). Code that needs older
   hotspots must not assume they exist.
