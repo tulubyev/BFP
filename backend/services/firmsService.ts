@@ -1,3 +1,4 @@
+import { parseFirmsCsv } from './firmsCsv';
 import axios from 'axios';
 import { cached, warm } from '../utils/cache';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
@@ -143,13 +144,22 @@ export class FIRMSService {
     );
 
     const all: FIRMSHotspot[] = [];
-    for (const r of results) {
-      if (r.status === 'fulfilled') {
-        all.push(...this.parseCSV(r.value.data));
+    const failures: string[] = [];
+    results.forEach((r, i) => {
+      const name = urls[i].split('/').pop() as string;
+      if (r.status === 'rejected') {
+        failures.push(`${name}: ${String(r.reason?.message ?? r.reason).slice(0, 200)}`);
+        return;
       }
-    }
+      try {
+        all.push(...this.parseCSV(r.value.data, name));
+      } catch (err: any) {
+        failures.push(err?.message ?? String(err));
+      }
+    });
+    for (const f of failures) console.warn(`[firms] source skipped — ${f}`);
 
-    if (all.length === 0) throw new Error('All public FIRMS CSV endpoints failed');
+    if (all.length === 0) throw new Error(`All public FIRMS CSV endpoints failed: ${failures.join('; ')}`.slice(0, 500));
 
     // Deduplicate by proximity (same pixel detected by both satellites)
     return this._filterByBbox(this._deduplicateHotspots(all), FIRMS_RUSSIA_BBOX);
@@ -200,36 +210,11 @@ export class FIRMSService {
     return hotspots.filter(h => h.confidence === 'high' || h.confidence === 'nominal').length;
   }
 
-  private parseCSV(csvData: string): FIRMSHotspot[] {
-    const lines = csvData.trim().split('\n');
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    
-    return lines.slice(1).map(line => {
-      const values = line.split(',');
-      const record: any = {};
-      
-      headers.forEach((header, i) => {
-        record[header] = values[i]?.trim();
-      });
-
-      return {
-        latitude: parseFloat(record.latitude),
-        longitude: parseFloat(record.longitude),
-        brightness: parseFloat(record.bright_ti4 || record.brightness),
-        bright_t31: record.bright_ti5 ? parseFloat(record.bright_ti5) : undefined,
-        frp: parseFloat(record.frp || '0'),
-        scan: parseFloat(record.scan || '0'),
-        track: parseFloat(record.track || '0'),
-        acq_date: record.acq_date,
-        acq_time: record.acq_time,
-        satellite: record.satellite || 'VIIRS',
-        confidence: record.confidence || 'nominal',
-        version: record.version || '2.0',
-        daynight: record.daynight || 'D'
-      };
-    });
+  /** Validated parse (see firmsCsv.ts): throws FirmsCsvStructureError on a changed format. */
+  private parseCSV(csvData: string, label = 'FIRMS CSV'): FIRMSHotspot[] {
+    const { hotspots, rejected, rows } = parseFirmsCsv(csvData, label);
+    if (rejected > 0) console.warn(`[firms] ${label}: ${rejected} of ${rows} rows rejected (invalid position/date)`);
+    return hotspots;
   }
 
   toGeoJSON(hotspots: FIRMSHotspot[]): GeoJSON.FeatureCollection {
