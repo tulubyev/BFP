@@ -15,6 +15,7 @@ import {
   type TileRequest,
 } from './gfwTileLayers';
 import { RESPONSE_LIMITS } from '../utils/responseLimits';
+import { GFW_TILE_SOURCE, recordSourceAccess } from './sourceAccess';
 
 export const TRANSPARENT_PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -77,6 +78,7 @@ export async function renderGfwTile(t: TileRequest): Promise<Buffer> {
     validateStatus: s => s === 200 || s === 404,
   });
   const png = res.status === 404 ? TRANSPARENT_PNG : await colorize(t, Buffer.from(res.data));
+  void recordSourceAccess(GFW_TILE_SOURCE[t.layer], 'ok');
   await writeTile(key, png, GFW_TILE_LAYERS[t.layer].cacheSeconds);
   return png;
 }

@@ -4,6 +4,7 @@
  */
 import type { Bbox } from './geometry';
 import { readJsonWithLimit, RESPONSE_LIMITS } from '../../utils/responseLimits';
+import { recordSourceAccess } from '../sourceAccess';
 
 export const STAC_API_URL = 'https://earth-search.aws.element84.com/v1';
 export const S2_COLLECTION = 'sentinel-2-c1-l2a';
@@ -144,15 +145,25 @@ export interface StacClient {
 export function createStacClient(fetchJsonImpl: FetchJson = fetchJson, apiUrl = STAC_API_URL): StacClient {
   return {
     async search(p) {
-      const body = await fetchJsonImpl(`${apiUrl}/search`, { method: 'POST', body: searchBody(p) });
-      if (!body || !Array.isArray(body.features)) throw new Error('STAC search: no features array');
+      const body = await fetchJsonImpl(`${apiUrl}/search`, { method: 'POST', body: searchBody(p) })
+        .catch(err => { void recordSourceAccess('sentinel2', 'failed', err); throw err; });
+      if (!body || !Array.isArray(body.features)) {
+        void recordSourceAccess('sentinel2', 'failed', 'STAC search: no features array');
+        throw new Error('STAC search: no features array');
+      }
+      void recordSourceAccess('sentinel2', 'ok');
       return body.features.map(slimItem).filter((s: S2Scene | null): s is S2Scene => s !== null);
     },
     async getItem(id) {
       try {
-        return slimItem(await fetchJsonImpl(`${apiUrl}/collections/${S2_COLLECTION}/items/${encodeURIComponent(id)}`));
+        const raw = await fetchJsonImpl(`${apiUrl}/collections/${S2_COLLECTION}/items/${encodeURIComponent(id)}`);
+        void recordSourceAccess('sentinel2', 'ok');
+        return slimItem(raw);
       } catch (err) {
-        if (err instanceof HttpStatusError && err.status === 404) return null;
+        // A 404 is an answer: the catalogue is reachable, the scene just does not exist
+        const notFound = err instanceof HttpStatusError && err.status === 404;
+        void recordSourceAccess('sentinel2', notFound ? 'ok' : 'failed', notFound ? undefined : err);
+        if (notFound) return null;
         // The catalogue is down or slow: the bucket keeps a copy of every item next to its COGs
         const copy = bucketItemUrl(id);
         if (!copy) throw err;

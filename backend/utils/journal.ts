@@ -77,3 +77,74 @@ export async function recordRun(source: string, entry: JournalEntry): Promise<vo
     console.warn(`journal write ${source} failed:`, err.message);
   }
 }
+
+/**
+ * Access record for sources fetched on demand (GFW tiles, the Sentinel-2 catalogue): when a request
+ * of ours last reached the source and when it last failed. "We can still reach it", not how fresh
+ * the source's data is. Kept apart from the run list because 20 throttled failures would push the
+ * last success out of it long before an outage becomes worth reporting.
+ */
+export interface AccessSummary {
+  lastSuccessAt: string | null;
+  lastFailureAt: string | null;
+  /** First failure after the last success; null while the last recorded access succeeded. */
+  failingSince: string | null;
+  lastError?: string;
+}
+
+export const EMPTY_ACCESS: AccessSummary = { lastSuccessAt: null, lastFailureAt: null, failingSince: null };
+
+/** Folds one access outcome into the summary. Pure. */
+export function applyAccess(
+  summary: AccessSummary,
+  ok: boolean,
+  at: Date,
+  error?: string,
+): AccessSummary {
+  const iso = at.toISOString();
+  if (ok) return { lastSuccessAt: iso, lastFailureAt: summary.lastFailureAt, failingSince: null };
+  return {
+    lastSuccessAt: summary.lastSuccessAt,
+    lastFailureAt: iso,
+    failingSince: summary.failingSince ?? iso,
+    ...(error ? { lastError: error.slice(0, 300) } : {}),
+  };
+}
+
+const accessKey = (source: string) => `access:${source}`;
+
+export async function readAccess(source: string): Promise<AccessSummary | null> {
+  const client = getRedis();
+  if (!client) return null;
+  try {
+    const raw = await client.get(accessKey(source));
+    return raw ? (JSON.parse(raw) as AccessSummary) : null;
+  } catch (err: any) {
+    console.warn(`access read ${source} failed:`, err.message);
+    return null;
+  }
+}
+
+/**
+ * Records one access outcome: the summary under `access:<source>` and a run in `journal:<source>`
+ * ('updated' = reached the source, 'failed' = did not). No-op without Redis; never throws.
+ * Throttling is the caller's job (services/sourceAccess.ts).
+ */
+export async function recordAccess(source: string, ok: boolean, at: Date = new Date(), error?: string): Promise<void> {
+  const client = getRedis();
+  if (!client) return;
+  try {
+    const current = (await readAccess(source)) ?? EMPTY_ACCESS;
+    await client.set(accessKey(source), JSON.stringify(applyAccess(current, ok, at, error)));
+  } catch (err: any) {
+    console.warn(`access write ${source} failed:`, err.message);
+  }
+  const iso = at.toISOString();
+  await recordRun(source, {
+    startedAt: iso,
+    finishedAt: iso,
+    durationMs: 0,
+    outcome: ok ? 'updated' : 'failed',
+    ...(!ok && error ? { error: error.slice(0, 300) } : {}),
+  });
+}

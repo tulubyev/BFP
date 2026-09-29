@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import { makeCollapsible } from './collapsiblePanel';
-import { formatFreshnessLabel, monitoredSources, STATE_COLOR, type SourceStatusEntry, type SourcesStatusResponse } from './sourcesStatus';
+import { monitoredSources, sourceRowLabel, STATE_COLOR, stateText, type SourceStatusEntry, type SourcesStatusResponse } from './sourcesStatus';
 
 function sourceRow(entry: SourceStatusEntry): HTMLElement {
   const row = document.createElement('div');
@@ -10,8 +10,11 @@ function sourceRow(entry: SourceStatusEntry): HTMLElement {
   dot.style.cssText = `width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:${STATE_COLOR[entry.state]}`;
 
   const label = document.createElement('span');
-  label.textContent = `${entry.name} — ${formatFreshnessLabel(entry)}`;
+  label.textContent = `${entry.name} — ${sourceRowLabel(entry)}`;
 
+  row.title = entry.access?.lastError && entry.state !== 'fresh'
+    ? `${stateText(entry)}: ${entry.access.lastError}`
+    : stateText(entry);
   row.append(dot, label);
   return row;
 }
